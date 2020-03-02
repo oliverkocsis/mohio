@@ -1,1 +1,29 @@
-<p>product-backlog-item-form works!</p>
+<form [formGroup]="formGroup" (ngSubmit)="onSubmit()">
+    <div>
+        <label>
+            Description:
+            <input type="text" formControlName="description">
+        </label>
+    </div>
+    <div>
+        <label>
+            Order:
+            <input type="number" formControlName="order">
+        </label>
+    </div>
+    <div>
+        <label>
+            Estimate:
+            <input type="number" formControlName="estimate">
+        </label>
+    </div>
+    <div>
+        <label>
+            Value:
+            <input type="number" formControlName="value">
+        </label>
+    </div>
+    <div>
+        <input type="submit">
+    </div>
+</form>

@@ -1,4 +1,7 @@
 import { Component, OnInit } from '@angular/core';
+import { FormGroup, FormControl } from '@angular/forms';
+import { ProductBacklogItemService } from '../product-backlog-item.service';
+import { ProductBacklogItem } from '../product-backlog-item';
 
 @Component({
   selector: 'app-product-backlog-item-form',
@@ -7,9 +10,24 @@ import { Component, OnInit } from '@angular/core';
 })
 export class ProductBacklogItemFormComponent implements OnInit {
 
-  constructor() { }
+  formGroup = new FormGroup({
+    description: new FormControl(''),
+    order: new FormControl(''),
+    estimate: new FormControl(''),
+    value: new FormControl(''),
+  });
 
-  ngOnInit() {
+  constructor(private productBacklogItemService: ProductBacklogItemService) { }
+
+  ngOnInit() { }
+
+  onSubmit() {
+    const productBacklogItem = this.formGroup.value;
+    console.debug(JSON.stringify(productBacklogItem));
+    this.productBacklogItemService.create(productBacklogItem as ProductBacklogItem).subscribe((id) => {
+      console.info(`Product backlog item created (${id})`);
+    });
+    this.formGroup.setValue(ProductBacklogItem.empty());
   }
 
 }

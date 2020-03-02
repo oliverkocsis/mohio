@@ -1,16 +1,26 @@
 import { TestBed, async } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
+import { ReactiveFormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
+import { ProductBacklogItemFormComponent } from './product-backlog-item-form/product-backlog-item-form.component';
+import { ProductBacklogItemListComponent } from './product-backlog-item-list/product-backlog-item-list.component';
+import { ProductBacklogItemService } from './product-backlog-item.service';
+
 
 describe('AppComponent', () => {
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [
-        RouterTestingModule
+        RouterTestingModule,
+        ReactiveFormsModule,
       ],
       declarations: [
-        AppComponent
+        AppComponent,
+        ProductBacklogItemFormComponent,
+        ProductBacklogItemListComponent,
       ],
+      providers: [{ provide: ProductBacklogItemService, useValue: {} }],
     }).compileComponents();
   }));
 
@@ -18,18 +28,5 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.debugElement.componentInstance;
     expect(app).toBeTruthy();
-  });
-
-  it(`should have as title 'mohio'`, () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.debugElement.componentInstance;
-    expect(app.title).toEqual('mohio');
-  });
-
-  it('should render title', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const compiled = fixture.debugElement.nativeElement;
-    expect(compiled.querySelector('.content span').textContent).toContain('mohio app is running!');
   });
 });
