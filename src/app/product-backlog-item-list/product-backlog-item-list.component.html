@@ -1,0 +1,14 @@
+<table>
+    <tr>
+        <th>Description</th>
+        <th>Order</th>
+        <th>Estimate</th>
+        <th>Value</th>
+    </tr>
+    <tr *ngFor="let productBacklogItem of productBacklogItemList">
+        <td>{{ productBacklogItem.description }}</td>
+        <td>{{ productBacklogItem.order }}</td>
+        <td>{{ productBacklogItem.estimate }}</td>
+        <td>{{ productBacklogItem.value }}</td>
+    </tr>
+</table>
