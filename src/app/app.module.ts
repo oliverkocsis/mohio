@@ -1,12 +1,16 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { ProductBacklogItemFormComponent } from './product-backlog-item-form/product-backlog-item-form.component';
 import { ProductBacklogItemListComponent } from './product-backlog-item-list/product-backlog-item-list.component';
 import { ProductBacklogItemService } from './product-backlog-item.service';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 @NgModule({
   declarations: [
@@ -18,6 +22,10 @@ import { ProductBacklogItemService } from './product-backlog-item.service';
     BrowserModule,
     AppRoutingModule,
     ReactiveFormsModule,
+    BrowserAnimationsModule,
+    MatInputModule,
+    MatButtonModule,
+    MatTableModule,
   ],
   providers: [ProductBacklogItemService],
   bootstrap: [AppComponent]

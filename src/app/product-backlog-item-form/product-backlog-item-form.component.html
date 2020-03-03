@@ -1,29 +1,25 @@
+<h1>Product Backlog Item Form</h1>
 <form [formGroup]="formGroup" (ngSubmit)="onSubmit()">
-    <div>
-        <label>
-            Description:
-            <input type="text" formControlName="description">
-        </label>
+    <div style="grid-template-columns: 1fr;">
+        <mat-form-field>
+            <mat-label>Description</mat-label>
+            <textarea matInput formControlName="description"></textarea>
+        </mat-form-field>
     </div>
-    <div>
-        <label>
-            Order:
-            <input type="number" formControlName="order">
-        </label>
+    <div style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+        <mat-form-field>
+            <mat-label>Order</mat-label>
+            <input matInput type="number" formControlName="order">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Estimate</mat-label>
+            <input matInput type="number" formControlName="estimate">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Value</mat-label>
+            <input matInput type="number" formControlName="value">
+        </mat-form-field>
+        <button mat-button color="primary" type="submit">Save</button>
     </div>
-    <div>
-        <label>
-            Estimate:
-            <input type="number" formControlName="estimate">
-        </label>
-    </div>
-    <div>
-        <label>
-            Value:
-            <input type="number" formControlName="value">
-        </label>
-    </div>
-    <div>
-        <input type="submit">
-    </div>
+    
 </form>
