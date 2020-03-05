@@ -5,8 +5,6 @@ import { MatTableModule } from '@angular/material/table';
 import { ProductBacklogItemListComponent } from './product-backlog-item-list.component';
 import { ProductBacklogItemService } from '../product-backlog-item.service';
 import { ProductBacklogItem } from '../product-backlog-item';
-
-
 describe('ProductBacklogItemListComponent', () => {
   let component: ProductBacklogItemListComponent;
   let fixture: ComponentFixture<ProductBacklogItemListComponent>;
@@ -36,5 +34,5 @@ describe('ProductBacklogItemListComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
-
+  
 });

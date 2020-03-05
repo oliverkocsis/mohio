@@ -1,16 +1,15 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { DebugElement } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { ReactiveFormsModule } from '@angular/forms';
 import { of } from 'rxjs';
-
+import { ReactiveFormsModule } from '@angular/forms';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ProductBacklogItemFormComponent } from './product-backlog-item-form.component';
 import { ProductBacklogItemService } from '../product-backlog-item.service';
 import { ProductBacklogItem } from '../product-backlog-item';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('ProductBacklogItemFormComponent', () => {
   let component: ProductBacklogItemFormComponent;
