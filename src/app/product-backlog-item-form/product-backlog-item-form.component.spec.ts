@@ -1,12 +1,15 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { DebugElement } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { ReactiveFormsModule } from '@angular/forms';
 import { of } from 'rxjs';
-
+import { ReactiveFormsModule } from '@angular/forms';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ProductBacklogItemFormComponent } from './product-backlog-item-form.component';
 import { ProductBacklogItemService } from '../product-backlog-item.service';
 import { ProductBacklogItem } from '../product-backlog-item';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
 
 describe('ProductBacklogItemFormComponent', () => {
   let component: ProductBacklogItemFormComponent;
@@ -19,7 +22,12 @@ describe('ProductBacklogItemFormComponent', () => {
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      imports: [ReactiveFormsModule],
+      imports: [
+        ReactiveFormsModule,
+        BrowserAnimationsModule,
+        MatInputModule,
+        MatButtonModule,
+      ],
       declarations: [ProductBacklogItemFormComponent],
       providers: [{ provide: ProductBacklogItemService, useValue: productBacklogItemServiceStub }]
     });
@@ -41,7 +49,7 @@ describe('ProductBacklogItemFormComponent', () => {
 
   it('should have the input fields of a description, order, estimate, and value', () => {
     const debug: DebugElement = fixture.debugElement;
-    const description = debug.query(By.css('input[formControlName="description"]'));
+    const description = debug.query(By.css('textarea[formControlName="description"]'));
     const order = debug.query(By.css('input[formControlName="order"]'));
     const estimate = debug.query(By.css('input[formControlName="estimate"]'));
     const value = debug.query(By.css('input[formControlName="value"]'));

@@ -5,7 +5,10 @@ import { AppComponent } from './app.component';
 import { ProductBacklogItemFormComponent } from './product-backlog-item-form/product-backlog-item-form.component';
 import { ProductBacklogItemListComponent } from './product-backlog-item-list/product-backlog-item-list.component';
 import { ProductBacklogItemService } from './product-backlog-item.service';
-
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('AppComponent', () => {
 
@@ -14,6 +17,10 @@ describe('AppComponent', () => {
       imports: [
         RouterTestingModule,
         ReactiveFormsModule,
+        BrowserAnimationsModule,
+        MatInputModule,
+        MatButtonModule,
+        MatTableModule,
       ],
       declarations: [
         AppComponent,
