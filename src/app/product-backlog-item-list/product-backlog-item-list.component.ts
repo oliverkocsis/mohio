@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, AfterContentChecked } from '@angular/core';
 import { ProductBacklogItem } from '../product-backlog-item';
 import { ProductBacklogItemService } from '../product-backlog-item.service';
 import { MatTable } from '@angular/material/table';
@@ -8,8 +8,7 @@ import { MatTable } from '@angular/material/table';
   templateUrl: './product-backlog-item-list.component.html',
   styleUrls: ['./product-backlog-item-list.component.scss']
 })
-export class ProductBacklogItemListComponent implements OnInit {
-
+export class ProductBacklogItemListComponent implements OnInit, AfterContentChecked {
   public displayedColumns = ['description', 'order', 'estimate', 'value'];
   public productBacklogItemList: ProductBacklogItem[] = [];
   @ViewChild(MatTable, { static: false }) matTable: MatTable<any>;
@@ -19,8 +18,11 @@ export class ProductBacklogItemListComponent implements OnInit {
   ngOnInit() {
     this.productBacklogItemService.list().subscribe((productBacklogItem: ProductBacklogItem) => {
       this.productBacklogItemList.push(productBacklogItem);
-      this.matTable.renderRows();
     });
+  }
+
+  ngAfterContentChecked() {
+    if (this.matTable) this.matTable.renderRows();
   }
 
 }
