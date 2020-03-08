@@ -1,0 +1,18 @@
+<h1>DSL Compiler Collection (DCC)</h1>
+<form [formGroup]="formGroup" (ngSubmit)="onSubmit()">
+    <mat-form-field>
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name">
+    </mat-form-field>
+    <button mat-button type="submit">Click me!</button>
+</form>
+<mat-card *ngFor="let file of files">
+    <mat-card-header>
+        <mat-card-title>{{ file.getName() }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+        <pre>
+{{ file.getValue().toString() }}
+        </pre>
+    </mat-card-content>
+</mat-card>
