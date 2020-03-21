@@ -1,28 +1,29 @@
 import { Component, OnInit } from '@angular/core';
-import { FormGroup, FormControl } from '@angular/forms';
-import { AbstractSyntaxGraph, Entity, Backend, File } from 'dsl-compiler-collection';
+import { FormGroup, FormControl, FormBuilder } from '@angular/forms';
+import { AbstractSyntaxGraph, DataNode, Backend, File, PropertyNode } from 'dsl-compiler-collection';
 
 @Component({
   selector: 'app-dslcompiler-collection',
   templateUrl: './dslcompiler-collection.component.html',
   styleUrls: ['./dslcompiler-collection.component.scss']
 })
-export class DSLCompilerCollectionComponent implements OnInit {
+export class DSLCompilerCollectionComponent {
 
   public files: File[];
 
-  public formGroup = new FormGroup({
-    name: new FormControl(''),
+  public formGroup = this.fb.group({
+    name: null,
+    property: null,
   });
 
-  constructor() { }
-
-  ngOnInit() { }
+  constructor(private fb: FormBuilder) { }
 
   onSubmit() {
     console.info(this.formGroup.value)
     const abstractSyntaxGraph = new AbstractSyntaxGraph();
-    abstractSyntaxGraph.appendChild(new Entity(this.formGroup.value.name));
+    const dataNode = new DataNode(this.formGroup.value.name);
+    dataNode.appendChildNode(new PropertyNode(this.formGroup.value.property, PropertyNode.TYPE_TEXT));
+    abstractSyntaxGraph.appendChildNode(dataNode);
     const backend = new Backend();
     const project = backend.generate(abstractSyntaxGraph);
     this.files = project.getChildNodes().map(x => x as File);

@@ -1,6 +1,11 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { DSLCompilerCollectionComponent } from './dslcompiler-collection.component';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('DSLCompilerCollectionComponent', () => {
   let component: DSLCompilerCollectionComponent;
@@ -8,9 +13,16 @@ describe('DSLCompilerCollectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ DSLCompilerCollectionComponent ]
+      declarations: [DSLCompilerCollectionComponent],
+      imports: [
+        ReactiveFormsModule,
+        BrowserAnimationsModule,
+        MatInputModule,
+        MatButtonModule,
+        MatCardModule,
+      ],
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

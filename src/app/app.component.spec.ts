@@ -9,6 +9,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { MatCardModule } from '@angular/material/card';
+import { DSLCompilerCollectionComponent } from './dslcompiler-collection/dslcompiler-collection.component';
 
 describe('AppComponent', () => {
 
@@ -20,10 +22,12 @@ describe('AppComponent', () => {
         BrowserAnimationsModule,
         MatInputModule,
         MatButtonModule,
+        MatCardModule,
         MatTableModule,
       ],
       declarations: [
         AppComponent,
+        DSLCompilerCollectionComponent,
         ProductBacklogItemFormComponent,
         ProductBacklogItemListComponent,
       ],
