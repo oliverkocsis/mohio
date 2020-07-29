@@ -1,10 +1,11 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import TreeElement from './TreeElement';
 
 function App() {
+  const title = 'The Raven';
+  const children = ['Once upon a midnight dreary', 'while I pondered', 'weak and weary', 'Over many a quaint and curious volume of forgotten lore'];
   return (
-    <h1>Hello Mohio</h1>
+    <div><TreeElement title={title} children={children} /></div>
   );
 }
 
