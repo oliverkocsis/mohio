@@ -1,7 +1,10 @@
 import React from 'react';
 
 function TreeElement(props) {
-  const children = props.children.map((child, index) => <li key={index}>{child}</li>);
+  let children = null;
+  if (props.children && props.children.length > 0) {
+    children = props.children.map((child, index) => <li key={index}>{child}</li>);
+  }
   return (
     <div>
       {props.title}
