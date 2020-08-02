@@ -1,0 +1,16 @@
+.App {
+  display: grid;
+  grid-template-columns: 16rem auto;
+  grid-template-rows: 4rem auto;
+  grid-gap: 0rem;
+}
+
+.App>header {
+  grid-column: 1 / span 2;
+}
+
+.App>* {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}

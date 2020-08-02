@@ -1,0 +1,13 @@
+body {
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  color: #555555;
+  line-height: 1.5;
+  margin: 0rem;
+  padding: 0rem;
+}
+
+h1,
+h2,
+strong {
+  color: #333;
+}

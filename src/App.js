@@ -1,11 +1,22 @@
 import React from 'react';
-import TreeElement from './TreeElement';
+import './App.css'
+import NavigationBar from './NavigationBar';
+import MohioNavigationTree from './MohioNavigationTree';
+import MohioView from './MohioView';
 
 function App() {
-  const title = 'The Raven';
-  const children = ['Once upon a midnight dreary', 'while I pondered', 'weak and weary', 'Over many a quaint and curious volume of forgotten lore'];
   return (
-    <div><TreeElement title={title} children={children} /></div>
+    <div className="App">
+      <header>
+        <NavigationBar></NavigationBar>
+      </header>
+      <nav>
+        <MohioNavigationTree></MohioNavigationTree>
+      </nav>
+      <article>
+        <MohioView></MohioView>
+      </article>
+    </div>
   );
 }
 
