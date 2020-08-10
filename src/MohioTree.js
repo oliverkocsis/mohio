@@ -9,7 +9,7 @@ import Collapse from '@material-ui/core/Collapse';
 import ExpandLess from '@material-ui/icons/ExpandLess';
 import ExpandMore from '@material-ui/icons/ExpandMore';
 
-const drawerWidth = '15rem';
+const drawerWidth = '20rem';
 
 const useStyles = makeStyles((theme) => ({
   drawer: {
@@ -27,7 +27,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function MohioTree() {
+function MohioTree(props) {
   const classes = useStyles();
   const [open, setOpen] = React.useState(false);
   const handleClick = () => {
@@ -37,7 +37,7 @@ function MohioTree() {
     <Drawer className={classes.drawer} variant="permanent" classes={{ paper: classes.drawerPaper, }}>
       <Toolbar />
       <div className={classes.drawerContainer}>
-        <List component="nav">
+        <List component="nav" dense="true">
           <ListItem button>
             <ListItemText primary="About" />
           </ListItem>
