@@ -6,7 +6,7 @@ import ListItemText from '@material-ui/core/ListItemText';
 import Collapse from '@material-ui/core/Collapse';
 import ExpandLess from '@material-ui/icons/ExpandLess';
 import ExpandMore from '@material-ui/icons/ExpandMore';
-import MohioTreeElementFlat from './MohioTreeElementFlat';
+import MohioTreeElement from './MohioTreeElement';
 
 export const testId = 'MohioTreeElementMultiLevel';
 
@@ -22,7 +22,7 @@ function MohioTreeElementMultiLevel(props) {
   const handleClick = () => {
     setOpen(!open);
   };
-  const children = props.children.map((child) => <MohioTreeElementFlat name={child.name} key={child.name} />);
+  const children = props.children.map((child) => <MohioTreeElement name={child.name} children={child.children} key={child.name} />);
   return (
     <List disablePadding dense={true} data-testid={testId}>
       <ListItem button onClick={handleClick}>
