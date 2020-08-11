@@ -15,8 +15,8 @@ function List(props) {
       <li>
         adipiscing elit
         <ul>
-          <li>Morbi ut</li>
-          <li>venenatis ligula</li>
+          <li data-testid="custom-element">Morbi ut</li>
+          <li data-testid="custom-element">venenatis ligula</li>
         </ul>
       </li>
     </ul>
@@ -38,6 +38,12 @@ describe('Testing Library', () => {
     const element = screen.getByText('lorem ipsum', { exact: false });
     const child = getByText(element, 'dolor sit', { exact: false });
     expect(element).toBeInTheDocument();
+  });
+
+
+  test('queries all matching node by data-testid attribute', () => {
+    const elements = screen.getAllByTestId('custom-element');
+    expect(elements[0]).toHaveTextContent('Morbi ut');
   });
 
 });

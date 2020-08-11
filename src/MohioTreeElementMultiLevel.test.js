@@ -1,69 +1,52 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import MohioTreeElement from './MohioTreeElement';
+import { getByText } from '@testing-library/dom';
+import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
+import { testId as MohioTreeElementMultiLevelTestId } from './MohioTreeElementMultiLevel';
 
-xdescribe('A Mohio Tree Element Multi Level shall', () => {
+const name = 'MohioTreeElementMultiLevel';
+const children = [
+  { name: 'MohioTreeElementMultiLevelChild1' },
+  { name: 'MohioTreeElementMultiLevelChild2' },
+];
 
-  const title = 'Tree Element';
-  const children = ['Title', 'Children'];
-
-  beforeEach(() => {
-    render(<MohioTreeElement title={title} children={children} />);
-  });
-
-  test('display the title', () => {
-    const titleElement = screen.getByText(title, { exact: false });
-    expect(titleElement).toBeInTheDocument();
-  });
-
-  test('display the children', () => {
-    for (let child of children) {
-      const childElement = screen.getByText(child, { exact: false });
-      expect(childElement).toBeInTheDocument();
-    }
-  });
+beforeEach(() => {
+  render(<MohioTreeElementMultiLevel name={name} children={children} />);
 });
 
-xdescribe('A multi level Tree Element shall', () => {
+test('displays the name', () => {
+  const element = screen.getByText(name);
+  expect(element).toBeInTheDocument();
+});
 
-  const title = 'Tree Element';
-  const children = [
-    'About',
-    { title: 'Components', children: ['Title', 'Children'] },
-    {
-      title: 'Behavior', children: [
-        { title: 'Flat', children: ['display the title'] },
-        { title: 'Multi Level', children: ['display the title', 'display the children', 'display the children of children'] }]
-    }];
+test('displays the name and the children within the same list', () => {
+  const listElement = screen.getByTestId(MohioTreeElementMultiLevelTestId);
+  const element = screen.getByText(name);
+  expect(element).toBeInTheDocument();
+  for (let child of children) {
+    const childElement = getByText(listElement, child.name);
+    expect(childElement).toBeInTheDocument();
+  }
+});
 
-  beforeEach(() => {
-    render(<MohioTreeElement title={title} children={children} />);
-  });
 
-  test('display the title', () => {
-    const titleElement = screen.getByText(title, { exact: false });
-    expect(titleElement).toBeInTheDocument();
-  });
-
-  test('display the children and the children of children', () => {
-    const testChild = (parent, child) => {
-      if (typeof child === 'string') {
-        const childElement = screen.getByText(child, { exact: false });
-        expect(childElement).toBeInTheDocument();
-        expect(parent).toContainElement(childElement);
-      } else {
-        for (let childChild of child.children) {
-          const titleElement = screen.getByText(childChild.title, { exact: false });
-          expect(titleElement).toBeInTheDocument();
-          testChild(titleElement, childChild);
-        }
+xtest('displays the children and the children of children', () => {
+  const testChild = (parent, child) => {
+    if (typeof child === 'string') {
+      const childElement = screen.getByText(child);
+      expect(childElement).toBeInTheDocument();
+      expect(parent).toContainElement(childElement);
+    } else {
+      for (let childChild of child.children) {
+        const titleElement = screen.getByText(childChild.title);
+        expect(titleElement).toBeInTheDocument();
+        testChild(titleElement, childChild);
       }
     }
-    for (let child of children) {
-      const titleElement = screen.getAllByText(title, { exact: false });
-      expect(titleElement).toBeInTheDocument();
-      testChild(titleElement, child);
-    }
-  });
-
+  }
+  for (let child of children) {
+    const titleElement = screen.getAllByText(title);
+    expect(titleElement).toBeInTheDocument();
+    testChild(titleElement, child);
+  }
 });

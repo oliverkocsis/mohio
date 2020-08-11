@@ -44,16 +44,18 @@ function MohioTree(props) {
           <ListItem button>
             <ListItemText primary="Domain" />
           </ListItem>
-          <ListItem button onClick={handleClick}>
-            <ListItemText primary="Process" />{open ? <ExpandLess /> : <ExpandMore />}
-          </ListItem>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              <ListItem button className={classes.nested}>
-                <ListItemText primary="Create a Mohio" />
-              </ListItem>
-            </List>
-          </Collapse>
+          <List disablePadding dense="true">
+            <ListItem button onClick={handleClick}>
+              <ListItemText primary="Process" />{open ? <ExpandLess /> : <ExpandMore />}
+            </ListItem>
+            <Collapse in={open} timeout="auto" unmountOnExit>
+              <List disablePadding dense="true">
+                <ListItem button className={classes.nested}>
+                  <ListItemText primary="Create a Mohio" />
+                </ListItem>
+              </List>
+            </Collapse>
+          </List>
         </List>
       </div>
     </Drawer>
