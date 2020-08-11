@@ -22,14 +22,14 @@ function MohioTreeElementMultiLevel(props) {
   const handleClick = () => {
     setOpen(!open);
   };
-  const children = props.children.map((child) => <MohioTreeElementFlat name={child.name} />);
+  const children = props.children.map((child) => <MohioTreeElementFlat name={child.name} key={child.name} />);
   return (
-    <List disablePadding dense="true" data-testid={testId}>
+    <List disablePadding dense={true} data-testid={testId}>
       <ListItem button onClick={handleClick}>
         <ListItemText primary={props.name} />{open ? <ExpandLess /> : <ExpandMore />}
       </ListItem>
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <List disablePadding>
+        <List disablePadding dense={true}>
           {children}
         </List>
       </Collapse>
