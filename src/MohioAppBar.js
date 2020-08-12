@@ -7,15 +7,20 @@ import Typography from '@material-ui/core/Typography';
 const useStyles = makeStyles((theme) => ({
   appBar: {
     zIndex: theme.zIndex.drawer + 1,
+    boxShadow: "0px 0px",
+    borderBottom: "1px solid rgba(0, 0, 0, 0.12);"
   },
+  toolBar: {
+    paddingLeft: theme.spacing(2),
+  }
 }));
 
 function MohioAppBar(props) {
   const classes = useStyles();
   return (
-    <AppBar position="fixed" className={classes.appBar}>
-      <Toolbar>
-        <Typography variant="h6" noWrap>
+    <AppBar position="fixed" className={classes.appBar} color="inherit">
+      <Toolbar className={classes.toolBar}>
+        <Typography variant="h5" noWrap>
           Mohio
         </Typography>
       </Toolbar>

@@ -8,13 +8,13 @@ import Button from '@material-ui/core/Button';
 const useStyles = makeStyles((theme) => ({
   content: {
     flexGrow: 1,
-    padding: theme.spacing(3),
+    padding: theme.spacing(2),
   },
   button: {
     marginRight: theme.spacing(1),
   },
   title: {
-    marginBottom: theme.spacing(3),
+    marginBottom: theme.spacing(2),
   }
 }));
 

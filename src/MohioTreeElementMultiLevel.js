@@ -12,7 +12,7 @@ export const testId = 'MohioTreeElementMultiLevel';
 
 const useStyles = makeStyles((theme) => ({
   nested: {
-    paddingLeft: theme.spacing(4),
+    paddingLeft: theme.spacing(2),
   },
 }));
 
@@ -29,7 +29,7 @@ function MohioTreeElementMultiLevel(props) {
         <ListItemText primary={props.name} />{open ? <ExpandLess /> : <ExpandMore />}
       </ListItem>
       <Collapse in={open} timeout="auto" unmountOnExit>
-        <List disablePadding dense={true}>
+        <List disablePadding dense={true} className={classes.nested}>
           {children}
         </List>
       </Collapse>
