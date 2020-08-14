@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme) => ({
 
 function MohioTreeElementMultiLevel(props) {
   const classes = useStyles();
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
   const handleClick = () => {
     setOpen(!open);
   };

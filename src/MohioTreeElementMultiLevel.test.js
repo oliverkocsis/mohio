@@ -1,16 +1,18 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { getByText, getByTestId } from '@testing-library/dom';
+import { getByText, getByTestId, fireEvent } from '@testing-library/dom';
 import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
 import { testId as MohioTreeElementMultiLevelTestId } from './MohioTreeElementMultiLevel';
 
 const name = 'MohioTreeElementMultiLevel';
+const childName = 'Child-1'
+const childOfChildrenName = 'Child-1-1';
 const childrenOfChildren = [
-  { name: 'Child-1-1' },
+  { name: childOfChildrenName },
   { name: 'Child-1-2' },
 ];
 const children = [
-  { name: 'Child-1', children: childrenOfChildren },
+  { name: childName, children: childrenOfChildren },
   { name: 'Child-2' },
 ];
 
@@ -19,28 +21,52 @@ beforeEach(() => {
 });
 
 test('displays the name', () => {
-  const element = screen.getByText(name);
-  expect(element).toBeInTheDocument();
+  const parentElement = getParentElement();
+  expect(parentElement).toBeInTheDocument();
 });
 
-test('displays the name and the children within the same list', () => {
-  const listElements = screen.getAllByTestId(MohioTreeElementMultiLevelTestId);
-  const listElement = listElements[0];
-  const element = screen.getByText(name);
-  expect(element).toBeInTheDocument();
+test('does not display children by default', () => {
+  const allLevelChdilrenElements = screen.getByTestId(MohioTreeElementMultiLevelTestId);
+  expect(allLevelChdilrenElements).toBeInTheDocument();
+});
+
+test('displays the first level children after clicking on the parent element', () => {
+  clickOnParentElement();
   for (let child of children) {
-    const childElement = getByText(listElement, child.name);
+    const childElement = screen.getByText(child.name);
     expect(childElement).toBeInTheDocument();
   }
 });
 
-
-test('displays the children of children', () => {
-  const listElements = screen.getAllByTestId(MohioTreeElementMultiLevelTestId);
-  const listElementParent = listElements[0];
-  const listElementChild = getByTestId(listElementParent, MohioTreeElementMultiLevelTestId)
+test('displays the second level children after clicking on the parent element then the first level child-parent element', () => {
+  clickOnParentElement();
+  clickOnChildElement();
+  const secondLevelChdilrenElements = getSecondLevelChildrenElements();
   for (let child of childrenOfChildren) {
-    const childElement = getByText(listElementChild, child.name);
+    const childElement = getByText(secondLevelChdilrenElements, child.name);
     expect(childElement).toBeInTheDocument();
   }
 });
+
+function getParentElement() {
+  return screen.getByText(name);
+}
+
+function clickOnParentElement() {
+  const parentElement = getParentElement();
+  fireEvent.click(parentElement);
+}
+
+function getChildelement() {
+  return screen.getByText(childName);
+}
+
+function clickOnChildElement() {
+  const parentOfSecondLevelChildrenElements = getChildelement();
+  fireEvent.click(parentOfSecondLevelChildrenElements);
+}
+
+function getSecondLevelChildrenElements() {
+  const allMohioTreeElementMultiLevel = screen.getAllByTestId(MohioTreeElementMultiLevelTestId);
+  return allMohioTreeElementMultiLevel[1];
+}

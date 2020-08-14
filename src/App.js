@@ -16,7 +16,12 @@ const mohios = [
     name: 'Domain', value: loremIpsum, children: [
       { name: 'Bar', value: loremIpsum },
       { name: 'Tree', value: loremIpsum },
-      { name: 'View', value: loremIpsum },
+      {
+        name: 'View', value: loremIpsum, children: [
+          { name: 'Name', value: loremIpsum },
+          { name: 'Value', value: loremIpsum },
+        ]
+      },
     ]
   },
   {
