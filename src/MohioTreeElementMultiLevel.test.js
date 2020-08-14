@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { getByText, getByTestId, fireEvent } from '@testing-library/dom';
+import { getByText, fireEvent } from '@testing-library/dom';
 import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
 import { testId as MohioTreeElementMultiLevelTestId } from './MohioTreeElementMultiLevel';
 
@@ -36,6 +36,10 @@ test('displays the first level children after clicking on the parent element', (
     const childElement = screen.getByText(child.name);
     expect(childElement).toBeInTheDocument();
   }
+  for (let child of childrenOfChildren) {
+    const childElement = screen.queryByText(child.name);
+    expect(childElement).toBeNull();
+  }
 });
 
 test('displays the second level children after clicking on the parent element then the first level child-parent element', () => {
@@ -46,6 +50,33 @@ test('displays the second level children after clicking on the parent element th
     const childElement = getByText(secondLevelChdilrenElements, child.name);
     expect(childElement).toBeInTheDocument();
   }
+  for (let child of children) {
+    const childElement = screen.getByText(child.name);
+    expect(childElement).toBeInTheDocument();
+  }
+});
+
+test('does not display the first level children after clicking on the parent element twice', (done) => {
+  clickOnParentElement();
+  clickOnParentElement();
+  // wait for animation ends on closing the list
+  setTimeout(() => {
+    try {
+      for (let child of children) {
+        const childElement = screen.queryByText(child.name);
+        expect(childElement).toBeNull();
+      }
+      for (let child of childrenOfChildren) {
+        const childElement = screen.queryByText(child.name);
+        expect(childElement).toBeNull();
+      }
+      done();
+    } catch (error) {
+      done(error);
+    }
+
+  }, 2500);
+
 });
 
 function getParentElement() {
