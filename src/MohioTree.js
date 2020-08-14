@@ -14,6 +14,7 @@ const useStyles = makeStyles((theme) => ({
   },
   drawerPaper: {
     width: drawerWidth,
+    boxShadow: theme.shadows[3],
   },
   drawerContainer: {
     overflow: 'auto',
@@ -22,7 +23,7 @@ const useStyles = makeStyles((theme) => ({
 
 function MohioTree(props) {
   const classes = useStyles();
-  const mohios = props.mohios.map((mohio) => <MohioTreeElement name={mohio.name} children={mohio.children} />);
+  const mohios = props.mohios.map((mohio) => <MohioTreeElement name={mohio.name} children={mohio.children} key={mohio.name} />);
   return (
     <Drawer className={classes.drawer} variant="permanent" classes={{ paper: classes.drawerPaper, }}>
       <Toolbar />

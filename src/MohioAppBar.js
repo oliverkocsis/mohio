@@ -7,7 +7,7 @@ import Typography from '@material-ui/core/Typography';
 const useStyles = makeStyles((theme) => ({
   appBar: {
     zIndex: theme.zIndex.drawer + 1,
-    boxShadow: "0px 0px",
+    boxShadow: theme.shadows[2],
     borderBottom: "1px solid rgba(0, 0, 0, 0.12);"
   },
   toolBar: {
