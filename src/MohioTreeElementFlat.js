@@ -5,7 +5,12 @@ import ListItemText from '@material-ui/core/ListItemText';
 export const testId = 'MohioTreeElementFlat';
 
 function MohioTreeElementFlat(props) {
-  return <ListItem button data-testid={testId}><ListItemText primary={props.name} /></ListItem>
+
+  const handleClick = () => {
+    props.onClick(props.name);
+  };
+
+  return <ListItem button data-testid={testId} onClick={handleClick}><ListItemText primary={props.name} /></ListItem>
 }
 
 export default MohioTreeElementFlat;

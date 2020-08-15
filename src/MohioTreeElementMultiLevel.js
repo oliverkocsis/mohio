@@ -21,8 +21,9 @@ function MohioTreeElementMultiLevel(props) {
   const [open, setOpen] = React.useState(false);
   const handleClick = () => {
     setOpen(!open);
+    props.onClick(props.name);
   };
-  const children = props.children.map((child) => <MohioTreeElement name={child.name} children={child.children} key={child.name} />);
+  const children = props.children.map((child) => <MohioTreeElement name={child.name} children={child.children} key={child.name} onClick={props.onClick} />);
   return (
     <List disablePadding dense={true} data-testid={testId}>
       <ListItem button onClick={handleClick}>

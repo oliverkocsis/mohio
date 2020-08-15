@@ -56,13 +56,39 @@ class App extends React.Component {
     };
     this.classes = props.classes;
   }
+
+  select(name) {
+    for (let mohio of this.state.mohios) {
+      const found = this.findMohio(mohio, name);
+      if (found) {
+        this.setState({ mohioSelected: found });
+        return;
+      }
+    }
+  }
+
+  findMohio(mohio, name) {
+    if (mohio.name === name) {
+      return mohio;
+    } else {
+      if (mohio.children) {
+        for (let child of mohio.children) {
+          const found = this.findMohio(child, name);
+          if (found) {
+            return found;
+          }
+        }
+      }
+    }
+  }
+
   render() {
     return (
       <div className={this.classes.root}>
         <CssBaseline />
         <ThemeProvider theme={theme}>
           <MohioAppBar></MohioAppBar>
-          <MohioTree mohios={this.state.mohios}></MohioTree>
+          <MohioTree mohios={this.state.mohios} onClick={this.select.bind(this)}></MohioTree>
           <MohioView mohio={this.state.mohioSelected}></MohioView>
         </ThemeProvider>
       </div >
