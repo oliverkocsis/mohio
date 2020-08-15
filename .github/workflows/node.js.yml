@@ -10,14 +10,13 @@ on:
     branches: [ master ]
 
 jobs:
+
   build:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [12.x]
-
+    
     steps:
     - uses: actions/checkout@v2
     - name: Use Node.js ${{ matrix.node-version }}
@@ -27,3 +26,22 @@ jobs:
     - run: npm install
     - run: npm run build
     - run: npm test
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build
+        path: build/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/download-artifact@master
+        with:
+          name: build
+          path: build/
+      - uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
