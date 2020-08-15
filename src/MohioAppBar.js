@@ -8,7 +8,6 @@ const useStyles = makeStyles((theme) => ({
   appBar: {
     zIndex: theme.zIndex.drawer + 1,
     boxShadow: theme.shadows[2],
-    borderBottom: "1px solid rgba(0, 0, 0, 0.12);"
   },
   toolBar: {
     paddingLeft: theme.spacing(2),

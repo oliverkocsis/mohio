@@ -15,6 +15,7 @@ const useStyles = makeStyles((theme) => ({
   drawerPaper: {
     width: drawerWidth,
     boxShadow: theme.shadows[3],
+    borderRight: 0,
   },
   drawerContainer: {
     overflow: 'auto',
