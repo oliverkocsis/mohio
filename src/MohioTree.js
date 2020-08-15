@@ -14,12 +14,16 @@ const useStyles = makeStyles((theme) => ({
   },
   drawerPaper: {
     width: drawerWidth,
-    boxShadow: theme.shadows[3],
+    boxShadow: theme.shadows[2],
     borderRight: 0,
   },
   drawerContainer: {
     overflow: 'auto',
+    paddingTop: theme.spacing(2),
   },
+  list: {
+    padding: 0,
+  }
 }));
 
 function MohioTree(props) {
@@ -29,7 +33,7 @@ function MohioTree(props) {
     <Drawer className={classes.drawer} variant="permanent" classes={{ paper: classes.drawerPaper, }}>
       <Toolbar />
       <div className={classes.drawerContainer}>
-        <List component="nav" dense={true}>
+        <List component="nav" dense={true} className={classes.list}>
           {mohios}
         </List>
       </div>

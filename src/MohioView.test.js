@@ -2,11 +2,16 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import MohioView from './MohioView';
 
+
 const name = 'definition';
 const definition = 'a statement that explains the meaning of a word or phrase';
+const mohio = {
+  name: name,
+  definition: definition,
+}
 
 beforeEach(() => {
-  render(<MohioView name={name} definition={definition} />);
+  render(<MohioView mohio={mohio} />);
 });
 
 test("displays the name", () => {
