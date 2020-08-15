@@ -5,9 +5,9 @@ import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
 function MohioTreeElement(props) {
   const children = props.children;
   if (children) {
-    return <MohioTreeElementMultiLevel name={props.name} children={children} onClick={props.onClick}/>
+    return <MohioTreeElementMultiLevel name={props.name} children={children} onClick={props.onClick} />
   } else {
-    return <MohioTreeElementFlat name={props.name} onClick={props.onClick} onClick={props.onClick}/>
+    return <MohioTreeElementFlat name={props.name} onClick={props.onClick} />
   }
 
 }
