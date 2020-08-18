@@ -1,9 +1,7 @@
 import React from 'react';
-import { render, screen, QueryBy } from '@testing-library/react';
+import { renderWithStore } from "./util/reduxUtil";
 import { getByText, fireEvent } from '@testing-library/dom';
 import App from './App';
-
-
 
 const defaultMohioName = 'About';
 const toSelectFirstLevelMohioName = 'Domain';
@@ -12,7 +10,7 @@ const toSelectSecondLevelOtherMohioName = 'Tree';
 let app;
 
 beforeEach(() => {
-  const { container } = render(<App />);
+  const { container } = renderWithStore(<App />);
   app = container;
   app.querySelector('nav');
 });
