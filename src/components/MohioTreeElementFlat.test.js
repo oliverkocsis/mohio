@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithStore } from '../util/reduxUtil';
+import { screen } from '@testing-library/react';
 import MohioTreeElementFlat from './MohioTreeElementFlat';
 
 describe('A Mohio Tree Element Flat shall', () => {
@@ -7,11 +8,11 @@ describe('A Mohio Tree Element Flat shall', () => {
   const name = 'Tree Element';
 
   beforeEach(() => {
-    render(<MohioTreeElementFlat name={name} />);
+    renderWithStore(<MohioTreeElementFlat name={name} />);
   });
 
   test('display the title', () => {
-    const element = screen.getByText(name, { exact: false });
+    const element = screen.getByText(name);
     expect(element).toBeInTheDocument();
   });
 

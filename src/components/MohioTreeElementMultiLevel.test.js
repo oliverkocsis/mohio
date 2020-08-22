@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithStore } from '../util/reduxUtil';
+import { screen } from '@testing-library/react';
 import { getByText, fireEvent } from '@testing-library/dom';
 import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
 import { testId as MohioTreeElementMultiLevelTestId } from './MohioTreeElementMultiLevel';
@@ -17,7 +18,7 @@ const children = [
 ];
 
 beforeEach(() => {
-  render(<MohioTreeElementMultiLevel name={name} children={children} onClick={() => { }} />);
+  renderWithStore(<MohioTreeElementMultiLevel name={name} children={children} onClick={() => { }} />);
 });
 
 test('displays the name', () => {
