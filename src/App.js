@@ -26,37 +26,12 @@ const useStyles = makeStyles((theme) => ({
 function App(props) {
   const classes = useStyles();
 
-  const findMohio = (mohio, name) => {
-    if (mohio.name === name) {
-      return mohio;
-    } else {
-      if (mohio.children) {
-        for (let child of mohio.children) {
-          const found = findMohio(child, name);
-          if (found) {
-            return found;
-          }
-        }
-      }
-    }
-  }
-
-  const select = (name) => {
-    for (let mohio of this.state.mohios) {
-      const found = findMohio(mohio, name);
-      if (found) {
-        this.setState({ mohioSelected: found });
-        return;
-      }
-    }
-  }
-
   return (
     <div className={classes.root}>
       <CssBaseline />
       <ThemeProvider theme={theme}>
         <MohioAppBar></MohioAppBar>
-        <MohioTree mohios={props.mohios} onClick={select.bind(this)}></MohioTree>
+        <MohioTree mohios={props.mohios}></MohioTree>
         <MohioView mohio={props.mohioSelected}></MohioView>
       </ThemeProvider>
     </div>

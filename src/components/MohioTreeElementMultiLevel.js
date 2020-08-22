@@ -1,4 +1,6 @@
 import React from 'react';
+import { connect } from 'react-redux';
+import { selectMohio } from '../store/actons';
 import { makeStyles } from '@material-ui/core/styles';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -23,7 +25,7 @@ function MohioTreeElementMultiLevel(props) {
     setOpen(!open);
     props.onClick(props.name);
   };
-  const children = props.children.map((child) => <MohioTreeElement name={child.name} children={child.children} key={child.name} onClick={props.onClick} />);
+  const children = props.children.map((child) => <MohioTreeElement name={child.name} children={child.children} key={child.name} />);
   return (
     <List disablePadding dense={true} data-testid={testId}>
       <ListItem button onClick={handleClick}>
@@ -38,4 +40,12 @@ function MohioTreeElementMultiLevel(props) {
   )
 }
 
-export default MohioTreeElementMultiLevel;
+const mapDispatchToProps = dispatch => {
+  return {
+    onClick: name => {
+      dispatch(selectMohio(name));
+    }
+  }
+}
+
+export default connect(null, mapDispatchToProps)(MohioTreeElementMultiLevel);

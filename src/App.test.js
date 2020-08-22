@@ -12,7 +12,6 @@ let app;
 beforeEach(() => {
   const { container } = renderWithStore(<App />);
   app = container;
-  app.querySelector('nav');
 });
 
 test('by default the about mohio is displayed (hard coded data)', () => {
