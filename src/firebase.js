@@ -27,3 +27,7 @@ export function firestore() {
   }
   return _firestore;
 } 
+
+export function deleteApp() {
+  firebase.app().delete();
+}

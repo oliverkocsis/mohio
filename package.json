@@ -20,7 +20,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "test-ci": "react-scripts test --watchAll=false --forceExit --detectOpenHandles",
+    "test-ci": "react-scripts test --watchAll=false --forceExit",
     "test-with-emulator-cmd": "firebase emulators:exec --only firestore ci.cmd",
     "test-with-emulator-sh": "firebase emulators:exec --only firestore ./ci.sh",
     "eject": "react-scripts eject"

@@ -1,4 +1,4 @@
-import { firestore } from '../firebase';
+import { firestore, deleteApp } from '../firebase';
 import * as axios from 'axios';
 
 let db;
@@ -12,14 +12,17 @@ beforeAll(() => {
   return axios.delete('http://localhost:8080/emulator/v1/projects/mohio-app/databases/(default)/documents');
 });
 
-test('Emulator firestore is empty by default', (done) => {
-  getCollection().then((querySnapshot) => {
+afterAll(() => {
+  return deleteApp();
+});
+
+test('Emulator firestore is empty by default', () => {
+  return getCollection().then((querySnapshot) => {
     expect(querySnapshot.empty).toBeTruthy();
-    done();
   });
 });
 
-test.skip('Add data', () => {
+test('Add data', () => {
   const data = {
     first: "Ada",
     last: "Lovelace",
@@ -30,7 +33,7 @@ test.skip('Add data', () => {
   });
 });
 
-test.skip('Read data', () => {
+test('Read data', () => {
   return getCollection().then((querySnapshot) => {
     expect(querySnapshot.size).toBe(1);
   });
