@@ -17,22 +17,19 @@ test('Emulator firestore is empty by default', () => {
 });
 
 test('Add data', () => {
-  return addToCollection({
+  const data = {
     first: "Ada",
     last: "Lovelace",
     born: 1815
-  }).then(function (docRef) {
-    console.log("Document written with ID: ", docRef.id);
-  }).catch(function (error) {
-    console.error("Error adding document: ", error);
+  };
+  return addToCollection(data).then(function (docRef) {
+    expect(docRef.id).toBeDefined();
   });
 });
 
 test('Read data', () => {
   return getCollection().then((querySnapshot) => {
-    querySnapshot.forEach((doc) => {
-      console.log(`${doc.id} => ${doc.data()}`);
-    });
+    expect(querySnapshot.size).toBe(1);
   });
 });
 
