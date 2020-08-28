@@ -18,7 +18,7 @@ test('Emulator firestore is empty by default', () => {
   });
 });
 
-test('Add data', () => {
+test.skip('Add data', () => {
   const data = {
     first: "Ada",
     last: "Lovelace",
@@ -29,7 +29,7 @@ test('Add data', () => {
   });
 });
 
-test('Read data', () => {
+test.skip('Read data', () => {
   return getCollection().then((querySnapshot) => {
     expect(querySnapshot.size).toBe(1);
   });
