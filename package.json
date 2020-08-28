@@ -19,6 +19,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test-with-emulator-cmd": "firebase emulators:exec --only firestore ci.cmd",
+    "test-with-emulator-sh":  "firebase emulators:exec --only firestore ci.sh",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -35,5 +37,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "firebase-tools": "^8.9.2"
   }
 }

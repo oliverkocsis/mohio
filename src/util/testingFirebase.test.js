@@ -4,11 +4,20 @@ let db;
 
 beforeEach(() => {
   db = firestore();
+  db.settings({
+    host: "localhost:8080",
+    ssl: false
+  });
 });
 
+test('Emulator firestore is empty by default', () => {
+  return getCollection().then((querySnapshot) => {
+    expect(querySnapshot.empty).toBeTruthy();
+  });
+});
 
 test('Add data', () => {
-  return db.collection("users").add({
+  return addToCollection({
     first: "Ada",
     last: "Lovelace",
     born: 1815
@@ -20,9 +29,22 @@ test('Add data', () => {
 });
 
 test('Read data', () => {
-  return db.collection("users").get().then((querySnapshot) => {
+  return getCollection().then((querySnapshot) => {
     querySnapshot.forEach((doc) => {
       console.log(`${doc.id} => ${doc.data()}`);
     });
   });
 });
+
+function collection() {
+  const collection = 'users';
+  return db.collection(collection);
+}
+
+function getCollection() {
+  return collection().get();
+}
+
+function addToCollection(data) {
+  return collection().add(data);
+}
