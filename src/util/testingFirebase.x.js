@@ -1,13 +1,15 @@
 import { firestore } from '../firebase';
+import * as axios from 'axios';
 
 let db;
 
-beforeEach(() => {
+beforeAll(() => {
   db = firestore();
   db.settings({
     host: "localhost:8080",
     ssl: false
   });
+  return axios.delete('http://localhost:8080/emulator/v1/projects/mohio-app/databases/(default)/documents');
 });
 
 test('Emulator firestore is empty by default', () => {

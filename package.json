@@ -8,6 +8,7 @@
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
+    "axios": "^0.20.0",
     "firebase": "^7.19.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
@@ -20,7 +21,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test-with-emulator-cmd": "firebase emulators:exec --only firestore ci.cmd",
-    "test-with-emulator-sh":  "firebase emulators:exec --only firestore ./ci.sh",
+    "test-with-emulator-sh": "firebase emulators:exec --only firestore ./ci.sh",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
