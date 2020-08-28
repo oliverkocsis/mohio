@@ -12,9 +12,10 @@ beforeAll(() => {
   return axios.delete('http://localhost:8080/emulator/v1/projects/mohio-app/databases/(default)/documents');
 });
 
-test('Emulator firestore is empty by default', () => {
-  return getCollection().then((querySnapshot) => {
+test('Emulator firestore is empty by default', (done) => {
+  getCollection().then((querySnapshot) => {
     expect(querySnapshot.empty).toBeTruthy();
+    done();
   });
 });
 
