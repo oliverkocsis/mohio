@@ -10,24 +10,12 @@ const firebaseConfig = {
   appId: "1:166444691109:web:0d283c2f1dc88778"
 };
 
+const app = firebase.initializeApp(firebaseConfig);
 
-let _initialized = false;
-function initialize() {
-  if (!_initialized) {
-    firebase.initializeApp(firebaseConfig);
-    _initialized = true;
-  }
+export function firestore() {
+  return firebase.firestore();
 }
 
-let _firestore;
-export function firestore() {
-  if (!_firestore) {
-    initialize();
-    _firestore = firebase.firestore();
-  }
-  return _firestore;
-} 
-
 export function deleteApp() {
-  firebase.app().delete();
+  app.delete();
 }

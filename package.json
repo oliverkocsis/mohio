@@ -14,13 +14,13 @@
     "react-dom": "^16.13.1",
     "react-redux": "^7.2.1",
     "react-scripts": "3.4.3",
-    "redux": "^4.0.5"
+    "redux": "^4.0.5",
+    "redux-thunk": "^2.3.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "test-ci": "react-scripts test --watchAll=false --forceExit",
     "test-with-emulator-cmd": "firebase emulators:exec --only firestore ci.cmd",
     "test-with-emulator-sh": "firebase emulators:exec --only firestore ./ci.sh",
     "eject": "react-scripts eject"

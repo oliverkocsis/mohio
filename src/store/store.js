@@ -1,6 +1,10 @@
-import { createStore } from 'redux'
-import reducers from './reducers'
+import { createStore, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+import reducers from './reducers';
+import { getMohios } from './actons';
 
-const store = createStore(reducers);
+const store = createStore(reducers, applyMiddleware(thunk));
+
+store.dispatch(getMohios());
 
 export default store;
