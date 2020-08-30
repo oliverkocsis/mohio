@@ -1,6 +1,6 @@
 import * as firebase from 'firebase';
 
-const firebaseConfig = {
+const firebaseConfigProduction = {
   apiKey: "AIzaSyBjkOuwSH1ZR2k7bFFHH9FSVAuE-mUlWEE",
   authDomain: "mohio-app.firebaseapp.com",
   databaseURL: "https://mohio-app.firebaseio.com",
@@ -10,12 +10,6 @@ const firebaseConfig = {
   appId: "1:166444691109:web:0d283c2f1dc88778"
 };
 
-const app = firebase.initializeApp(firebaseConfig);
+const app = firebase.initializeApp(firebaseConfigProduction);
 
-export function firestore() {
-  return firebase.firestore();
-}
-
-export function deleteApp() {
-  app.delete();
-}
+export default app;

@@ -3,6 +3,8 @@ import thunk from 'redux-thunk';
 import reducers from './reducers';
 import { getMohios } from './actons';
 
+
+
 const store = createStore(reducers, applyMiddleware(thunk));
 
 store.dispatch(getMohios());

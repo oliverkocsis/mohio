@@ -1,15 +1,13 @@
-import { firestore, deleteApp } from '../firebase';
+import { firestore, initializeTestApp, deleteApp } from '../database/firebase';
 import * as axios from 'axios';
 import store from './store';
+import { getMohios } from './actons';
 
 let db;
 
 beforeAll(() => {
+  initializeTestApp();
   db = firestore();
-  db.settings({
-    host: "localhost:8080",
-    ssl: false
-  });
   return axios.delete('http://localhost:8080/emulator/v1/projects/mohio-app/databases/(default)/documents');
 });
 

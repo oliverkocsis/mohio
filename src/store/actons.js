@@ -1,8 +1,18 @@
-import { firestore } from '../firebase';
+import { firestore } from '../database/firebase';
 
+
+export const INITIALIZE_TEST_APP = 'INITIALIZE_TEST_APP';
+export const INITIALIZE_DEVELOPMENT_APP = 'INITIALIZE_DEVELOPMENT_APP';
+export const INITIALIZE_PRODUCTION_APP = 'INITIALIZE_PRODUCTION_APP';
 export const GET_MOHIOS = 'GET_MOHIOS';
 export const LOAD_MOHIOS = 'LOAD_MOHIOS';
 export const SELECT_MOHIO = 'SELECT_MOHIO';
+
+export function initializeTestApp() {
+  return {
+    type: INITIALIZE_TEST_APP
+  }
+}
 
 export function getMohios() {
   return function (dispatch) {
