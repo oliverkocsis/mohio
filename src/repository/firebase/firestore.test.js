@@ -1,8 +1,18 @@
 import db from './firestore';
 import axios from 'axios';
 
-beforeAll(() => {
+export function clearFirestoreEmulator() {
   return axios.delete('http://localhost:8080/emulator/v1/projects/mohio-app/databases/(default)/documents');
+}
+
+const data = {
+  first: "Ada",
+  last: "Lovelace",
+  born: 1815
+};
+
+beforeEach(() => {
+  return clearFirestoreEmulator();
 });
 
 test('npm test script initializes firestore using an amulator at localhost which is empty by default', () => {
@@ -12,20 +22,24 @@ test('npm test script initializes firestore using an amulator at localhost which
 });
 
 test('can add data', () => {
-  const data = {
-    first: "Ada",
-    last: "Lovelace",
-    born: 1815
-  };
-  return addToCollection(data).then(function (docRef) {
+
+  return addToCollection(data).then((docRef) => {
     expect(docRef.id).toBeDefined();
   });
 });
 
-test('can read data which has been created', () => {
-  return getCollection().then((querySnapshot) => {
-    expect(querySnapshot.size).toBe(1);
-  });
+test('can get data ', () => {
+  return addToCollection(data)
+    .then((docRef) => {
+      return getCollection()
+    })
+    .then((querySnapshot) => {
+      expect(querySnapshot.size).toBe(1);
+      const actual = querySnapshot.docs[0].data();
+      expect(actual.first).toBe(data.first);
+      expect(actual.last).toBe(data.last);
+      expect(actual.born).toBe(data.born);
+    });
 });
 
 function collection() {
