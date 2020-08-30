@@ -1,9 +1,7 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
 import reducers from './reducers';
-import { getMohios } from './actons';
-
-
+import { getMohios } from './actions';
 
 const store = createStore(reducers, applyMiddleware(thunk));
 
