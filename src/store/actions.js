@@ -1,24 +1,22 @@
 import * as repository from '../repository/mohio'
+import * as actionTypes from './actionTypes';
 
-export const LOAD_MOHIOS = 'LOAD_MOHIOS';
-export const SELECT_MOHIO = 'SELECT_MOHIO';
-
-export function getMohios() {
+export function readMohiosFromRepository() {
   return function (dispatch) {
-    return repository.read().then((mohios) => dispatch(loadMohios(mohios)));
+    return repository.read().then((mohios) => dispatch(setMohios(mohios)));
   }
 }
 
-export function loadMohios(mohios) {
+export function setMohios(mohios) {
   return {
-    type: LOAD_MOHIOS,
+    type: actionTypes.SET_MOHIOS,
     mohios
   }
 }
 
 export function selectMohio(name) {
   return {
-    type: SELECT_MOHIO,
+    type: actionTypes.SELECT_MOHIO,
     name
   }
 }

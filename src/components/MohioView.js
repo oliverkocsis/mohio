@@ -30,7 +30,7 @@ function MohioView(props) {
       <div className={classes.content}>
         <Grid container alignItems="center" className={classes.title}>
           <Grid item xs>
-            <Typography variant="h5">{mohio.name}</Typography>
+            <Typography variant="h5">{mohio?.name}</Typography>
           </Grid>
           <Grid item>
             <Button variant="contained" color="default" disableElevation className={classes.button}>Edit</Button>
@@ -38,7 +38,7 @@ function MohioView(props) {
             <Button variant="contained" color="secondary" disableElevation className={classes.button}>Delete</Button>
           </Grid>
         </Grid>
-        <Typography paragraph>{mohio.definition}</Typography>
+        <Typography paragraph>{mohio?.definition}</Typography>
       </div>
     </main>
   );

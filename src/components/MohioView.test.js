@@ -10,16 +10,19 @@ const mohio = {
   definition: definition,
 }
 
-beforeEach(() => {
-  render(<MohioView mohio={mohio} />);
+
+test("does not display anything when mohio is not defined or null", () => {
+  render(<MohioView />);
 });
 
 test("displays the name", () => {
+  render(<MohioView mohio={mohio} />);
   const nameElement = screen.getByText(name);
   expect(nameElement).toBeInTheDocument();
 });
 
 test("displays the definition", () => {
+  render(<MohioView mohio={mohio} />);
   const definitionElement = screen.getByText(definition);
   expect(definitionElement).toBeInTheDocument();
 });
