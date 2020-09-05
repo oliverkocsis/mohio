@@ -6,15 +6,15 @@ export function read() {
   return getFromCollection().then((querySnapshot) => {
     return querySnapshot.docs.map((doc) => {
       return {
+        ...doc.data(),
         id: doc.id,
-        ...doc.data()
       }
     });
   });
 }
 
 export function create(data) {
-  return addToCollection(data);
+  return addToCollection(data).then((docRef) => docRef.id);
 }
 
 function collection() {
