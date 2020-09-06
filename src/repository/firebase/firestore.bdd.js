@@ -8,21 +8,21 @@ const data = {
 };
 
 export class Given {
-  static FirestoreIsEmpty() {
+  static async FirestoreIsEmpty() {
     return axios.delete('http://localhost:8080/emulator/v1/projects/mohio-app/databases/(default)/documents');
   }
 
-  static DataIsAddedToCollection() {
+  static async DataIsAddedToCollection() {
     return addToCollection(data);
   }
 }
 
 export class When {
-  static GettingCollection() {
+  static async GettingCollection() {
     return getCollection();
   }
 
-  static AddingNewDataToCollection() {
+  static async AddingNewDataToCollection() {
     return addToCollection(data);
   }
 }

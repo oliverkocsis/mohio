@@ -28,21 +28,21 @@ const mohiosLoremIpsumWithId = [
 ];
 
 export class Given {
-  static RepositoryIsEmpty() {
+  static async RepositoryIsEmpty() {
     return GivenFirestore.FirestoreIsEmpty();
   }
 
-  static MohioIsCreatedInRepository() {
+  static async MohioIsCreatedInRepository() {
     return repository.create(mohioLoremIpsum);
   }
 }
 
 export class When {
-  static ReadingMohios() {
+  static async ReadingMohios() {
     return repository.read();
   }
 
-  static CreatingNewMohioInRepository() {
+  static async CreatingNewMohioInRepository() {
     return repository.create(mohioLoremIpsum);
   }
 }
