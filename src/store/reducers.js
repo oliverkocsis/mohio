@@ -25,7 +25,7 @@ const mohios = [
   },
 ];
 
-const initialState = {
+export const initialState = {
   mohios: [],
   mohioSelected: null,
 }

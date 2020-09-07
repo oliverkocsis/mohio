@@ -1,4 +1,4 @@
-import * as repository from '../repository/mohio'
+import * as repository from '../repository/mohioRepository';
 import * as actionTypes from './actionTypes';
 
 export function readMohiosFromRepository() {

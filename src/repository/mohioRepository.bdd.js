@@ -1,31 +1,16 @@
 import * as repository from './mohioRepository';
 import { Given as GivenFirestore } from './firebase/firestore.bdd';
 
-const mohioLoremIpsum = {
+export const mohioLoremIpsum = {
   name: 'Lorem ipsum',
   definition: 'Lorem ipsum dolor sit amet',
 }
 
-const mohioLoremIpsumWithId = {
-  id: 'c672c2556bd2',
-  ...mohioLoremIpsum,
-};
 
-const mohioConsecteturAdipiscingElit = {
-  id: '376b7c9da518',
+export const mohioConsecteturAdipiscingElit = {
   name: 'Consectetur adipiscing elit',
   definition: 'Vivamus in eleifend tortor',
 }
-
-const mohioConsecteturAdipiscingElitWithId = {
-  id: '376b7c9da518',
-  ...mohioConsecteturAdipiscingElit,
-}
-
-const mohiosLoremIpsumWithId = [
-  mohioLoremIpsumWithId,
-  mohioConsecteturAdipiscingElitWithId
-];
 
 export class Given {
   static async RepositoryIsEmpty() {
@@ -35,6 +20,12 @@ export class Given {
   static async MohioIsCreatedInRepository() {
     return repository.create(mohioLoremIpsum);
   }
+
+
+  static async MohiosAreCreatedInRepository() {
+    await repository.create(mohioLoremIpsum)
+    return repository.create(mohioConsecteturAdipiscingElit);
+  }
 }
 
 export class When {
@@ -42,7 +33,7 @@ export class When {
     return repository.read();
   }
 
-  static async CreatingNewMohioInRepository() {
+  static async CreatingMohioInRepository() {
     return repository.create(mohioLoremIpsum);
   }
 }
