@@ -18,7 +18,7 @@ const children = [
 ];
 
 beforeEach(() => {
-  renderWithStore(<MohioTreeElementMultiLevel name={name} children={children} onClick={() => { }} />);
+  renderWithStore(<MohioTreeElementMultiLevel mohio={mohio} />);
 });
 
 test('displays the name', () => {

@@ -20,9 +20,9 @@ export function setMohios(mohios) {
   }
 }
 
-export function selectMohio(name) {
+export function selectMohio(id) {
   return {
     type: actionTypes.SELECT_MOHIO,
-    name
+    id
   }
 }
