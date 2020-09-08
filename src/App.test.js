@@ -1,32 +1,21 @@
 import React from 'react';
-import { renderWithStore } from "./util/reduxUtil";
 import { getByText, fireEvent } from '@testing-library/dom';
-import App from './App';
+
+import { Given, When, Then } from './App.bdd';
 
 const defaultMohioName = 'About';
 const toSelectFirstLevelMohioName = 'Domain';
 const toSelectSecondLevelMohioName = 'Bar';
 const toSelectSecondLevelOtherMohioName = 'Tree';
-let app;
 
-beforeEach(() => {
-  const { container } = renderWithStore(<App />);
-  app = container;
-});
-
-test('by default the about mohio is displayed (hard coded data)', () => {
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, defaultMohioName);
-  expect(nameElement).toBeInTheDocument();
+test('given mohios created in repopsitory and app rendered with store then mohio tree is displayed', async () => {
+  await Given.MohiosCreatedInRepository();
+  await Given.AppIsRenderedWithStore();
+  return Then.MohiosTreeIsDisplayed();
 });
 
 test('clicking on domain will show the domain mohio (hard coded data)', () => {
-  const mohioTreeElement = getMohioTreeElement();
-  const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
-  fireEvent.click(toSelectFirstLevelMohioNavigationElement);
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, toSelectFirstLevelMohioName);
-  expect(nameElement).toBeInTheDocument();
+
 });
 
 
@@ -54,12 +43,4 @@ test('clicking on 2nd child of domain will show the child of domain mohio (hard 
   expect(nameElement).toBeInTheDocument();
 });
 
-function getMohioTreeElement() {
-  const MohioTreeRootElement = 'nav';
-  return app.querySelector(MohioTreeRootElement);
-}
 
-function getMohioViewElement() {
-  const MohioViewRootElement = 'main';
-  return app.querySelector(MohioViewRootElement);
-}

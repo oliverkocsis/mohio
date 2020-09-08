@@ -28,7 +28,7 @@ const useStyles = makeStyles((theme) => ({
 
 function MohioTree(props) {
   const classes = useStyles();
-  const mohios = props.mohios.map((mohio) => <MohioTreeElement name={mohio.name} children={mohio.children} key={mohio.name} />);
+  const mohios = props.mohios.map((mohio) => <MohioTreeElement key={mohio.id} mohio={mohio} children={mohio.children} />);
   return (
     <Drawer className={classes.drawer} variant="permanent" classes={{ paper: classes.drawerPaper, }}>
       <Toolbar />

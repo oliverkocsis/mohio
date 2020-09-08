@@ -7,6 +7,12 @@ export function readMohiosFromRepository() {
   }
 }
 
+export function clearStore() {
+  return {
+    type: actionTypes.CLEAR_STORE,
+  }
+}
+
 export function setMohios(mohios) {
   return {
     type: actionTypes.SET_MOHIOS,

@@ -47,7 +47,7 @@ export class Given {
 
 
   static ActionIsClearStore() {
-    action = { type: '' };
+    action = { type: actionTypes.CLEAR_STORE };
   }
 
   static ActionIsSetMohios() {

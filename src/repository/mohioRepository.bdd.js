@@ -6,7 +6,6 @@ export const mohioLoremIpsum = {
   definition: 'Lorem ipsum dolor sit amet',
 }
 
-
 export const mohioConsecteturAdipiscingElit = {
   name: 'Consectetur adipiscing elit',
   definition: 'Vivamus in eleifend tortor',
@@ -21,9 +20,8 @@ export class Given {
     return repository.create(mohioLoremIpsum);
   }
 
-
   static async MohiosAreCreatedInRepository() {
-    await repository.create(mohioLoremIpsum)
+    await repository.create(mohioLoremIpsum);
     return repository.create(mohioConsecteturAdipiscingElit);
   }
 }

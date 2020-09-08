@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderWithStore } from '../util/reduxUtil';
+import { renderWithStore } from '../store/store.bdd';
 import { screen } from '@testing-library/react';
 import MohioTreeElement from './MohioTreeElement';
 import { testId as MohioTreeElementFlatTestId } from './MohioTreeElementFlat';

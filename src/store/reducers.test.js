@@ -8,7 +8,7 @@ test('given state is undefined and no action defined when executing reducer then
   Then.StateContainsNoSelectedMohio();
 });
 
-test('given state is empty and action is set mohios when executing reducer then state the mohios and shall set the selected item to the first element', () => {
+test('given state is empty and action is set mohios when executing reducer then state contains mohios and states contains default selected mohio', () => {
   Given.StateIsEmpty();
   Given.ActionIsSetMohios();
   When.ExecutingReducer();
@@ -16,7 +16,15 @@ test('given state is empty and action is set mohios when executing reducer then 
   Then.StateContainsDefaultSelectedMohio();
 });
 
-test('select mohio shall find the mohio by id and set as selected', () => {
+test('given state is empty and action is clear store when executing reducer then state conatins empty mohios and state contains no selected mohio', () => {
+  Given.StateContainsMohios();
+  Given.ActionIsClearStore();
+  When.ExecutingReducer();
+  Then.StateContainsEmptyMohios();
+  Then.StateContainsNoSelectedMohio();
+});
+
+test('given state contains mohios and action is select mohio when executing reducer then state contains mohios and states contains selected selected mohio', () => {
   Given.StateContainsMohios();
   Given.ActionIsSelectMohio();
   When.ExecutingReducer();
