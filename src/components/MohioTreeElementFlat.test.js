@@ -11,8 +11,8 @@ let store;
 
 beforeEach(() => {
   mohio = {
-    id: 'c25fb660',
-    name: 'Lorem Ipsum',
+    id: 'c79d0a13-91eb-4f30-bbf3-dad8dc228303',
+    name: 'MohioTreeElementFlat',
   };
   store = createMockStoreWithState();
   renderComponentWithStore(<MohioTreeElementFlat mohio={mohio} />, store);
