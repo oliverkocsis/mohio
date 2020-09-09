@@ -3,7 +3,7 @@ import * as actionTypes from './actionTypes';
 
 export function initializeApp() {
   return function (dispatch) {
-    return repository.read().then((mohios) => dispatch(loadMohioList(mohios)));
+    return repository.readMohios().then((mohios) => dispatch(loadMohioList(mohios)));
   }
 }
 
