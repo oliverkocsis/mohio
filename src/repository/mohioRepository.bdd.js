@@ -1,12 +1,12 @@
 import * as repository from './mohioRepository';
 import { Given as GivenFirestore } from './firebase/firestore.bdd';
 
-export const mohioLoremIpsum = {
+const mohioLoremIpsum = {
   name: 'Lorem ipsum',
   definition: 'Lorem ipsum dolor sit amet',
 }
 
-export const mohioConsecteturAdipiscingElit = {
+const mohioConsecteturAdipiscingElit = {
   name: 'Consectetur adipiscing elit',
   definition: 'Vivamus in eleifend tortor',
 }

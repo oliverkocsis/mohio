@@ -5,7 +5,7 @@ import { ThemeProvider } from '@material-ui/styles';
 import blue from '@material-ui/core/colors/blue';
 import pink from '@material-ui/core/colors/pink';
 import CssBaseline from '@material-ui/core/CssBaseline';
-import { readMohiosFromRepository } from './store/actions';
+import { initializeApp } from './store/actions';
 import MohioAppBar from './components/MohioAppBar';
 import MohioTree from './components/MohioTree';
 import MohioView from './components/MohioView';
@@ -32,7 +32,7 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    this.props.readMohiosFromRepository();
+    this.props.initializeApp();
   }
 
   render() {
@@ -41,8 +41,8 @@ class App extends React.Component {
         <CssBaseline />
         <ThemeProvider theme={theme}>
           <MohioAppBar></MohioAppBar>
-          <MohioTree mohios={this.props.mohios}></MohioTree>
-          <MohioView mohio={this.props.mohioSelected}></MohioView>
+          <MohioTree mohios={this.props.mohioTree}></MohioTree>
+          <MohioView mohio={this.props.mohioView}></MohioView>
         </ThemeProvider>
       </div>
     );
@@ -51,13 +51,13 @@ class App extends React.Component {
 
 const mapStateToProps = (state) => {
   return {
-    mohios: state.mohios,
-    mohioSelected: state.mohioSelected,
+    mohioTree: state.mohios.tree,
+    mohioView: state.mohios.view,
   }
 }
 
 const actionCreators = {
-  readMohiosFromRepository,
+  initializeApp,
 }
 
 const appWithStore = connect(mapStateToProps, actionCreators)(App);

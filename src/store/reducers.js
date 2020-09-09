@@ -1,18 +1,23 @@
 import * as actionTypes from './actionTypes';
 
 export const initialState = {
-  mohios: [],
-  mohioSelected: null,
+  mohios: {
+    list: [],
+    tree: [],
+    view: null,
+  },
 }
 
 function reducers(state = initialState, action) {
   switch (action.type) {
     case actionTypes.CLEAR_STORE:
       return reduceClearStore();
-    case actionTypes.SET_MOHIOS:
-      return reduceSetMohios(state, action);
-    case actionTypes.SELECT_MOHIO:
-      return reduceSelectMohio(state, action);
+    case actionTypes.SET_MOHIO_LIST:
+      return reduceSetMohioList(state, action);
+    case actionTypes.SET_MOHIO_TREE:
+      return reduceSetMohioTree(state, action);
+    case actionTypes.SET_MOHIO_VIEW:
+      return reduceSetMohioView(state, action);
     default:
       return state
   }
@@ -24,42 +29,58 @@ function reduceClearStore() {
   return initialState;
 }
 
-function reduceSetMohios(state, action) {
-  const mohios = action.mohios;
+function reduceSetMohioList(state, action) {
+  const mohios = state.mohios;
+  const list = action.mohios;
+  const view = list.length > 0 ? list[0] : null;
   return {
     ...state,
-    mohios: mohios,
-    mohioSelected: mohios[0]
-  }
-}
-
-function reduceSelectMohio(state, action) {
-  return {
-    ...state,
-    mohioSelected: select(state.mohios, action.id)
-  }
-}
-
-function findMohio(mohio, id) {
-  if (mohio.id === id) {
-    return mohio;
-  } else {
-    if (mohio.children) {
-      for (let child of mohio.children) {
-        const found = findMohio(child, id);
-        if (found) {
-          return found;
-        }
-      }
+    mohios: {
+      ...mohios,
+      list: list,
+      view: view,
     }
   }
 }
 
-function select(mohios, id) {
-  for (let mohio of mohios) {
-    const found = findMohio(mohio, id);
-    if (found) {
-      return found;
+function reduceSetMohioTree(state, action) {
+  const mohios = state.mohios;
+  const list = mohios.list;
+  const ids = action.ids;
+  return {
+    ...state,
+    mohios: {
+      ...mohios,
+      tree: mapIdsToMohios(ids, list),
     }
   }
+}
+
+function reduceSetMohioView(state, action) {
+  const mohios = state.mohios;
+  const list = mohios.list;
+  const find = action.id;
+  return {
+    ...state,
+    mohios: {
+      ...mohios,
+      view: findMohioById(find, list),
+    }
+  }
+}
+
+function mapIdsToMohios(ids, list) {
+  const tree = [];
+  for (const id of ids) {
+    const mohio = findMohioById(id.id, list);
+    if (id.children) {
+      mohio.children = mapIdsToMohios(id.children, list);
+    }
+    tree.push(mohio);
+  }
+  return tree;
+}
+
+function findMohioById(id, list) {
+  return list.find((mohio) => mohio.id === id);
 }

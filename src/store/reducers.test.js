@@ -1,33 +1,219 @@
-import { Given, When, Then } from './reducers.bdd';
+import reducers from './reducers';
+import * as actionTypes from './actionTypes';
 
-test('given state is undefined and no action defined when executing reducer then state conatins empty mohios and state contains no selected mohio (initial state shall be empty)', () => {
-  Given.StateIsUndefined();
-  Given.ActionIsUndefined();
-  When.ExecutingReducer();
-  Then.StateContainsEmptyMohios();
-  Then.StateContainsNoSelectedMohio();
+describe('given state is undefined and no action defined when executing reducer', () => {
+  beforeEach(() => {
+    Given.StateIsUndefined();
+    Given.ActionIsUndefined();
+    When.ExecutingReducer();
+  });
+
+  test('then state conatins empty mohios list', () => {
+    Then.StateContainsEmptyMohioList();
+  });
+
+  test('then state conatins empty mohios tree', () => {
+    Then.StateContainsEmptyMohioTree();
+  });
+
+  test('then state conatins empty mohios view', () => {
+    Then.StateContainsEmptyMohioView();
+  });
 });
 
-test('given state is empty and action is set mohios when executing reducer then state contains mohios and states contains default selected mohio', () => {
-  Given.StateIsEmpty();
-  Given.ActionIsSetMohios();
-  When.ExecutingReducer();
-  Then.StateContainsMohios();
-  Then.StateContainsDefaultSelectedMohio();
+describe('given state is empty and action is set mohio list when executing reducer ', () => {
+  beforeEach(() => {
+    Given.StateIsEmpty();
+    Given.ActionIsSetMohioList();
+    When.ExecutingReducer();
+  });
+
+  test('then state contains mohio list', () => {
+    Then.StateContainsMohioList();
+  });
+
+  test('then state contains default mohio view', () => {
+    Then.StateContainsDefaultMohioView();
+  });
 });
 
-test('given state is empty and action is clear store when executing reducer then state conatins empty mohios and state contains no selected mohio', () => {
-  Given.StateContainsMohios();
-  Given.ActionIsClearStore();
-  When.ExecutingReducer();
-  Then.StateContainsEmptyMohios();
-  Then.StateContainsNoSelectedMohio();
+describe('given state contains mohio list', () => {
+  beforeEach(() => {
+    Given.StateIsEmpty();
+    Given.StateContainsMohioList()
+  });
+
+  test('action is set mohio tree when executing reducer then state contains mohio tree', () => {
+    Given.ActionIsSetMohioTree();
+    When.ExecutingReducer();
+    Then.StateContainsMohioTree();
+  });
+
+  test('action is set mohio view when executing reducer then state contains selected mohio view', () => {
+    Given.ActionIsSetMohioView();
+    When.ExecutingReducer();
+    Then.StateContainsSelectedMohioView();
+  });
 });
 
-test('given state contains mohios and action is select mohio when executing reducer then state contains mohios and states contains selected selected mohio', () => {
-  Given.StateContainsMohios();
-  Given.ActionIsSelectMohio();
-  When.ExecutingReducer();
-  Then.StateContainsMohios();
-  Then.StateContainsSelectedSelectedMohio();
+describe('given state contains mohio list, mohio tree, mohio view and action is clear store when executing reducer', () => {
+  beforeEach(() => {
+    Given.StateIsEmpty();
+    Given.StateContainsMohioList();
+    Given.StateContainsMohioTree();
+    Given.StateContainsMohioView();
+    Given.ActionIsClearStore();
+    When.ExecutingReducer();
+  });
+
+  test('then state conatins empty mohio list', () => {
+    Then.StateContainsEmptyMohioList();
+  });
+
+  test('then state conatins empty mohio tree', () => {
+    Then.StateContainsEmptyMohioTree();
+  });
+
+  test('then state conatins empty mohio view', () => {
+    Then.StateContainsEmptyMohioView();
+  });
 });
+
+
+const mohioLoremIpsum = {
+  id: '62c57e62-dc98-4457-a070-25240493bf1d',
+  name: 'Lorem ipsum',
+  definition: 'Lorem ipsum dolor sit amet',
+}
+
+const mohioConsecteturAdipiscingElit = {
+  id: 'f05099ad-34b0-45dd-a157-5bf9edc72511',
+  name: 'Consectetur adipiscing elit',
+  definition: 'Vivamus in eleifend tortor',
+}
+
+const mohioList = [
+  mohioLoremIpsum,
+  mohioConsecteturAdipiscingElit,
+];
+
+const mohioIdTree = [
+  {
+    id: mohioLoremIpsum.id,
+    children: [
+      {
+        id: mohioConsecteturAdipiscingElit.id,
+      }
+    ]
+  },
+];
+
+const mohioTree = [
+  {
+    ...mohioLoremIpsum,
+    children: [
+      {
+        ...mohioConsecteturAdipiscingElit,
+      }
+    ]
+  },
+];
+
+const Data = {
+  state: null,
+  action: null,
+}
+
+const Given = {
+  StateIsUndefined: () => {
+    Data.state = undefined;
+  },
+
+  StateIsEmpty: () => {
+    Data.state = {
+      mohios: {
+        list: [],
+        tree: [],
+        view: null,
+      },
+    };
+  },
+
+  StateContainsMohioList: () => {
+    Data.state.mohios.list = mohioList;
+  },
+
+  StateContainsMohioTree: () => {
+    Data.state.mohios.tree = mohioTree;
+  },
+
+  StateContainsMohioView: () => {
+    Data.state.mohios.view = mohioLoremIpsum;
+  },
+
+  ActionIsUndefined: () => {
+    Data.action = { type: '' };
+  },
+
+
+  ActionIsClearStore: () => {
+    Data.action = { type: actionTypes.CLEAR_STORE };
+  },
+
+  ActionIsSetMohioList: () => {
+    Data.action = {
+      type: actionTypes.SET_MOHIO_LIST,
+      mohios: mohioList,
+    };
+  },
+
+  ActionIsSetMohioTree: () => {
+    Data.action = {
+      type: actionTypes.SET_MOHIO_TREE,
+      ids: mohioIdTree,
+    };
+  },
+
+  ActionIsSetMohioView: () => {
+    Data.action = {
+      type: actionTypes.SET_MOHIO_VIEW,
+      id: mohioConsecteturAdipiscingElit.id,
+    };
+  },
+}
+
+const When = {
+  ExecutingReducer: () => {
+    Data.state = reducers(Data.state, Data.action);
+  },
+}
+
+const Then = {
+  StateContainsEmptyMohioList: () => {
+    expect(Data.state.mohios.list.length).toBe(0);
+  },
+
+  StateContainsEmptyMohioTree: () => {
+    expect(Data.state.mohios.tree.length).toBe(0);
+  },
+
+  StateContainsEmptyMohioView: () => {
+    expect(Data.state.mohios.view).toBeNull();
+  },
+
+  StateContainsMohioList: () => {
+    expect(Data.state.mohios.list).toStrictEqual(mohioList);
+  },
+
+  StateContainsMohioTree: () => {
+    expect(Data.state.mohios.tree).toStrictEqual(mohioTree);
+  },
+
+  StateContainsDefaultMohioView: () => {
+    expect(Data.state.mohios.view).toStrictEqual(mohioLoremIpsum);
+  },
+
+  StateContainsSelectedMohioView: () => {
+    expect(Data.state.mohios.view).toStrictEqual(mohioConsecteturAdipiscingElit);
+  },
+}

@@ -1,46 +1,40 @@
 import React from 'react';
-import { getByText, fireEvent } from '@testing-library/dom';
+import { screen, } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { renderComponentWithStore, createMockStoreWithState } from './components/ComponentTestUtils';
 
-import { Given, When, Then } from './App.bdd';
+import App from './App';
+import { initializeApp } from './store/actions';
+import { initialState } from './store/reducers';
 
-const defaultMohioName = 'About';
-const toSelectFirstLevelMohioName = 'Domain';
-const toSelectSecondLevelMohioName = 'Bar';
-const toSelectSecondLevelOtherMohioName = 'Tree';
 
-test('given mohios created in repopsitory and app rendered with store then mohio tree is displayed', async () => {
-  await Given.MohiosCreatedInRepository();
-  await Given.AppIsRenderedWithStore();
-  return Then.MohiosTreeIsDisplayed();
+test.only('when component is rendered then initialize app action is dispatched', () => {
+  When.ComponentIsRendered();
+  Then.InitializeAppActionIsDispatched();
 });
 
-test('clicking on domain will show the domain mohio (hard coded data)', () => {
-
+test('given mohio tree in store when component is rendered then tree is displayed', () => {
+  fail();
 });
 
-
-test('clicking on other child of domain will show the other child of domain mohio (hard coded data)', () => {
-  const mohioTreeElement = getMohioTreeElement();
-  const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
-  fireEvent.click(toSelectFirstLevelMohioNavigationElement);
-  const toSelectSecondLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectSecondLevelMohioName);
-  fireEvent.click(toSelectSecondLevelMohioNavigationElement);
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, toSelectSecondLevelMohioName);
-  expect(nameElement).toBeInTheDocument();
+test('given mohio selected in store when component is rendered then view is displayed', () => {
+  fail();
 });
 
-test('clicking on 2nd child of domain will show the child of domain mohio (hard coded data)', () => {
-  const mohioTreeElement = getMohioTreeElement();
-  const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
-  fireEvent.click(toSelectFirstLevelMohioNavigationElement);
-  const toSelectSecondLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectSecondLevelMohioName);
-  fireEvent.click(toSelectSecondLevelMohioNavigationElement);
-  const toSelectSecondLevelOtherMohioNavigationElement = getByText(mohioTreeElement, toSelectSecondLevelOtherMohioName);
-  fireEvent.click(toSelectSecondLevelOtherMohioNavigationElement);
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, toSelectSecondLevelOtherMohioName);
-  expect(nameElement).toBeInTheDocument();
-});
+const Data = {
+  store: undefined,
+}
 
+const When = {
+  ComponentIsRendered: () => {
+    Data.store = createMockStoreWithState(initialState);
+    renderComponentWithStore(<App />, Data.store);
+  },
+}
 
+const Then = {
+  InitializeAppActionIsDispatched: () => {
+    const dispatched = Data.store.dispatch.mock.calls[0];
+    expect(dispatched[0]).toStrictEqual(initializeApp());
+  },
+}

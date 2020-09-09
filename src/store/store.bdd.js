@@ -38,7 +38,7 @@ export class When {
       unsubscribe();
       if (done) done();
     });
-    store.dispatch(actions.readMohiosFromRepository());
+    store.dispatch(actions.initializeApp());
   }
 }
 
