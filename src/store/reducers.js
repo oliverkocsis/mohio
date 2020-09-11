@@ -46,12 +46,12 @@ function reduceSetMohioList(state, action) {
 function reduceSetMohioTree(state, action) {
   const mohios = state.mohios;
   const list = mohios.list;
-  const ids = action.ids;
+  const tree = action.tree;
   return {
     ...state,
     mohios: {
       ...mohios,
-      tree: mapIdsToMohios(ids, list),
+      tree: mapIdsToMohios(tree, list),
     }
   }
 }

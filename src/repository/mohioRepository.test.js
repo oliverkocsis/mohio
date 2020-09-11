@@ -104,11 +104,11 @@ const Given = {
   },
 
   RootMohioIsCreated: async () => {
-    return repository.createMohio(mohioLoremIpsum);
+    return repository.create(mohioLoremIpsum);
   },
 
   ChildMohioIsCreatedy: async (parentId) => {
-    return repository.createMohio(mohioConsecteturAdipiscingElit, parentId);
+    return repository.create(mohioConsecteturAdipiscingElit, parentId);
   },
 }
 
@@ -126,7 +126,7 @@ const When = {
   },
 
   CreatingMohioInRepository: async () => {
-    return repository.createMohio(mohioLoremIpsum);
+    return repository.create(mohioLoremIpsum);
   },
 }
 

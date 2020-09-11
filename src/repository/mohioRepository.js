@@ -32,7 +32,7 @@ export function readRoots() {
   });
 }
 
-export async function createMohio(mohio, parentId = null) {
+export async function create(mohio, parentId = null) {
   const id = await addToCollectionMohios(mohio).then((docRef) => docRef.id);
   if (parentId) {
     const parent = await readMohio(parentId);
