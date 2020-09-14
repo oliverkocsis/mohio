@@ -1,10 +1,11 @@
 import * as repository from './mohioRepository';
-import { clearFirestore } from './firebase/firestore.testutil';
+
+import { Given as GivenMohioRepositoryClass } from '../e2e/mohioRepository.bdd'
 
 describe('given repository is empty', () => {
 
   beforeEach(async () => {
-    await Given.RepositoryIsEmpty();
+    return GivenMohioRepository.RepositoryIsEmpty();
   });
 
   test('when reading mohios list then mohios is empty', async () => {
@@ -23,32 +24,31 @@ describe('given repository is empty', () => {
   });
 
   describe('given a root mohio is created', () => {
-    let rootId;
 
     beforeEach(async () => {
-      rootId = await Given.RootMohioIsCreated();
+      await GivenMohioRepository.RootMohioIsCreated();
     });
 
     test('when reading mohios then mohios contains root mohio', async () => {
       const mohios = await When.ReadingMohios();
-      Then.MohiosContainsMohio(mohios, mohioLoremIpsum, rootId);
+      Then.MohiosContainsMohio(mohios, GivenMohioRepository.rootMohio);
     });
 
     test('when reading roots then roots contains root mohio', async () => {
       const roots = await When.ReadingRoots();
-      Then.RootsContainsId(roots, rootId);
+      Then.RootsContainsId(roots, GivenMohioRepository.rootMohioId);
     });
 
     test('when reading existing mohio then mohio is returned', async () => {
-      const mohio = await When.ReadingMohio(rootId);
-      Then.MohioIsReturned(mohio, rootId);
+      const mohio = await When.ReadingMohio(GivenMohioRepository.rootMohioId);
+      Then.MohioIsReturned(mohio, GivenMohioRepository.rootMohio);
     });
 
     describe('given a child mohio is created', () => {
       let childId;
 
       beforeEach(async () => {
-        childId = await Given.ChildMohioIsCreatedy(rootId);
+        childId = await GivenMohioRepository.ChildOfRootMohioIsCreatedy();
       });
 
       describe('when reading mohios', () => {
@@ -60,11 +60,11 @@ describe('given repository is empty', () => {
         });
 
         test('then mohios contains root mohio', () => {
-          Then.MohiosContainsMohio(mohios, mohioLoremIpsum, rootId);
+          Then.MohiosContainsMohio(mohios, GivenMohioRepository.rootMohio);
         });
 
         test('then mohios contains child mohio', () => {
-          Then.MohiosContainsMohio(mohios, mohioConsecteturAdipiscingElit, childId);
+          Then.MohiosContainsMohio(mohios, GivenMohioRepository.childOfRootMohio);
         });
       });
 
@@ -88,29 +88,7 @@ describe('given repository is empty', () => {
   });
 });
 
-const mohioLoremIpsum = {
-  name: 'Lorem ipsum',
-  definition: 'Lorem ipsum dolor sit amet',
-}
-
-const mohioConsecteturAdipiscingElit = {
-  name: 'Consectetur adipiscing elit',
-  definition: 'Vivamus in eleifend tortor',
-}
-
-const Given = {
-  RepositoryIsEmpty: async () => {
-    return clearFirestore();
-  },
-
-  RootMohioIsCreated: async () => {
-    return repository.create(mohioLoremIpsum);
-  },
-
-  ChildMohioIsCreatedy: async (parentId) => {
-    return repository.create(mohioConsecteturAdipiscingElit, parentId);
-  },
-}
+const GivenMohioRepository = new GivenMohioRepositoryClass();
 
 const When = {
   ReadingMohios: async () => {
@@ -126,7 +104,7 @@ const When = {
   },
 
   CreatingMohioInRepository: async () => {
-    return repository.create(mohioLoremIpsum);
+    return GivenMohioRepository.RootMohioIsCreated();
   },
 }
 
@@ -139,11 +117,9 @@ const Then = {
     expect(roots.length).toBe(0);
   },
 
-  MohiosContainsMohio(mohios, mohio, id) {
-    const actual = mohios.find((mohio) => id === mohio.id);
-    expect(actual.id).toBe(id);
-    expect(actual.name).toBe(mohio.name);
-    expect(actual.definition).toBe(mohio.definition);
+  MohiosContainsMohio(mohios, expected) {
+    const actual = mohios.find((mohio) => expected.id === mohio.id);
+    MohioIsReturned(actual, expected);
   },
 
   RootsContainsId(roots, id) {
@@ -158,9 +134,9 @@ const Then = {
     expect(id).toBeDefined();
   },
 
-  MohioIsReturned(mohio, id) {
-    expect(mohio.id).toBe(id);
-    expect(mohio.name).toBe(mohioLoremIpsum.name);
-    expect(mohio.definition).toBe(mohioLoremIpsum.definition);
+  MohioIsReturned(actual, expected) {
+    expect(actual.id).toBe(expected.id);
+    expect(actual.name).toBe(expected.name);
+    expect(actual.definition).toBe(expected.definition);
   },
 }

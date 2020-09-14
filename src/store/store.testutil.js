@@ -11,30 +11,33 @@ const mohioConsecteturAdipiscingElit = {
   definition: 'Consectetur adipiscing elit',
 }
 
-export const Given = {
-  mohioLoremIpsumId: null,
-  mohioConsecteturAdipiscingElitId: null,
+export class Given {
+  constructor() {
+    this.mohioLoremIpsumId = null;
+    this.mohioConsecteturAdipiscingElitId = null;
+  }
 
   async FirestoreIsEmpty() {
     return clearFirestore();
-  },
+  }
 
   async MohiosCreatedInRepository() {
     this.mohioLoremIpsumId = await mohioRepository.create(mohioLoremIpsum);
     this.mohioConsecteturAdipiscingElitId = await mohioRepository.create(mohioConsecteturAdipiscingElit, this.mohioLoremIpsumId);
-  },
+  }
 
   mohioMohioLoremIpsumWithId() {
     return {
       id: this.mohioLoremIpsumId,
       ...mohioLoremIpsum,
     }
-  },
+  }
 
   mohioConsecteturAdipiscingElitWithId() {
     return {
       id: this.mohioConsecteturAdipiscingElitId,
       ...mohioConsecteturAdipiscingElit,
     }
-  },
+  }
+
 }
