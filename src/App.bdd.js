@@ -2,7 +2,7 @@ import React from 'react';
 import { findByText, getByText, fireEvent } from '@testing-library/dom';
 import App from './App';
 import { Given as GivenStore, When as WhenStore } from './store/store.bdd';
-import { Given as GivenMohioRepository, mohioLoremIpsum, mohioConsecteturAdipiscingElit } from './repository/mohioRepository.bdd';
+import { Given as GivenMohioRepository, rootMohio, mohioConsecteturAdipiscingElit } from './repository/mohioRepository.bdd';
 
 let app;
 
@@ -32,7 +32,7 @@ export class When {
 export class Then {
   static async MohiosTreeIsDisplayed() {
     const mohioTreeElement = getMohioTreeElement();
-    const mohioLoremIpsumElement = await findByText(mohioTreeElement, mohioLoremIpsum.name);
+    const mohioLoremIpsumElement = await findByText(mohioTreeElement, rootMohio.name);
     const mohioConsecteturAdipiscingElitElement = await findByText(mohioTreeElement, mohioConsecteturAdipiscingElit.name);
     expect(mohioLoremIpsumElement).toBeInTheDocument();
     expect(mohioConsecteturAdipiscingElitElement).toBeInTheDocument();

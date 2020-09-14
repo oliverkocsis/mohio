@@ -19,33 +19,22 @@ export class Given {
 
 export class When {
 
-  constructor(Given) {
-    this.Given = Given;
-  }
-
   async GettingCollection() {
-    this.querySnapshot = await getCollection();
-    return this.querySnapshot;
+    return await getCollection();
   }
 
   async AddingDataToCollection() {
-    this.docRef = await addToCollection(data);
-    return this.docRef;
+    return addToCollection(data);
   }
 }
 
 export class Then {
-  constructor(Given, When) {
-    this.Given = Given;
-    this.When = When;
-  }
-  CollectionIsEmpty() {
-    const querySnapshot = this.When.querySnapshot;
-    expect(this.When.querySnapshot.empty).toBeTruthy();
+
+  CollectionIsEmpty(querySnapshot) {
+    expect(querySnapshot.empty).toBeTruthy();
   }
 
-  CollectionContainsData() {
-    const querySnapshot = this.When.querySnapshot;
+  CollectionContainsData(querySnapshot) {
     expect(querySnapshot.size).toBe(1);
     const actual = querySnapshot.docs[0].data();
     expect(actual.first).toBe(data.first);
@@ -53,8 +42,8 @@ export class Then {
     expect(actual.born).toBe(data.born);
   }
 
-  GeneratedIdIsReturned() {
-    expect(this.When.docRef.id).toBeDefined();
+  GeneratedIdIsReturned(docRef) {
+    expect(docRef.id).toBeDefined();
   }
 }
 

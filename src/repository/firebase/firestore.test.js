@@ -11,17 +11,17 @@ describe('given firestore is empty', () => {
   });
 
   test('when getting collection then collection is empty', async () => {
-    await When.GettingCollection();
-    Then.CollectionIsEmpty();
+    const querySnapshot = await When.GettingCollection();
+    Then.CollectionIsEmpty(querySnapshot);
   });
 
   test('when adding new data to collection then generated id is returned', async () => {
-    await When.AddingDataToCollection();
-    Then.GeneratedIdIsReturned();
+    const docRef = await When.AddingDataToCollection();
+    Then.GeneratedIdIsReturned(docRef);
   });
 
   test('given data is added to Firestore when getting collection then collection contains data', async () => {
-    await When.GettingCollection();
-    Then.CollectionContainsData();
+    const querySnapshot = await When.GettingCollection();
+    Then.CollectionContainsData(querySnapshot);
   });
 });

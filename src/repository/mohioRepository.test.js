@@ -1,16 +1,18 @@
-import * as repository from './mohioRepository';
+import { Given as GivenClass, When as WhenClass, Then as ThenClass } from './mohioRepository.bdd'
 
-import { Given as GivenMohioRepositoryClass } from '../e2e/mohioRepository.bdd'
+const Given = new GivenClass();
+const When = new WhenClass();
+const Then = new ThenClass();
 
 describe('given repository is empty', () => {
 
-  beforeEach(async () => {
-    return GivenMohioRepository.RepositoryIsEmpty();
+  beforeAll(async () => {
+    return Given.RepositoryIsEmpty();
   });
 
   test('when reading mohios list then mohios is empty', async () => {
-    const list = await When.ReadingMohios();
-    Then.MohiosIsEmpty(list);
+    const mohios = await When.ReadingMohios();
+    Then.MohiosIsEmpty(mohios);
   });
 
   test('when reading roots then roots is empty', async () => {
@@ -18,125 +20,91 @@ describe('given repository is empty', () => {
     Then.RootsIsEmpty(roots);
   });
 
-  test('when creating new mohio then id is returned', async () => {
-    const id = await When.CreatingMohioInRepository()
+  test('when creating mohio then id is returned', async () => {
+    const id = await When.CreatingMohio();
     Then.IdIsReturned(id);
   });
 
-  describe('given a root mohio is created', () => {
+});
 
-    beforeEach(async () => {
-      await GivenMohioRepository.RootMohioIsCreated();
+describe('given a root mohio is created', () => {
+
+  let rootMohioId = null;
+  let rootMohio = null;
+
+  beforeAll(async () => {
+    await Given.RepositoryIsEmpty();
+    rootMohioId = await Given.RootMohioIsCreated();
+  });
+
+  test('when reading root mohio then root mohio is returned', async () => {
+    rootMohio = await When.ReadingMohio(rootMohioId);
+    Then.RootMohioIsReturned(rootMohio, rootMohioId);
+  });
+
+  test('when reading mohios then mohios contains root mohio', async () => {
+    const mohios = await When.ReadingMohios();
+    Then.MohiosContainsMohio(mohios, rootMohio);
+  });
+
+  test('when reading roots then roots contains root mohio', async () => {
+    const roots = await When.ReadingRoots();
+    Then.RootsContainsMohioId(roots, rootMohioId);
+  });
+
+  describe('given a child mohio is created', () => {
+    
+    let childMohioId;
+    let childMohio;
+
+    beforeAll(async () => {
+      childMohioId = await Given.ChildMohioIsCreated();
+    });  
+
+    test('when reading child mohio then child mohio is returned', async () => {
+      childMohio = await When.ReadingMohio(childMohioId);
+      Then.ChildMohioIsReturned(childMohio, childMohioId);
     });
 
-    test('when reading mohios then mohios contains root mohio', async () => {
-      const mohios = await When.ReadingMohios();
-      Then.MohiosContainsMohio(mohios, GivenMohioRepository.rootMohio);
+    test('when reading root mohio then root mohio with children is returned', async () => {
+      rootMohio = await When.ReadingMohio(rootMohioId);
+      Then.RootMohioWithChildrenIsReturned(rootMohio, rootMohioId, [childMohioId]);
     });
 
-    test('when reading roots then roots contains root mohio', async () => {
-      const roots = await When.ReadingRoots();
-      Then.RootsContainsId(roots, GivenMohioRepository.rootMohioId);
-    });
+    describe('when reading mohios', () => {
 
-    test('when reading existing mohio then mohio is returned', async () => {
-      const mohio = await When.ReadingMohio(GivenMohioRepository.rootMohioId);
-      Then.MohioIsReturned(mohio, GivenMohioRepository.rootMohio);
-    });
+      let mohios;
 
-    describe('given a child mohio is created', () => {
-      let childId;
-
-      beforeEach(async () => {
-        childId = await GivenMohioRepository.ChildOfRootMohioIsCreatedy();
+      beforeAll(async () => {
+        mohios = await When.ReadingMohios();
       });
 
-      describe('when reading mohios', () => {
-
-        let mohios;
-
-        beforeEach(async () => {
-          mohios = await When.ReadingMohios();
-        });
-
-        test('then mohios contains root mohio', () => {
-          Then.MohiosContainsMohio(mohios, GivenMohioRepository.rootMohio);
-        });
-
-        test('then mohios contains child mohio', () => {
-          Then.MohiosContainsMohio(mohios, GivenMohioRepository.childOfRootMohio);
-        });
+      test('then mohios contains root mohio', () => {
+        Then.MohiosContainsMohio(mohios, rootMohio);
       });
 
-      describe('when reading roots', () => {
+      test('then mohios contains child mohio', () => {
+        Then.MohiosContainsMohio(mohios, childMohio);
+      });
+    });
 
-        let roots;
+    describe('when reading roots', () => {
 
-        beforeEach(async () => {
-          roots = await When.ReadingRoots();
-        });
+      let roots;
 
-        test('then roots contains root mohio', () => {
-          Then.RootsContainsId(roots, rootId);
-        });
+      beforeAll(async () => {
+        roots = await When.ReadingRoots();
+      });
 
-        test('then roots does not contain child mohio', () => {
-          Then.RootsDoesNotContainId(roots, childId);
-        });
+      test('then roots contains root mohio', () => {
+        Then.RootsContainsMohioId(roots, rootMohioId);
+      });
+
+      test('then roots does not contain child mohio', () => {
+        Then.RootsDoesNotContainMohioId(roots, childMohioId);
       });
     });
   });
 });
 
-const GivenMohioRepository = new GivenMohioRepositoryClass();
 
-const When = {
-  ReadingMohios: async () => {
-    return repository.readMohios();
-  },
-
-  ReadingMohio: async (id) => {
-    return repository.readMohio(id);
-  },
-
-  ReadingRoots: async () => {
-    return repository.readRoots();
-  },
-
-  CreatingMohioInRepository: async () => {
-    return GivenMohioRepository.RootMohioIsCreated();
-  },
-}
-
-const Then = {
-  MohiosIsEmpty(mohios) {
-    expect(mohios.length).toBe(0);
-  },
-
-  RootsIsEmpty(roots) {
-    expect(roots.length).toBe(0);
-  },
-
-  MohiosContainsMohio(mohios, expected) {
-    const actual = mohios.find((mohio) => expected.id === mohio.id);
-    MohioIsReturned(actual, expected);
-  },
-
-  RootsContainsId(roots, id) {
-    expect(roots.includes(id)).toBeTruthy();
-  },
-
-  RootsDoesNotContainId(roots, id) {
-    expect(roots.includes(id)).toBeFalsy();
-  },
-
-  IdIsReturned(id) {
-    expect(id).toBeDefined();
-  },
-
-  MohioIsReturned(actual, expected) {
-    expect(actual.id).toBe(expected.id);
-    expect(actual.name).toBe(expected.name);
-    expect(actual.definition).toBe(expected.definition);
-  },
-}
