@@ -17,13 +17,15 @@ const useStyles = makeStyles((theme) => ({
 function MohioAppBar(props) {
   const classes = useStyles();
   return (
-    <AppBar position="fixed" className={classes.appBar} color="inherit">
-      <Toolbar className={classes.toolBar}>
-        <Typography variant="h5" noWrap>
-          Mohio
+    <header>
+      <AppBar position="fixed" className={classes.appBar} color="inherit">
+        <Toolbar className={classes.toolBar}>
+          <Typography variant="h5" noWrap>
+            Mohio
         </Typography>
-      </Toolbar>
-    </AppBar>
+        </Toolbar>
+      </AppBar>
+    </header>
   );
 }
 

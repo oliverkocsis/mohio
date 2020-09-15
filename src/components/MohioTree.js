@@ -30,14 +30,16 @@ function MohioTree(props) {
   const classes = useStyles();
   const mohios = props.mohios.map((mohio) => <MohioTreeElement key={mohio.id} mohio={mohio} children={mohio.children} />);
   return (
-    <Drawer className={classes.drawer} variant="permanent" classes={{ paper: classes.drawerPaper, }}>
-      <Toolbar />
-      <div className={classes.drawerContainer}>
-        <List component="nav" dense={true} className={classes.list}>
-          {mohios}
-        </List>
-      </div>
-    </Drawer>
+    <nav>
+      <Drawer className={classes.drawer} variant="permanent" classes={{ paper: classes.drawerPaper, }}>
+        <Toolbar />
+        <div className={classes.drawerContainer}>
+          <List dense={true} className={classes.list}>
+            {mohios}
+          </List>
+        </div>
+      </Drawer>
+    </nav>
   );
 }
 

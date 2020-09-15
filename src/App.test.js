@@ -1,40 +1,34 @@
-import React from 'react';
-import { screen, } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { renderComponentWithStore, createMockStoreWithState } from './components/ComponentTestUtils';
+import { Given as GivenClass, When as WhenClass, Then as ThenClass } from './App.bdd'
 
-import App from './App';
-import { initializeApp } from './store/actions';
-import { initialState } from './store/reducers';
+const Given = new GivenClass();
+const When = new WhenClass();
+const Then = new ThenClass();
+
+describe('Given the store is empty when component is rendered', () => {
+
+  let store;
+  let component;
+
+  beforeEach(() => {
+    store = Given.MockStoreIsEmpty();
+    component = When.AppIsRenderedWithStore(store);
+  });
+
+  test.skip('then initialize action is dispatched', () => {
+    Then.InitializeAppActionIsDispatched(store);
+  })
+
+  test('Then app bar is rendered', () => {
+    Then.AppBarIsRendered(component);
+  });
+
+  test('Then mohio tree is rendered', () => {
+    Then.MohioTreeIsRendered(component);
+  });
+
+  test('Then mohio view is rendered', () => {
+    Then.MohioViewIsRendered(component);
+  });
 
 
-test.only('when component is rendered then initialize app action is dispatched', () => {
-  When.ComponentIsRendered();
-  Then.InitializeAppActionIsDispatched();
 });
-
-test('given mohio tree in store when component is rendered then tree is displayed', () => {
-  fail();
-});
-
-test('given mohio selected in store when component is rendered then view is displayed', () => {
-  fail();
-});
-
-const Data = {
-  store: undefined,
-}
-
-const When = {
-  ComponentIsRendered: () => {
-    Data.store = createMockStoreWithState(initialState);
-    renderComponentWithStore(<App />, Data.store);
-  },
-}
-
-const Then = {
-  InitializeAppActionIsDispatched: () => {
-    const dispatched = Data.store.dispatch.mock.calls[0];
-    expect(dispatched[0]).toStrictEqual(initializeApp());
-  },
-}

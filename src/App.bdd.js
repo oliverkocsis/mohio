@@ -1,25 +1,29 @@
 import React from 'react';
-import { findByText, getByText, fireEvent } from '@testing-library/dom';
+import { findByText, getByText, fireEvent, wait } from '@testing-library/dom';
 import App from './App';
-import { Given as GivenStore, When as WhenStore } from './store/store.bdd';
-import { Given as GivenMohioRepository, rootMohio, mohioConsecteturAdipiscingElit } from './repository/mohioRepository.bdd';
-
-let app;
+import store from './store/store';
+import * as actions from './store/actions';
+import { renderComponentWithStore, createMockStoreWithState } from './components/ComponentTestUtils';
+import { Given as GivenMohioRepository } from './repository/mohioRepository.bdd';
+import { rootMohio, childMohio, childOfChildMohio } from './repository/mohioRepository.bdd';
 
 export class Given {
-  static async MohiosCreatedInRepository() {
-    await GivenMohioRepository.RepositoryIsEmpty();
-    return GivenMohioRepository.MohiosAreCreatedInRepository();
+
+  MockStoreIsEmpty() {
+    return createMockStoreWithState();
   }
 
-  static async AppIsRenderedWithStore() {
-    const { container } = await GivenStore.ComponentIsRenderedWithStore(<App />);
-    app = container;
-  }
 }
 
 export class When {
-  static ClickingOnTreeElement() {
+
+  AppIsRenderedWithStore(withStore) {
+    const { container } = renderComponentWithStore(<App />, withStore);
+    return container;
+  }
+
+
+  ClickingOnTreeElement() {
     const mohioTreeElement = getMohioTreeElement();
     const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
     fireEvent.click(toSelectFirstLevelMohioNavigationElement);
@@ -27,28 +31,57 @@ export class When {
     const nameElement = getByText(mohioViewElement, toSelectFirstLevelMohioName);
     expect(nameElement).toBeInTheDocument();
   }
+
 }
 
 export class Then {
-  static async MohiosTreeIsDisplayed() {
-    const mohioTreeElement = getMohioTreeElement();
+
+  InitializeAppActionIsDispatched(store) {
+    const dispatched = store.dispatch.mock.calls[0];
+    expect(dispatched[0]).toStrictEqual(actions.initializeApp());
+  }
+
+  AppBarIsRendered(component) {
+    const appBarElement = getAppBarElement(component);
+    expect(appBarElement).toBeInTheDocument();
+    const brand = getByText(appBarElement, 'Mohio');
+    expect(brand).toBeInTheDocument();
+  }
+
+  MohioTreeIsRendered(component) {
+    const mohioTreeElement = getMohioTreeElement(component);
+    expect(mohioTreeElement).toBeInTheDocument();
+  }
+
+  MohioViewIsRendered(component) {
+    const mohioViewElement = getMohioViewElement(component);
+    expect(mohioViewElement).toBeInTheDocument();
+  }
+
+  async MohiosTreeIsDisplayed(component) {
+    const mohioTreeElement = getMohioTreeElement(component);
     const mohioLoremIpsumElement = await findByText(mohioTreeElement, rootMohio.name);
     const mohioConsecteturAdipiscingElitElement = await findByText(mohioTreeElement, mohioConsecteturAdipiscingElit.name);
     expect(mohioLoremIpsumElement).toBeInTheDocument();
     expect(mohioConsecteturAdipiscingElitElement).toBeInTheDocument();
   }
 
-  static async SelectedMohioIsDisplayedInView() {
+  async SelectedMohioIsDisplayedInView() {
 
   }
 }
 
-const getMohioTreeElement = () => {
-  const MohioTreeRootElement = 'nav';
-  return app.querySelector(MohioTreeRootElement);
+function getAppBarElement(app) {
+  const rootElement = 'header';
+  return app.querySelector(rootElement);
 }
 
-const getMohioViewElement = () => {
-  const MohioViewRootElement = 'main';
-  return app.querySelector(MohioViewRootElement);
+function getMohioTreeElement(app) {
+  const rootElement = 'nav';
+  return app.querySelector(rootElement);
+}
+
+function getMohioViewElement(app) {
+  const rootElement = 'main';
+  return app.querySelector(rootElement);
 }
