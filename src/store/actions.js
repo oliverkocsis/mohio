@@ -43,10 +43,11 @@ function buildTree(ids, list) {
   const tree = [];
   for (let id of ids) {
     const found = list.find((mohio) => id === mohio.id);
+    const mohio = { id: found.id, name: found.name };
     if (found.children) {
-      found.children = buildTree(found.children, list);
+      mohio.children = buildTree(found.children, list);
     }
-    tree.push(found);
+    tree.push(mohio);
   }
   return tree;
 }

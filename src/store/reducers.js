@@ -32,26 +32,23 @@ function reduceClearStore() {
 function reduceSetMohioList(state, action) {
   const mohios = state.mohios;
   const list = action.mohios;
-  const view = list.length > 0 ? list[0] : null;
   return {
     ...state,
     mohios: {
       ...mohios,
-      list: list,
-      view: view,
+      list,
     }
   }
 }
 
 function reduceSetMohioTree(state, action) {
   const mohios = state.mohios;
-  const list = mohios.list;
   const tree = action.tree;
   return {
     ...state,
     mohios: {
       ...mohios,
-      tree: mapIdsToMohios(tree, list),
+      tree,
     }
   }
 }
@@ -67,18 +64,6 @@ function reduceSetMohioView(state, action) {
       view: findMohioById(find, list),
     }
   }
-}
-
-function mapIdsToMohios(ids, list) {
-  const tree = [];
-  for (const id of ids) {
-    const mohio = findMohioById(id.id, list);
-    if (id.children) {
-      mohio.children = mapIdsToMohios(id.children, list);
-    }
-    tree.push(mohio);
-  }
-  return tree;
 }
 
 function findMohioById(id, list) {

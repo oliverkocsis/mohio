@@ -7,13 +7,13 @@ export const rootMohio = {
 }
 
 export const childMohio = {
-  name: 'Cras Egestas',
-  definition: 'Cras egestas lorem quis ex accumsan, ac hendrerit felis efficitur.',
+  name: 'Praesent Luctus',
+  definition: 'Praesent luctus tortor vel metus tempor, et egestas enim accumsan.',
 }
 
 export const childOfChildMohio = {
-  name: "Nulla At",
-  definition: "",
+  name: "Class Aptent",
+  definition: "Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
 }
 
 export class Given {

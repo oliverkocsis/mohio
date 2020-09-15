@@ -1,13 +1,15 @@
-import store from "./store";
-import * as actions from './actions';
-import { Given } from './store.testutil';
-import { wait } from "@testing-library/dom";
 
-describe('given firestore is empty and store is created', () => {
+import { Given as GivenClass, When as WhenClass, Then as ThenClass } from './store.bdd';
+
+const Given = new GivenClass();
+const When = new WhenClass();
+const Then = new ThenClass();
+
+describe('repository is empty and store is created', () => {
 
   beforeAll(async () => {
-    await Given.FirestoreIsEmpty();
-    jest.resetModules();
+    await Given.RepositoryIsEmpty();
+    Given.StoreIsCreated();
   });
 
   test('then state conatins empty mohios list', () => {
@@ -25,81 +27,40 @@ describe('given firestore is empty and store is created', () => {
 
   describe('given mohios created in repository when dispatching initialize app action', () => {
 
+    let rootMohioId;
+    let childMohioId;
+    let childOfChildMohioId;
+
     beforeAll(async () => {
-      await Given.MohiosCreatedInRepository();
-      return When.DispatchingInitializeAppAction();
+      rootMohioId = await Given.RootMohioIsCreated();
+      childMohioId = await Given.ChildMohioIsCreated();
+      childOfChildMohioId = await Given.ChildOfChildMohioIsCreated();
+      await When.DispatchingInitializeAppAction();
     });
 
     test('then state contains mohios list', () => {
-      Then.StateContainsMohioList();
+      Then.StateContainsMohioList(rootMohioId, childMohioId, childOfChildMohioId);
     });
 
     test('then state contains mohios tree', () => {
-      Then.StateContainsMohioTree();
+      Then.StateContainsMohioTree(rootMohioId, childMohioId, childOfChildMohioId);
     });
 
     test('then state contains mohios view', () => {
-      Then.StateContainsMohioView();
+      Then.StateContainsRootMohioView(rootMohioId, childMohioId);
     });
+
+    describe('when dispatching select mohio', () => {
+      beforeAll(async () => {
+        await When.DispatchingSelectMohio(childMohioId);
+      });
+
+      test('then state contains child mohio view', () => {
+        Then.StateContainsChildMohioView(childMohioId, childOfChildMohioId)
+      });
+    });
+
   });
 
 });
 
-const When = {
-  async DispatchingInitializeAppAction() {
-    store.dispatch(actions.initializeApp());
-    return wait(() => {
-      const list = getMohioList();
-      expect(list).not.toBeEmpty();
-      const tree = getMohioTree();
-      expect(tree).not.toBeEmpty();
-    });
-  }
-}
-
-const Then = {
-  StateContainsEmptyMohioList() {
-    const list = getMohioList();
-    expect(list.length).toBe(0);
-  },
-  StateContainsEmptyMohioTree() {
-    expect(getMohioTree().length).toBe(0);
-  },
-  StateContainsEmptyMohioView() {
-    expect(getMohioView()).toBeNull();
-  },
-
-  StateContainsMohioList() {
-    const list = getMohioList();
-    expect(list).toStrictEqual([
-      mohioConsecteturAdipiscingElitWithId(),
-      mohioMohioLoremIpsumWithId(),
-    ]);
-  },
-  StateContainsMohioTree() {
-    const tree = getMohioTree();
-    expect(tree).toStrictEqual([
-      {
-        ...mohioMohioLoremIpsumWithIdWithoutDefinition(),
-        children: [
-          ...mohioConsecteturAdipiscingElitWithIdWithoutDefinition(),
-        ]
-      }
-    ]);
-  },
-  StateContainsMohioView() {
-    const view = getMohioView();
-    const expected = mohioMohioLoremIpsumWithId()
-    expect(view).toStrictEqual(expected);
-  },
-}
-
-function getMohioList() {
-  return store.getState().mohios.list;
-};
-function getMohioTree() {
-  return store.getState().mohios.tree;
-};
-function getMohioView() {
-  return store.getState().mohios.view;
-};

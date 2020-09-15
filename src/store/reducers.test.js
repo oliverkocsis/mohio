@@ -2,7 +2,7 @@ import reducers from './reducers';
 import * as actionTypes from './actionTypes';
 
 describe('given state is undefined and no action defined when executing reducer', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     Given.StateIsUndefined();
     Given.ActionIsUndefined();
     When.ExecutingReducer();
@@ -22,7 +22,7 @@ describe('given state is undefined and no action defined when executing reducer'
 });
 
 describe('given state is empty and action is set mohio list when executing reducer ', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     Given.StateIsEmpty();
     Given.ActionIsSetMohioList();
     When.ExecutingReducer();
@@ -30,10 +30,6 @@ describe('given state is empty and action is set mohio list when executing reduc
 
   test('then state contains mohio list', () => {
     Then.StateContainsMohioList();
-  });
-
-  test('then state contains default mohio view', () => {
-    Then.StateContainsDefaultMohioView();
   });
 });
 
@@ -57,7 +53,7 @@ describe('given state contains mohio list', () => {
 });
 
 describe('given state contains mohio list, mohio tree, mohio view and action is clear store when executing reducer', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     Given.StateIsEmpty();
     Given.StateContainsMohioList();
     Given.StateContainsMohioTree();
@@ -97,23 +93,14 @@ const mohioList = [
   mohioConsecteturAdipiscingElit,
 ];
 
-const mohioIdTree = [
+const mohioTree = [
   {
     id: mohioLoremIpsum.id,
+    name: mohioLoremIpsum.name,
     children: [
       {
         id: mohioConsecteturAdipiscingElit.id,
-      }
-    ]
-  },
-];
-
-const mohioTree = [
-  {
-    ...mohioLoremIpsum,
-    children: [
-      {
-        ...mohioConsecteturAdipiscingElit,
+        name: mohioConsecteturAdipiscingElit.name,
       }
     ]
   },
@@ -170,7 +157,7 @@ const Given = {
   ActionIsSetMohioTree: () => {
     Data.action = {
       type: actionTypes.SET_MOHIO_TREE,
-      ids: mohioIdTree,
+      tree: mohioTree,
     };
   },
 
