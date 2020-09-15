@@ -1,104 +1,146 @@
 import React from 'react';
-import { renderWithStore } from '../util/reduxUtil';
-import { screen } from '@testing-library/react';
-import { getByText, fireEvent } from '@testing-library/dom';
-import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
-import { testId as MohioTreeElementMultiLevelTestId } from './MohioTreeElementMultiLevel';
+import { screen, waitForElementToBeRemoved } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { renderComponentWithStore, createMockStoreWithState } from './ComponentTestUtils';
 
-const name = 'MohioTreeElementMultiLevel';
-const childName = 'Child-1'
-const childOfChildrenName = 'Child-1-1';
-const childrenOfChildren = [
-  { name: childOfChildrenName },
-  { name: 'Child-1-2' },
-];
-const children = [
-  { name: childName, children: childrenOfChildren },
-  { name: 'Child-2' },
-];
+import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
+import { selectMohio } from '../store/actions'
+
+let store;
+const mohio = {
+  id: 'a012e594-46b0-44ba-a4eb-76b6a0fd8680',
+  name: 'MohioTreeElementMultiLevel',
+  children: [
+    {
+      id: 'ab96e45b-aff4-4799-9d44-5ec3dd9bda2a',
+      name: 'Child One',
+    },
+    {
+      id: 'd0758576-8c9a-4a2f-89fb-2b3fe40b069c',
+      name: 'Child Two',
+      children: [
+        {
+          id: '02a98121-abf6-4b79-96ab-0c22bfd6b1b6',
+          name: 'Child Of Child Two',
+        }
+      ]
+    }
+  ]
+};
 
 beforeEach(() => {
-  renderWithStore(<MohioTreeElementMultiLevel name={name} children={children} onClick={() => { }} />);
+  store = createMockStoreWithState();
+  renderComponentWithStore(<MohioTreeElementMultiLevel mohio={mohio} />, store);
 });
 
-test('displays the name', () => {
-  const parentElement = getParentElement();
-  expect(parentElement).toBeInTheDocument();
+test('when component is rendered then name is displayed', () => {
+  expectComponentToBeInDocument();
 });
 
-test('does not display children by default', () => {
-  const allLevelChdilrenElements = screen.getByTestId(MohioTreeElementMultiLevelTestId);
-  expect(allLevelChdilrenElements).toBeInTheDocument();
+test('when component is rendered then name of children are not displayed', () => {
+  expectChildrenComponentNotToBeInDocument();
 });
 
-test('displays the first level children after clicking on the parent element', () => {
-  clickOnParentElement();
-  for (let child of children) {
-    const childElement = screen.getByText(child.name);
-    expect(childElement).toBeInTheDocument();
-  }
-  for (let child of childrenOfChildren) {
-    const childElement = screen.queryByText(child.name);
-    expect(childElement).toBeNull();
-  }
+describe('when clicking on a component', () => {
+  beforeEach(async () => {
+    store.dispatch.mockClear();
+    const element = screen.getByText(mohio.name);
+    userEvent.click(element);
+    return screen.findByText(mohio.children[0].name);
+  });
+
+  test('then select mohio action is dispatched', () => {
+    const dispatched = store.dispatch.mock.calls[0];
+    expect(dispatched[0]).toStrictEqual(selectMohio(mohio.id));
+  });
+
+  test('then component is displayed', () => {
+    expectComponentToBeInDocument();
+  });
+
+  test('then children of component are displayed', () => {
+    expectChildrenComponentToBeInDocument();
+  });
+
+  test('then children of children of component are not displayed', () => {
+    expectChildrenOfChildrenComponentNotToBeInDocument();
+  });
+
+  describe('when clicking on child of a child component', () => {
+    beforeEach(async () => {
+      store.dispatch.mockClear();
+      const element = screen.getByText(mohio.children[1].name);
+      userEvent.click(element);
+      return screen.findByText(mohio.children[1].children[0].name);
+    });
+
+    test('then select mohio action is dispatched', () => {
+      const dispatched = store.dispatch.mock.calls[0];
+      expect(dispatched[0]).toStrictEqual(selectMohio(mohio.children[1].id));
+    });
+
+    test('then component is displayed', () => {
+      expectComponentToBeInDocument();
+    });
+
+    test('then children of component are displayed', () => {
+      expectChildrenComponentToBeInDocument();
+    });
+
+    test('then children of children of component are displayed', () => {
+      expectChildrenOfChildrenComponentToBeInDocument();
+    });
+  });
+
+  describe('when clicking on a component twice', () => {
+    beforeEach(async () => {
+      store.dispatch.mockClear();
+      const element = screen.getByText(mohio.name);
+      userEvent.click(element);
+      return waitForElementToBeRemoved(() => screen.queryByText(mohio.children[0].name));
+    });
+
+    test('then select mohio action is dispatched twice', () => {
+      const dispatchedOne = store.dispatch.mock.calls[0];
+      expect(dispatchedOne[0]).toStrictEqual(selectMohio(mohio.id));
+    });
+
+    test('when component is rendered then name is displayed', () => {
+      expectComponentToBeInDocument();
+    });
+
+    test('when component is rendered then name of children are not displayed', () => {
+      expectChildrenComponentNotToBeInDocument();
+    });
+  });
 });
 
-test('displays the second level children after clicking on the parent element then the first level child-parent element', () => {
-  clickOnParentElement();
-  clickOnChildElement();
-  const secondLevelChdilrenElements = getSecondLevelChildrenElements();
-  for (let child of childrenOfChildren) {
-    const childElement = getByText(secondLevelChdilrenElements, child.name);
-    expect(childElement).toBeInTheDocument();
-  }
-  for (let child of children) {
-    const childElement = screen.getByText(child.name);
-    expect(childElement).toBeInTheDocument();
-  }
-});
 
-test('does not display the first level children after clicking on the parent element twice', (done) => {
-  clickOnParentElement();
-  clickOnParentElement();
-  // wait for animation ends on closing the list
-  setTimeout(() => {
-    try {
-      for (let child of children) {
-        const childElement = screen.queryByText(child.name);
-        expect(childElement).toBeNull();
-      }
-      for (let child of childrenOfChildren) {
-        const childElement = screen.queryByText(child.name);
-        expect(childElement).toBeNull();
-      }
-      done();
-    } catch (error) {
-      done(error);
-    }
+const expectComponentToBeInDocument = () => {
+  const component = screen.getByText(mohio.name);
+  expect(component).toBeInTheDocument();
+};
 
-  }, 2500);
+const expectChildrenComponentToBeInDocument = () => {
+  const childOne = screen.getByText(mohio.children[0].name)
+  expect(childOne).toBeInTheDocument();
+  const childTwo = screen.getByText(mohio.children[1].name)
+  expect(childTwo).toBeInTheDocument();
+};
 
-});
+const expectChildrenComponentNotToBeInDocument = () => {
+  const childOne = screen.queryByText(mohio.children[0].name)
+  expect(childOne).toBeNull();
+  const childTwo = screen.queryByText(mohio.children[1].name)
+  expect(childTwo).toBeNull();
+};
 
-function getParentElement() {
-  return screen.getByText(name);
-}
+const expectChildrenOfChildrenComponentToBeInDocument = () => {
+  const childOfChildTwo = screen.getByText(mohio.children[1].children[0].name);
+  expect(childOfChildTwo).toBeInTheDocument();
+};
 
-function clickOnParentElement() {
-  const parentElement = getParentElement();
-  fireEvent.click(parentElement);
-}
-
-function getChildelement() {
-  return screen.getByText(childName);
-}
-
-function clickOnChildElement() {
-  const parentOfSecondLevelChildrenElements = getChildelement();
-  fireEvent.click(parentOfSecondLevelChildrenElements);
-}
-
-function getSecondLevelChildrenElements() {
-  const allMohioTreeElementMultiLevel = screen.getAllByTestId(MohioTreeElementMultiLevelTestId);
-  return allMohioTreeElementMultiLevel[1];
-}
+const expectChildrenOfChildrenComponentNotToBeInDocument = () => {
+  const childOfChildTwo = screen.queryByText(mohio.children[1].children[0].name);
+  expect(childOfChildTwo).toBeNull();
+};

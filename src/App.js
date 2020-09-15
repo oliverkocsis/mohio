@@ -1,10 +1,11 @@
 import React from 'react';
 import { connect } from 'react-redux'
-import { createMuiTheme, makeStyles } from '@material-ui/core/styles';
+import { createMuiTheme, withStyles } from '@material-ui/core/styles';
 import { ThemeProvider } from '@material-ui/styles';
 import blue from '@material-ui/core/colors/blue';
 import pink from '@material-ui/core/colors/pink';
 import CssBaseline from '@material-ui/core/CssBaseline';
+import { initializeApp } from './store/actions';
 import MohioAppBar from './components/MohioAppBar';
 import MohioTree from './components/MohioTree';
 import MohioView from './components/MohioView';
@@ -17,34 +18,49 @@ const theme = createMuiTheme({
   },
 });
 
-const useStyles = makeStyles((theme) => ({
+const styles = {
   root: {
     display: 'flex',
   },
-}));
+};
 
-function App(props) {
-  const classes = useStyles();
+class App extends React.Component {
+  constructor(props) {
+    super(props);
+    const { classes } = props;
+    this.classes = classes;
+  }
 
-  return (
-    <div className={classes.root}>
-      <CssBaseline />
-      <ThemeProvider theme={theme}>
-        <MohioAppBar></MohioAppBar>
-        <MohioTree mohios={props.mohios}></MohioTree>
-        <MohioView mohio={props.mohioSelected}></MohioView>
-      </ThemeProvider>
-    </div>
-  );
+  componentDidMount() {
+    this.props.initializeApp();
+  }
+
+  render() {
+    return (
+      <div className={this.classes.root}>
+        <CssBaseline />
+        <ThemeProvider theme={theme}>
+          <MohioAppBar></MohioAppBar>
+          <MohioTree mohios={this.props.mohioTree}></MohioTree>
+          <MohioView mohio={this.props.mohioView}></MohioView>
+        </ThemeProvider>
+      </div>
+    );
+  }
 }
 
 const mapStateToProps = (state) => {
   return {
-    mohios: state.mohios,
-    mohioSelected: state.mohioSelected,
+    mohioTree: state.mohios.tree,
+    mohioView: state.mohios.view,
   }
 }
 
-const appWithStore = connect(mapStateToProps)(App);
+const actionCreators = {
+  initializeApp,
+}
 
-export default appWithStore;
+const appWithStore = connect(mapStateToProps, actionCreators)(App);
+const appWithStyle = withStyles(styles)(appWithStore);
+
+export default appWithStyle;

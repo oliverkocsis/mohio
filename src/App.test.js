@@ -1,65 +1,34 @@
-import React from 'react';
-import { renderWithStore } from "./util/reduxUtil";
-import { getByText, fireEvent } from '@testing-library/dom';
-import App from './App';
+import { Given as GivenClass, When as WhenClass, Then as ThenClass } from './App.bdd'
 
-const defaultMohioName = 'About';
-const toSelectFirstLevelMohioName = 'Domain';
-const toSelectSecondLevelMohioName = 'Bar';
-const toSelectSecondLevelOtherMohioName = 'Tree';
-let app;
+const Given = new GivenClass();
+const When = new WhenClass();
+const Then = new ThenClass();
 
-beforeEach(() => {
-  const { container } = renderWithStore(<App />);
-  app = container;
+describe('Given the store is empty when component is rendered', () => {
+
+  let store;
+  let component;
+
+  beforeEach(() => {
+    store = Given.MockStoreIsEmpty();
+    component = When.AppIsRenderedWithStore(store);
+  });
+
+  test.skip('then initialize action is dispatched', () => {
+    Then.InitializeAppActionIsDispatched(store);
+  })
+
+  test('Then app bar is rendered', () => {
+    Then.AppBarIsRendered(component);
+  });
+
+  test('Then mohio tree is rendered', () => {
+    Then.MohioTreeIsRendered(component);
+  });
+
+  test('Then mohio view is rendered', () => {
+    Then.MohioViewIsRendered(component);
+  });
+
+
 });
-
-test('by default the about mohio is displayed (hard coded data)', () => {
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, defaultMohioName);
-  expect(nameElement).toBeInTheDocument();
-});
-
-test('clicking on domain will show the domain mohio (hard coded data)', () => {
-  const mohioTreeElement = getMohioTreeElement();
-  const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
-  fireEvent.click(toSelectFirstLevelMohioNavigationElement);
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, toSelectFirstLevelMohioName);
-  expect(nameElement).toBeInTheDocument();
-});
-
-
-test('clicking on other child of domain will show the other child of domain mohio (hard coded data)', () => {
-  const mohioTreeElement = getMohioTreeElement();
-  const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
-  fireEvent.click(toSelectFirstLevelMohioNavigationElement);
-  const toSelectSecondLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectSecondLevelMohioName);
-  fireEvent.click(toSelectSecondLevelMohioNavigationElement);
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, toSelectSecondLevelMohioName);
-  expect(nameElement).toBeInTheDocument();
-});
-
-test('clicking on 2nd child of domain will show the child of domain mohio (hard coded data)', () => {
-  const mohioTreeElement = getMohioTreeElement();
-  const toSelectFirstLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectFirstLevelMohioName);
-  fireEvent.click(toSelectFirstLevelMohioNavigationElement);
-  const toSelectSecondLevelMohioNavigationElement = getByText(mohioTreeElement, toSelectSecondLevelMohioName);
-  fireEvent.click(toSelectSecondLevelMohioNavigationElement);
-  const toSelectSecondLevelOtherMohioNavigationElement = getByText(mohioTreeElement, toSelectSecondLevelOtherMohioName);
-  fireEvent.click(toSelectSecondLevelOtherMohioNavigationElement);
-  const mohioViewElement = getMohioViewElement();
-  const nameElement = getByText(mohioViewElement, toSelectSecondLevelOtherMohioName);
-  expect(nameElement).toBeInTheDocument();
-});
-
-function getMohioTreeElement() {
-  const MohioTreeRootElement = 'nav';
-  return app.querySelector(MohioTreeRootElement);
-}
-
-function getMohioViewElement() {
-  const MohioViewRootElement = 'main';
-  return app.querySelector(MohioViewRootElement);
-}

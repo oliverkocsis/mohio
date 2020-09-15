@@ -1,6 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { selectMohio } from '../store/actons';
+import { selectMohio } from '../store/actions';
 import { makeStyles } from '@material-ui/core/styles';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -10,8 +10,6 @@ import ExpandLess from '@material-ui/icons/ExpandLess';
 import ExpandMore from '@material-ui/icons/ExpandMore';
 import MohioTreeElement from './MohioTreeElement';
 
-export const testId = 'MohioTreeElementMultiLevel';
-
 const useStyles = makeStyles((theme) => ({
   nested: {
     paddingLeft: theme.spacing(2),
@@ -19,17 +17,18 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function MohioTreeElementMultiLevel(props) {
+  const mohio = props.mohio;
   const classes = useStyles();
   const [open, setOpen] = React.useState(false);
   const handleClick = () => {
     setOpen(!open);
-    props.onClick(props.name);
+    props.selectMohio(mohio.id);
   };
-  const children = props.children.map((child) => <MohioTreeElement name={child.name} children={child.children} key={child.name} />);
+  const children = mohio.children.map((child) => <MohioTreeElement mohio={child} key={child.id} />);
   return (
-    <List disablePadding dense={true} data-testid={testId}>
+    <List disablePadding dense={true}>
       <ListItem button onClick={handleClick}>
-        <ListItemText primary={props.name} />{open ? <ExpandLess /> : <ExpandMore />}
+        <ListItemText primary={mohio.name} />{open ? <ExpandLess /> : <ExpandMore />}
       </ListItem>
       <Collapse in={open} timeout="auto" unmountOnExit>
         <List disablePadding dense={true} className={classes.nested}>
@@ -40,12 +39,8 @@ function MohioTreeElementMultiLevel(props) {
   )
 }
 
-const mapDispatchToProps = dispatch => {
-  return {
-    onClick: name => {
-      dispatch(selectMohio(name));
-    }
-  }
+const actionCreators = {
+  selectMohio,
 }
 
-export default connect(null, mapDispatchToProps)(MohioTreeElementMultiLevel);
+export default connect(null, actionCreators)(MohioTreeElementMultiLevel);

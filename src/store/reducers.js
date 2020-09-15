@@ -1,42 +1,23 @@
-import { SELECT_MOHIO } from './actons';
+import * as actionTypes from './actionTypes';
 
-const loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Rhoncus dolor purus non enim praesent elementum facilisis leo vel. Risus at ultrices mi tempus imperdiet. Semper risus in hendrerit gravida rutrum quisque non tellus. Convallis convallis tellus id interdum velit laoreet id donec ultrices. Odio morbi quis commodo odio aenean sed adipiscing. Amet nisl suscipit adipiscing bibendum est ultricies integer quis. Cursus euismod quis viverra nibh cras. Metus vulputate eu scelerisque felis imperdiet proin fermentum leo. Mauris commodo quis imperdiet massa tincidunt. Cras tincidunt lobortis feugiat vivamus at augue. At augue eget arcu dictum varius duis at consectetur lorem. Velit sed ullamcorper morbi tincidunt. Lorem donec massa sapien faucibus et molestie ac.';
-
-const mohios = [
-  { name: 'About', definition: loremIpsum },
-  {
-    name: 'Domain', definition: loremIpsum, children: [
-      { name: 'Bar', definition: loremIpsum },
-      { name: 'Tree', definition: loremIpsum },
-      {
-        name: 'View', definition: loremIpsum, children: [
-          { name: 'Name', definition: loremIpsum },
-          { name: 'Value', definition: loremIpsum },
-        ]
-      },
-    ]
+export const initialState = {
+  mohios: {
+    list: [],
+    tree: [],
+    view: null,
   },
-  {
-    name: 'Process', definition: loremIpsum, children: [
-      { name: 'Create', definition: loremIpsum },
-      { name: 'Edit', definition: loremIpsum },
-      { name: 'Delete', definition: loremIpsum },
-    ]
-  },
-];
-
-const initialState = {
-  mohios: mohios,
-  mohioSelected: mohios[0],
 }
 
 function reducers(state = initialState, action) {
   switch (action.type) {
-    case SELECT_MOHIO:
-      return {
-        ...state,
-        mohioSelected: select(state.mohios, action.name)
-      }
+    case actionTypes.CLEAR_STORE:
+      return reduceClearStore();
+    case actionTypes.SET_MOHIO_LIST:
+      return reduceSetMohioList(state, action);
+    case actionTypes.SET_MOHIO_TREE:
+      return reduceSetMohioTree(state, action);
+    case actionTypes.SET_MOHIO_VIEW:
+      return reduceSetMohioView(state, action);
     default:
       return state
   }
@@ -44,26 +25,47 @@ function reducers(state = initialState, action) {
 
 export default reducers;
 
-function findMohio(mohio, name) {
-  if (mohio.name === name) {
-    return mohio;
-  } else {
-    if (mohio.children) {
-      for (let child of mohio.children) {
-        const found = findMohio(child, name);
-        if (found) {
-          return found;
-        }
-      }
+function reduceClearStore() {
+  return initialState;
+}
+
+function reduceSetMohioList(state, action) {
+  const mohios = state.mohios;
+  const list = action.mohios;
+  return {
+    ...state,
+    mohios: {
+      ...mohios,
+      list,
     }
   }
 }
 
-function select(mohios, name) {
-  for (let mohio of mohios) {
-    const found = findMohio(mohio, name);
-    if (found) {
-      return found;
+function reduceSetMohioTree(state, action) {
+  const mohios = state.mohios;
+  const tree = action.tree;
+  return {
+    ...state,
+    mohios: {
+      ...mohios,
+      tree,
     }
   }
+}
+
+function reduceSetMohioView(state, action) {
+  const mohios = state.mohios;
+  const list = mohios.list;
+  const find = action.id;
+  return {
+    ...state,
+    mohios: {
+      ...mohios,
+      view: findMohioById(find, list),
+    }
+  }
+}
+
+function findMohioById(id, list) {
+  return list.find((mohio) => mohio.id === id);
 }
