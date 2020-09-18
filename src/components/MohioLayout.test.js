@@ -1,6 +1,6 @@
 import React from 'react';
 import { getByText } from '@testing-library/dom';
-import { renderComponentWithStore, createMockStoreWithState } from './ComponentTestUtils';
+import { renderComonentWithStoreAndRouter, createMockStoreWithState, emptyState, notEmptyState, rootMohio, childMohio } from './ComponentTestUtils';
 import MohioLayout from './MohioLayout';
 import * as actions from '../store/actions';
 
@@ -11,15 +11,15 @@ describe('Given the store is empty when component is rendered', () => {
 
   beforeEach(() => {
     store = Given.MockStoreIsEmpty();
-    component = When.AppIsRenderedWithStore(store);
+    component = When.MohioLayoutIsRendered(store);
   });
 
   test('then initialize action is dispatched', () => {
     Then.InitializeAppActionIsDispatched(store);
   })
 
-  test('Then app bar is rendered', () => {
-    Then.AppBarIsRendered(component);
+  test('Then mohio app bar is rendered', () => {
+    Then.MohioAppBarIsRendered(component);
   });
 
   test('Then mohio tree is rendered', () => {
@@ -32,18 +32,49 @@ describe('Given the store is empty when component is rendered', () => {
 
 });
 
+describe('Given the store is not empty when component is rendered', () => {
+
+  let store;
+  let component;
+
+  beforeEach(() => {
+    store = Given.MockStoreIsNotEmpty();
+    component = When.MohioLayoutIsRendered(store);
+  });
+
+  test('then initialize action is dispatched', () => {
+    Then.InitializeAppActionIsDispatched(store);
+  })
+
+  test('Then mohio app bar is rendered', () => {
+    Then.MohioAppBarIsRendered(component);
+  });
+
+  test('Then mohio tree is rendered', () => {
+    Then.RootMohioIsDisplayedInTree(component);
+  });
+
+  test('Then mohio view is rendered', () => {
+    Then.RootMohioIsDisplayedInView(component);
+  });
+
+});
+
 class GivenClass {
 
   MockStoreIsEmpty() {
-    return createMockStoreWithState();
+    return createMockStoreWithState(emptyState);
+  }
+
+  MockStoreIsNotEmpty() {
+    return createMockStoreWithState(notEmptyState);
   }
 
 }
 
 class WhenClass {
-
-  AppIsRenderedWithStore(withStore) {
-    const { container } = renderComponentWithStore(<MohioLayout />, withStore);
+  MohioLayoutIsRendered(withStore, initialRouterEntries) {
+    const { container } = renderComonentWithStoreAndRouter(<MohioLayout />, withStore, initialRouterEntries);
     return container;
   }
 }
@@ -54,7 +85,7 @@ class ThenClass {
     expect(dispatched[0]).toBe(actions.initializeApp());
   }
 
-  AppBarIsRendered(component) {
+  MohioAppBarIsRendered(component) {
     const appBarElement = getAppBarElement(component);
     expect(appBarElement).toBeInTheDocument();
     const brand = getByText(appBarElement, 'Mohio');
@@ -70,6 +101,21 @@ class ThenClass {
     const mohioViewElement = getMohioViewElement(component);
     expect(mohioViewElement).toBeInTheDocument();
   }
+
+  RootMohioIsDisplayedInTree(component) {
+    const mohioTreeElement = getMohioTreeElement(component);
+    const name = getByText(mohioTreeElement, rootMohio.name);
+    expect(name).toBeInTheDocument();
+  }
+
+  RootMohioIsDisplayedInView(component) {
+    const mohioViewElement = getMohioViewElement(component);
+    const name = getByText(mohioViewElement, rootMohio.name);
+    expect(name).toBeInTheDocument();
+    const defintition = getByText(mohioViewElement, rootMohio.definition);
+    expect(defintition).toBeInTheDocument();
+  }
+
 }
 
 function getAppBarElement(app) {

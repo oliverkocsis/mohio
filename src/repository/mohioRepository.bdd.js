@@ -117,6 +117,4 @@ export class Then {
     expect(roots.includes(id)).toBeFalsy();
   }
 
-
-
 }

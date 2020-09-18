@@ -15,7 +15,6 @@ const useStyles = makeStyles((theme) => ({
 function MohioLayout(props) {
   const classes = useStyles();
   useEffect(() => {
-    console.log('initializeApp');
     props.initializeApp();
   }, []);
   return (
