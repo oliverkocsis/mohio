@@ -1,4 +1,5 @@
 import app from './firebase';
+import 'firebase/firestore';
 
 const firestore = app.firestore();
 

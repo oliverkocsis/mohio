@@ -9,9 +9,6 @@ import { rootMohio, childMohio, childOfChildMohio } from './repository/mohioRepo
 
 export class Given {
 
-  MockStoreIsEmpty() {
-    return createMockStoreWithState();
-  }
 
 }
 
@@ -36,27 +33,7 @@ export class When {
 
 export class Then {
 
-  InitializeAppActionIsDispatched(store) {
-    const dispatched = store.dispatch.mock.calls[0];
-    expect(dispatched[0]).toStrictEqual(actions.initializeApp());
-  }
-
-  AppBarIsRendered(component) {
-    const appBarElement = getAppBarElement(component);
-    expect(appBarElement).toBeInTheDocument();
-    const brand = getByText(appBarElement, 'Mohio');
-    expect(brand).toBeInTheDocument();
-  }
-
-  MohioTreeIsRendered(component) {
-    const mohioTreeElement = getMohioTreeElement(component);
-    expect(mohioTreeElement).toBeInTheDocument();
-  }
-
-  MohioViewIsRendered(component) {
-    const mohioViewElement = getMohioViewElement(component);
-    expect(mohioViewElement).toBeInTheDocument();
-  }
+ 
 
   async MohiosTreeIsDisplayed(component) {
     const mohioTreeElement = getMohioTreeElement(component);
@@ -71,17 +48,3 @@ export class Then {
   }
 }
 
-function getAppBarElement(app) {
-  const rootElement = 'header';
-  return app.querySelector(rootElement);
-}
-
-function getMohioTreeElement(app) {
-  const rootElement = 'nav';
-  return app.querySelector(rootElement);
-}
-
-function getMohioViewElement(app) {
-  const rootElement = 'main';
-  return app.querySelector(rootElement);
-}

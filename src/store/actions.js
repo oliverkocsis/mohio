@@ -1,15 +1,17 @@
 import * as repository from '../repository/mohioRepository';
 import * as actionTypes from './actionTypes';
 
+async function initializeAppDispatcher(dispatch) {
+  const list = await repository.readMohios();
+  dispatch(loadMohioList(list));
+  const roots = await repository.readRoots();
+  const tree = buildTree(roots, list);
+  dispatch(loadMohioTree(tree));
+  dispatch(selectMohio(roots[0]));
+}
+
 export function initializeApp() {
-  return async function (dispatch) {
-    const list = await repository.readMohios();
-    dispatch(loadMohioList(list));
-    const roots = await repository.readRoots();
-    const tree = buildTree(roots, list);
-    dispatch(loadMohioTree(tree));
-    dispatch(selectMohio(roots[0]));
-  }
+  return initializeAppDispatcher;
 }
 
 export function clearStore() {

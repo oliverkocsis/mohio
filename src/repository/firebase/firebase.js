@@ -1,4 +1,4 @@
-import * as firebase from 'firebase';
+import * as firebase from 'firebase/app';
 
 const firebaseConfigProduction = {
   apiKey: "AIzaSyBjkOuwSH1ZR2k7bFFHH9FSVAuE-mUlWEE",
