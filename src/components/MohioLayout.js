@@ -1,29 +1,39 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { connect } from 'react-redux'
-import { makeStyles } from '@material-ui/core/styles';
+import { withStyles } from '@material-ui/core/styles';
 import MohioAppBar from './MohioAppBar';
 import MohioTree from './MohioTree';
 import MohioView from './MohioView';
 import { initializeApp } from '../store/actions';
 
-const useStyles = makeStyles((theme) => ({
+const styles = {
   root: {
     display: 'flex',
   },
-}));
+};
 
-function MohioLayout(props) {
-  const classes = useStyles();
-  useEffect(() => {
-    props.initializeApp();
-  }, []);
-  return (
-    <div className={classes.root}>
-      <MohioAppBar></MohioAppBar>
-      <MohioTree mohios={props.mohioTree}></MohioTree>
-      <MohioView mohio={props.mohioView}></MohioView>
-    </div>
-  );
+class MohioLayout extends React.Component {
+
+  constructor(props) {
+    super(props);
+    const { classes } = props;
+    this.classes = classes;
+  }
+
+  componentDidMount() {
+    console.log('initializeApp');
+    this.props.initializeApp();
+  }
+
+  render() {
+    return (
+      <div className={this.classes.root}>
+        <MohioAppBar></MohioAppBar>
+        <MohioTree mohios={this.props.mohioTree}></MohioTree>
+        <MohioView mohio={this.props.mohioView}></MohioView>
+      </div>
+    );
+  }
 }
 
 const mapStateToProps = (state) => {
@@ -37,4 +47,7 @@ const actionCreators = {
   initializeApp,
 }
 
-export default connect(mapStateToProps, actionCreators)(MohioLayout);
+const mohioLayoutWithStore = connect(mapStateToProps, actionCreators)(MohioLayout);
+const mohioLayoutWithStyle = withStyles(styles)(mohioLayoutWithStore);
+
+export default mohioLayoutWithStyle;
