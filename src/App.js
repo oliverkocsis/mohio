@@ -8,7 +8,7 @@ import blue from '@material-ui/core/colors/blue';
 import pink from '@material-ui/core/colors/pink';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import MohioLayout from './components/MohioLayout';
-import { BrowserRouter as Router } from "react-router-dom";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 
 const theme = createMuiTheme({
   palette: {
@@ -23,7 +23,10 @@ function App(props) {
       <Router>
         <CssBaseline />
         <ThemeProvider theme={theme}>
-          <MohioLayout />
+          <Switch>
+            <Route path="/:id" children={<MohioLayout />} />
+            <Route path="/" children={<MohioLayout />} />
+          </Switch>
         </ThemeProvider>
       </Router>
     </Provider>

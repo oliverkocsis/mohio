@@ -26,10 +26,12 @@ function reducers(state = initialState, action) {
 export default reducers;
 
 function reduceClearStore() {
+  console.debug('reduceClearStore');
   return initialState;
 }
 
 function reduceSetMohioList(state, action) {
+  console.debug(action);
   const mohios = state.mohios;
   const list = action.mohios;
   return {
@@ -42,6 +44,7 @@ function reduceSetMohioList(state, action) {
 }
 
 function reduceSetMohioTree(state, action) {
+  console.debug(action);
   const mohios = state.mohios;
   const tree = action.tree;
   return {
@@ -54,14 +57,27 @@ function reduceSetMohioTree(state, action) {
 }
 
 function reduceSetMohioView(state, action) {
+  console.debug(action);
   const mohios = state.mohios;
   const list = mohios.list;
   const find = action.id;
-  return {
-    ...state,
-    mohios: {
-      ...mohios,
-      view: findMohioById(find, list),
+  if (!list || list.length === 0) {
+    return {
+      ...state,
+      mohios: {
+        ...mohios,
+        view: {
+          id: find,
+        },
+      }
+    }
+  } else {
+    return {
+      ...state,
+      mohios: {
+        ...mohios,
+        view: findMohioById(find, list),
+      }
     }
   }
 }

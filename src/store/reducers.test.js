@@ -33,10 +33,22 @@ describe('given state is empty and action is set mohio list when executing reduc
   });
 });
 
+describe('given state is empty and action is set mohio view explicitly when executing reducer ', () => {
+  beforeAll(() => {
+    Given.StateIsEmpty();
+    Given.ActionIsSetMohioView();
+    When.ExecutingReducer();
+  });
+
+  test('then state contains selected mohio view id', () => {
+    Then.StateContainsSelectedMohioViewId();
+  });
+});
+
 describe('given state contains mohio list', () => {
   beforeEach(() => {
     Given.StateIsEmpty();
-    Given.StateContainsMohioList()
+    Given.StateContainsMohioList();
   });
 
   test('action is set mohio tree when executing reducer then state contains mohio tree', () => {
@@ -167,6 +179,7 @@ const Given = {
       id: mohioConsecteturAdipiscingElit.id,
     };
   },
+
 }
 
 const When = {
@@ -202,5 +215,10 @@ const Then = {
 
   StateContainsSelectedMohioView: () => {
     expect(Data.state.mohios.view).toStrictEqual(mohioConsecteturAdipiscingElit);
+  },
+
+  StateContainsSelectedMohioViewId: () => {
+    expect(Data.state.mohios.view.id).toBe(mohioConsecteturAdipiscingElit.id);
+    expect(Data.state.mohios.view.definition).toBeUndefined();
   },
 }

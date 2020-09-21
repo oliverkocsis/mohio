@@ -27,8 +27,8 @@ describe('given mohios created in repository when dispatching initialize app', (
     Then.LoadMohioTreeDispatched(rootMohioId, childMohioId, childOfChildMohioId);
   });
 
-  test('then load mohio view dispatched', () => {
-    Then.LoadMohioViewDispatched(rootMohioId);
+  test('when state does not contain mohio view id then load default mohio view dispatched', () => {
+    Then.LoadDefaultMohioViewDispatched(rootMohioId);
   });
 
 });

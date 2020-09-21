@@ -57,7 +57,7 @@ export class Then {
     expect(action).toStrictEqual(loadMohioTree(tree));
   }
 
-  LoadMohioViewDispatched(rootMohioId) {
+  LoadDefaultMohioViewDispatched(rootMohioId) {
     const actions = store.getActions();
     const action = actions[2];
     expect(action).toStrictEqual(selectMohio(rootMohioId));

@@ -50,12 +50,40 @@ describe('Given the store is not empty when component is rendered', () => {
     Then.MohioAppBarIsRendered(component);
   });
 
-  test('Then mohio tree is rendered', () => {
+  test('Then root mohio is displayed in tree', () => {
     Then.RootMohioIsDisplayedInTree(component);
   });
 
-  test('Then mohio view is rendered', () => {
+  test('Then rott mohio is displayed in view', () => {
     Then.RootMohioIsDisplayedInView(component);
+  });
+
+});
+
+describe('Given the store is not empty and a initial router entries provided when component is rendered', () => {
+
+  let store;
+  let component;
+
+  beforeEach(() => {
+    store = Given.MockStoreIsNotEmpty();
+    component = When.MohioLayoutIsRendered(store);
+  });
+
+  test('then initialize action is dispatched', () => {
+    Then.InitializeAppActionIsDispatched(store);
+  })
+
+  test('Then mohio app bar is rendered', () => {
+    Then.MohioAppBarIsRendered(component);
+  });
+
+  test('Then child mohio is displayed in tree', () => {
+    Then.ChildMohioIsDisplayedInTree(component);
+  });
+
+  test('Then child mohio is displayed in view', () => {
+    Then.ChildMohioIsDisplayedInView(component);
   });
 
 });
@@ -68,6 +96,10 @@ class GivenClass {
 
   MockStoreIsNotEmpty() {
     return createMockStoreWithState(notEmptyState);
+  }
+
+  InitialRouterEntriesProvided() {
+    return [`/${childMohio.id}`];
   }
 
 }
@@ -113,6 +145,20 @@ class ThenClass {
     const name = getByText(mohioViewElement, rootMohio.name);
     expect(name).toBeInTheDocument();
     const defintition = getByText(mohioViewElement, rootMohio.definition);
+    expect(defintition).toBeInTheDocument();
+  }
+
+  ChildMohioIsDisplayedInTree(component) {
+    const mohioTreeElement = getMohioTreeElement(component);
+    const name = getByText(mohioTreeElement, childMohio.name);
+    expect(defintition).toBeInTheDocument();
+  }
+
+  ChildMohioIsDisplayedInView(component) {
+    const mohioViewElement = getMohioViewElement(component);
+    const name = getByText(mohioViewElement, childMohio.name);
+    expect(name).toBeInTheDocument();
+    const defintition = getByText(mohioViewElement, childMohio.definition);
     expect(defintition).toBeInTheDocument();
   }
 

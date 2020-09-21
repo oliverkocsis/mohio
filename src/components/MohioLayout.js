@@ -1,10 +1,11 @@
 import React from 'react';
 import { connect } from 'react-redux'
+import { withRouter } from "react-router";
 import { withStyles } from '@material-ui/core/styles';
 import MohioAppBar from './MohioAppBar';
 import MohioTree from './MohioTree';
 import MohioView from './MohioView';
-import { initializeApp } from '../store/actions';
+import { initializeApp, selectMohio } from '../store/actions';
 
 const styles = {
   root: {
@@ -15,14 +16,18 @@ const styles = {
 class MohioLayout extends React.Component {
 
   constructor(props) {
-    super(props);
+    super();
     const { classes } = props;
     this.classes = classes;
+    const { match } = this.props;
+    this.id = match.params.id;
   }
 
   componentDidMount() {
-    console.log('initializeApp');
     this.props.initializeApp();
+    if (this.id) {
+      this.props.selectMohio(this.id);
+    };
   }
 
   render() {
@@ -45,9 +50,11 @@ const mapStateToProps = (state) => {
 
 const actionCreators = {
   initializeApp,
+  selectMohio,
 }
 
 const mohioLayoutWithStore = connect(mapStateToProps, actionCreators)(MohioLayout);
 const mohioLayoutWithStyle = withStyles(styles)(mohioLayoutWithStore);
+const mohioLayoutWithRouter = withRouter(mohioLayoutWithStyle);
 
-export default mohioLayoutWithStyle;
+export default mohioLayoutWithRouter;
