@@ -1,13 +1,16 @@
 import * as repository from '../repository/mohioRepository';
 import * as actionTypes from './actionTypes';
+import { getView } from './state';
 
-async function initializeAppDispatcher(dispatch) {
+async function initializeAppDispatcher(dispatch, getState) {
   const list = await repository.readMohios();
   dispatch(loadMohioList(list));
   const roots = await repository.readRoots();
   const tree = buildTree(roots, list);
   dispatch(loadMohioTree(tree));
-  dispatch(selectMohio(roots[0]));
+  const state = getState();
+  const id = defaultId(state, roots);
+  dispatch(selectMohio(id));
 }
 
 export function initializeApp() {
@@ -52,4 +55,13 @@ function buildTree(ids, list) {
     tree.push(mohio);
   }
   return tree;
+}
+
+function defaultId(state, roots) {
+  const view = getView(state);
+  if (view && view.id) {
+    return view.id;
+  } else {
+    return roots[0];
+  }
 }

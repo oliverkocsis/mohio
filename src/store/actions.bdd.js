@@ -3,15 +3,30 @@ import thunk from 'redux-thunk'
 
 import { initializeApp, loadMohioList, loadMohioTree, selectMohio } from './actions';
 import { initialState } from './reducers';
+import { Given as GivenMohioRepositoryClass } from '../repository/mohioRepository.bdd';
 import { rootMohio, childMohio, childOfChildMohio } from '../repository/mohioRepository.bdd';
+
 
 const middlewares = [thunk];
 const mockStore = configureStore(middlewares);
-const store = mockStore(initialState);
+
+export class Given extends GivenMohioRepositoryClass {
+  StateDoesNotContainMohioViewId() {
+    const store = mockStore(initialState);
+    return store;
+  }
+
+  StateContainsMohioViewId(childMohioId) {
+    const state = initialState;
+    state.mohios.view = { id: childMohioId };
+    const store = mockStore(initialState);
+    return store;
+  }
+}
 
 export class When {
 
-  async DispatchingInitializeApp() {
+  async DispatchingInitializeApp(store) {
     return store.dispatch(initializeApp());
   }
 
@@ -19,7 +34,7 @@ export class When {
 
 export class Then {
 
-  LoadMohioListDispatched(rootMohioId, childMohioId, childOfChildMohioId) {
+  LoadMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId) {
     const actions = store.getActions();
     const action = actions[0];
     const list = [
@@ -33,7 +48,7 @@ export class Then {
     expect(actualMohios.sort()).toStrictEqual(list.sort());
   }
 
-  LoadMohioTreeDispatched(rootMohioId, childMohioId, childOfChildMohioId) {
+  LoadMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId) {
     const actions = store.getActions();
     const action = actions[1];
     const tree = [
@@ -57,10 +72,10 @@ export class Then {
     expect(action).toStrictEqual(loadMohioTree(tree));
   }
 
-  LoadDefaultMohioViewDispatched(rootMohioId) {
+  LoadMohioViewDispatched(store, id) {
     const actions = store.getActions();
     const action = actions[2];
-    expect(action).toStrictEqual(selectMohio(rootMohioId));
+    expect(action).toStrictEqual(selectMohio(id));
   }
 
 };

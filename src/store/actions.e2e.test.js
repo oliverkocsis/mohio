@@ -1,12 +1,12 @@
-import { Given as GivenClass } from '../repository/mohioRepository.bdd';
-import { When as WhenClass, Then as ThenClass } from './actions.bdd';
+import { Given as GivenClass, When as WhenClass, Then as ThenClass } from './actions.bdd';
 
 const Given = new GivenClass();
 const When = new WhenClass();
 const Then = new ThenClass();
 
-describe('given mohios created in repository when dispatching initialize app', () => {
+describe('given mohios created in repository ', () => {
 
+  let store;
   let rootMohioId;
   let childMohioId;
   let childOfChildMohioId;
@@ -16,19 +16,44 @@ describe('given mohios created in repository when dispatching initialize app', (
     rootMohioId = await Given.RootMohioIsCreated();
     childMohioId = await Given.ChildMohioIsCreated();
     childOfChildMohioId = await Given.ChildOfChildMohioIsCreated();
-    await When.DispatchingInitializeApp();
   });
 
-  test('then load mohio list dispatched', () => {
-    Then.LoadMohioListDispatched(rootMohioId, childMohioId, childOfChildMohioId);
+  describe('and state does not contain mohio view id when dispatching initialize app', () => {
+    beforeAll(async () => {
+      store = Given.StateDoesNotContainMohioViewId();
+      await When.DispatchingInitializeApp(store);
+    });
+
+    test('then load mohio list dispatched', () => {
+      Then.LoadMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+    });
+
+    test('then load mohio tree dispatched', () => {
+      Then.LoadMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+    });
+
+    test('then load default mohio view dispatched', () => {
+      Then.LoadMohioViewDispatched(store, rootMohioId);
+    });
   });
 
-  test('then load mohio tree dispatched', () => {
-    Then.LoadMohioTreeDispatched(rootMohioId, childMohioId, childOfChildMohioId);
-  });
 
-  test('when state does not contain mohio view id then load default mohio view dispatched', () => {
-    Then.LoadDefaultMohioViewDispatched(rootMohioId);
-  });
+  describe('and state contains mohio view id when dispatching initialize app', () => {
+    beforeAll(async () => {
+      store = Given.StateContainsMohioViewId(childMohioId);
+      await When.DispatchingInitializeApp(store);
+    });
 
+    test('then load mohio list dispatched', () => {
+      Then.LoadMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+    });
+
+    test('then load mohio tree dispatched', () => {
+      Then.LoadMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+    });
+
+    test('then load child mohio view dispatched', () => {
+      Then.LoadMohioViewDispatched(store, childMohioId);
+    });
+  });
 });
