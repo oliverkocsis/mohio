@@ -25,15 +25,15 @@ describe('given mohios created in repository ', () => {
     });
 
     test('then load mohio list dispatched', () => {
-      Then.LoadMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+      Then.SetMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
     });
 
     test('then load mohio tree dispatched', () => {
-      Then.LoadMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+      Then.SetMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
     });
 
     test('then load default mohio view dispatched', () => {
-      Then.LoadMohioViewDispatched(store, rootMohioId);
+      Then.SetMohioViewDispatched(store, rootMohioId);
     });
   });
 
@@ -45,15 +45,15 @@ describe('given mohios created in repository ', () => {
     });
 
     test('then load mohio list dispatched', () => {
-      Then.LoadMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+      Then.SetMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
     });
 
     test('then load mohio tree dispatched', () => {
-      Then.LoadMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
+      Then.SetMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId);
     });
 
     test('then load child mohio view dispatched', () => {
-      Then.LoadMohioViewDispatched(store, childMohioId);
+      Then.SetMohioViewDispatched(store, childMohioId);
     });
   });
 });

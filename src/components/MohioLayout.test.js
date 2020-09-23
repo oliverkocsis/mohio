@@ -1,5 +1,6 @@
 import React from 'react';
 import { getByText } from '@testing-library/dom';
+import { Switch, Route } from "react-router-dom";
 import { renderComonentWithStoreAndRouter, createMockStoreWithState, emptyState, notEmptyState, rootMohio, childMohio } from './ComponentTestUtils';
 import MohioLayout from './MohioLayout';
 import * as actions from '../store/actions';
@@ -46,44 +47,51 @@ describe('Given the store is not empty when component is rendered', () => {
     Then.InitializeAppActionIsDispatched(store);
   })
 
+
   test('Then mohio app bar is rendered', () => {
     Then.MohioAppBarIsRendered(component);
   });
 
-  test('Then root mohio is displayed in tree', () => {
-    Then.RootMohioIsDisplayedInTree(component);
+  test('Then mohio tree is rendered', () => {
+    Then.MohioTreeIsRendered(component);
   });
 
-  test('Then rott mohio is displayed in view', () => {
-    Then.RootMohioIsDisplayedInView(component);
+  test('Then mohio view is rendered', () => {
+    Then.MohioViewIsRendered(component);
   });
-
 });
 
 describe('Given the store is not empty and a initial router entries provided when component is rendered', () => {
 
   let store;
+  let initialRouterEntries;
   let component;
 
   beforeEach(() => {
     store = Given.MockStoreIsNotEmpty();
-    component = When.MohioLayoutIsRendered(store);
+    initialRouterEntries = Given.InitialRouterEntriesProvided();
+    component = When.MohioLayoutIsRendered(store, initialRouterEntries);
   });
 
   test('then initialize action is dispatched', () => {
     Then.InitializeAppActionIsDispatched(store);
   })
 
+  test('set mohio view action is dispatched', () => {
+    Then.SetMohioViewActionIsDispatched(store);
+  })
+
+
   test('Then mohio app bar is rendered', () => {
     Then.MohioAppBarIsRendered(component);
   });
 
-  test('Then child mohio is displayed in tree', () => {
-    Then.ChildMohioIsDisplayedInTree(component);
+  test('Then mohio tree is rendered', () => {
+    Then.MohioTreeIsRendered(component);
   });
 
-  test('Then child mohio is displayed in view', () => {
-    Then.ChildMohioIsDisplayedInView(component);
+  test('Then mohio view is rendered', () => {
+    Then.MohioViewIsRendered(component);
   });
 
 });
@@ -106,7 +114,13 @@ class GivenClass {
 
 class WhenClass {
   MohioLayoutIsRendered(withStore, initialRouterEntries) {
-    const { container } = renderComonentWithStoreAndRouter(<MohioLayout />, withStore, initialRouterEntries);
+    const layout = (
+      <Switch>
+        <Route path="/:id"><MohioLayout /></Route>
+        <Route path="/"><MohioLayout /></Route>
+      </Switch>
+    );
+    const { container } = renderComonentWithStoreAndRouter(layout, withStore, initialRouterEntries);
     return container;
   }
 }
@@ -115,6 +129,11 @@ class ThenClass {
   InitializeAppActionIsDispatched(store) {
     const dispatched = store.dispatch.mock.calls[0];
     expect(dispatched[0]).toBe(actions.initializeApp());
+  }
+
+  SetMohioViewActionIsDispatched(store) {
+    const dispatched = store.dispatch.mock.calls[1];
+    expect(dispatched[0]).toStrictEqual(actions.setMohioView(childMohio.id));
   }
 
   MohioAppBarIsRendered(component) {
@@ -132,34 +151,6 @@ class ThenClass {
   MohioViewIsRendered(component) {
     const mohioViewElement = getMohioViewElement(component);
     expect(mohioViewElement).toBeInTheDocument();
-  }
-
-  RootMohioIsDisplayedInTree(component) {
-    const mohioTreeElement = getMohioTreeElement(component);
-    const name = getByText(mohioTreeElement, rootMohio.name);
-    expect(name).toBeInTheDocument();
-  }
-
-  RootMohioIsDisplayedInView(component) {
-    const mohioViewElement = getMohioViewElement(component);
-    const name = getByText(mohioViewElement, rootMohio.name);
-    expect(name).toBeInTheDocument();
-    const defintition = getByText(mohioViewElement, rootMohio.definition);
-    expect(defintition).toBeInTheDocument();
-  }
-
-  ChildMohioIsDisplayedInTree(component) {
-    const mohioTreeElement = getMohioTreeElement(component);
-    const name = getByText(mohioTreeElement, childMohio.name);
-    expect(defintition).toBeInTheDocument();
-  }
-
-  ChildMohioIsDisplayedInView(component) {
-    const mohioViewElement = getMohioViewElement(component);
-    const name = getByText(mohioViewElement, childMohio.name);
-    expect(name).toBeInTheDocument();
-    const defintition = getByText(mohioViewElement, childMohio.definition);
-    expect(defintition).toBeInTheDocument();
   }
 
 }

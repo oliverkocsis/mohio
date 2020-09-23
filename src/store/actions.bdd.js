@@ -1,7 +1,7 @@
 import configureStore from 'redux-mock-store'
 import thunk from 'redux-thunk'
 
-import { initializeApp, loadMohioList, loadMohioTree, selectMohio } from './actions';
+import { initializeApp, setMohioList, setMohioTree, setMohioView } from './actions';
 import { initialState } from './reducers';
 import { Given as GivenMohioRepositoryClass } from '../repository/mohioRepository.bdd';
 import { rootMohio, childMohio, childOfChildMohio } from '../repository/mohioRepository.bdd';
@@ -34,7 +34,7 @@ export class When {
 
 export class Then {
 
-  LoadMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId) {
+  SetMohioListDispatched(store, rootMohioId, childMohioId, childOfChildMohioId) {
     const actions = store.getActions();
     const action = actions[0];
     const list = [
@@ -42,13 +42,13 @@ export class Then {
       { id: childMohioId, ...childMohio, children: [childOfChildMohioId] },
       { id: rootMohioId, ...rootMohio, children: [childMohioId] },
     ]
-    const expectedAction = loadMohioList(list);
+    const expectedAction = setMohioList(list);
     expect(action.type).toBe(expectedAction.type);
     const actualMohios = expectedAction.mohios;
     expect(actualMohios.sort()).toStrictEqual(list.sort());
   }
 
-  LoadMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId) {
+  SetMohioTreeDispatched(store, rootMohioId, childMohioId, childOfChildMohioId) {
     const actions = store.getActions();
     const action = actions[1];
     const tree = [
@@ -69,13 +69,13 @@ export class Then {
         ],
       }
     ]
-    expect(action).toStrictEqual(loadMohioTree(tree));
+    expect(action).toStrictEqual(setMohioTree(tree));
   }
 
-  LoadMohioViewDispatched(store, id) {
+  SetMohioViewDispatched(store, id) {
     const actions = store.getActions();
     const action = actions[2];
-    expect(action).toStrictEqual(selectMohio(id));
+    expect(action).toStrictEqual(setMohioView(id));
   }
 
 };

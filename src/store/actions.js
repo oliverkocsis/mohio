@@ -4,13 +4,13 @@ import { getView } from './state';
 
 async function initializeAppDispatcher(dispatch, getState) {
   const list = await repository.readMohios();
-  dispatch(loadMohioList(list));
+  dispatch(setMohioList(list));
   const roots = await repository.readRoots();
   const tree = buildTree(roots, list);
-  dispatch(loadMohioTree(tree));
+  dispatch(setMohioTree(tree));
   const state = getState();
   const id = defaultId(state, roots);
-  dispatch(selectMohio(id));
+  dispatch(setMohioView(id));
 }
 
 export function initializeApp() {
@@ -23,21 +23,21 @@ export function clearStore() {
   }
 }
 
-export function loadMohioList(mohios) {
+export function setMohioList(mohios) {
   return {
     type: actionTypes.SET_MOHIO_LIST,
     mohios,
   }
 }
 
-export function loadMohioTree(tree) {
+export function setMohioTree(tree) {
   return {
     type: actionTypes.SET_MOHIO_TREE,
     tree,
   }
 }
 
-export function selectMohio(id) {
+export function setMohioView(id) {
   return {
     type: actionTypes.SET_MOHIO_VIEW,
     id,

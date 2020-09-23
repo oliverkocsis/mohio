@@ -24,8 +24,8 @@ function App(props) {
         <CssBaseline />
         <ThemeProvider theme={theme}>
           <Switch>
-            <Route path="/:id" children={<MohioLayout />} />
-            <Route path="/" children={<MohioLayout />} />
+            <Route path="/:id"><MohioLayout /></Route>
+            <Route path="/"><MohioLayout /></Route>
           </Switch>
         </ThemeProvider>
       </Router>

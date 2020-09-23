@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { renderComponentWithStore, createMockStoreWithState } from './ComponentTestUtils';
 
 import MohioTreeElementMultiLevel from './MohioTreeElementMultiLevel';
-import { selectMohio } from '../store/actions'
+import { setMohioView } from '../store/actions'
 
 let store;
 const mohio = {
@@ -51,7 +51,7 @@ describe('when clicking on a component', () => {
 
   test('then select mohio action is dispatched', () => {
     const dispatched = store.dispatch.mock.calls[0];
-    expect(dispatched[0]).toStrictEqual(selectMohio(mohio.id));
+    expect(dispatched[0]).toStrictEqual(setMohioView(mohio.id));
   });
 
   test('then component is displayed', () => {
@@ -76,7 +76,7 @@ describe('when clicking on a component', () => {
 
     test('then select mohio action is dispatched', () => {
       const dispatched = store.dispatch.mock.calls[0];
-      expect(dispatched[0]).toStrictEqual(selectMohio(mohio.children[1].id));
+      expect(dispatched[0]).toStrictEqual(setMohioView(mohio.children[1].id));
     });
 
     test('then component is displayed', () => {
@@ -102,7 +102,7 @@ describe('when clicking on a component', () => {
 
     test('then select mohio action is dispatched twice', () => {
       const dispatchedOne = store.dispatch.mock.calls[0];
-      expect(dispatchedOne[0]).toStrictEqual(selectMohio(mohio.id));
+      expect(dispatchedOne[0]).toStrictEqual(setMohioView(mohio.id));
     });
 
     test('when component is rendered then name is displayed', () => {

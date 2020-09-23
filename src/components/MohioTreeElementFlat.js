@@ -1,6 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { selectMohio } from '../store/actions';
+import { setMohioView } from '../store/actions';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
 
@@ -10,7 +10,7 @@ function MohioTreeElementFlat(props) {
 }
 
 const actionCreators = {
-  selectMohio,
+  selectMohio: setMohioView,
 }
 
 export default connect(null, actionCreators)(MohioTreeElementFlat);

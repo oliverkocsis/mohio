@@ -1,6 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { selectMohio } from '../store/actions';
+import { setMohioView } from '../store/actions';
 import { makeStyles } from '@material-ui/core/styles';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -40,7 +40,7 @@ function MohioTreeElementMultiLevel(props) {
 }
 
 const actionCreators = {
-  selectMohio,
+  selectMohio: setMohioView,
 }
 
 export default connect(null, actionCreators)(MohioTreeElementMultiLevel);

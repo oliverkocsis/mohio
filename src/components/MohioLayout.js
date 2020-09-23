@@ -5,7 +5,7 @@ import { withStyles } from '@material-ui/core/styles';
 import MohioAppBar from './MohioAppBar';
 import MohioTree from './MohioTree';
 import MohioView from './MohioView';
-import { initializeApp, selectMohio } from '../store/actions';
+import { initializeApp, setMohioView } from '../store/actions';
 
 const styles = {
   root: {
@@ -19,7 +19,7 @@ class MohioLayout extends React.Component {
     super();
     const { classes } = props;
     this.classes = classes;
-    const { match } = this.props;
+    const { match } = props;
     this.id = match.params.id;
   }
 
@@ -50,7 +50,7 @@ const mapStateToProps = (state) => {
 
 const actionCreators = {
   initializeApp,
-  selectMohio,
+  selectMohio: setMohioView,
 }
 
 const mohioLayoutWithStore = connect(mapStateToProps, actionCreators)(MohioLayout);

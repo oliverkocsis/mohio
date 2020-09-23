@@ -24,7 +24,7 @@ export class When {
   }
 
   async DispatchingSelectMohio(childMohioId) {
-    store.dispatch(actions.selectMohio(childMohioId));
+    store.dispatch(actions.setMohioView(childMohioId));
     return wait(() => {
       const view = getMohioView();
       expect(view.id).toBe(childMohioId);
