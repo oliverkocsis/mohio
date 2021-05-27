@@ -1,15 +1,9 @@
-# Problem
+# Problem Statement
 
-Building a modern web application is daunting.
-1. idea generation
-1. market research
-1. definition
-1. development of the minimum viable product
-1. quality assurance
-1. launch
-1. maintenance
+[![Expectations VS Reality of Client + Business Analyst+Developer=Coding](https://img.youtube.com/vi/tUOiO4dN65Y/0.jpg)](https://www.youtube.com/watch?v=tUOiO4dN65Y)
 
-Especially the gap between definition, development and quality assurance.
+![How software development can go awry](https://i1.wp.com/blogs.perficientdigital.com/files/2011/07/treecomicbig.jpg?resize=800%2C600&ssl=1)
+
 
 # Solution
 
