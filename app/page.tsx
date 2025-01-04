@@ -12,6 +12,7 @@ export default function App() {
       const res = await fetch("/api/page");
       const data = await res.json();
       setContent(data.content);
+      setInstructions(data.instructions);
     }
     fetchContent();
   }, []);
