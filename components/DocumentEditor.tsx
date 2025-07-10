@@ -6,26 +6,26 @@ import { getEditorConfig } from './editorConfig'
 import Toolbar from './Toolbar'
 
 export default function DocumentEditor() {
-  const [title, setTitle] = useState('Untitled Document')
+  const [title, setTitle] = useState('Lorem Ipsum')
   
   const editor = useEditor(getEditorConfig())
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto pt-8">
+    <div className="min-h-screen bg-white overscroll-none">
+      <div className="max-w-4xl mx-auto overscroll-none">
         {/* Toolbar */}
         <Toolbar editor={editor} />
         
-        {/* Paper */}
-        <div className="bg-white min-h-screen shadow-sm mt-4">
-          {/* Header */}
-          <div className="px-8 pt-8 pb-4">
+        {/* Content */}
+        <div className="px-8 py-12">
+          {/* Title */}
+          <div className="mb-12">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-3xl font-bold text-gray-900 bg-transparent border-none outline-none placeholder-gray-400 w-full"
-              placeholder="Untitled"
+              className="w-full text-5xl font-bold text-gray-900 bg-transparent border-none outline-none placeholder-gray-400 leading-tight font-sans"
+              placeholder="Untitled Document"
             />
           </div>
 
@@ -33,7 +33,7 @@ export default function DocumentEditor() {
           <div className="relative">
             <EditorContent 
               editor={editor}
-              className="text-gray-900 text-lg leading-relaxed"
+              className="text-gray-700 text-lg leading-relaxed font-serif"
             />
           </div>
         </div>
