@@ -1,3 +1,19 @@
+import { 
+  Heading1, 
+  Heading2, 
+  Heading3, 
+  Bold, 
+  Italic, 
+  Strikethrough, 
+  Code, 
+  Quote, 
+  List, 
+  ListOrdered, 
+  Link, 
+  Image, 
+  Video 
+} from 'lucide-react'
+
 const Toolbar = ({ editor }: { editor: any }) => {
   if (!editor) return null
 
@@ -27,27 +43,30 @@ const Toolbar = ({ editor }: { editor: any }) => {
       {/* Headings */}
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        className={`px-3 py-1 rounded text-sm font-medium ${
-          editor.isActive('heading', { level: 1 }) ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('heading', { level: 1 }) ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Heading 1"
       >
-        H1
+        <Heading1 size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        className={`px-3 py-1 rounded text-sm font-medium ${
-          editor.isActive('heading', { level: 2 }) ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('heading', { level: 2 }) ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Heading 2"
       >
-        H2
+        <Heading2 size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        className={`px-3 py-1 rounded text-sm font-medium ${
-          editor.isActive('heading', { level: 3 }) ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('heading', { level: 3 }) ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Heading 3"
       >
-        H3
+        <Heading3 size={16} />
       </button>
 
       <div className="w-px h-6 bg-gray-300 mx-2"></div>
@@ -55,43 +74,48 @@ const Toolbar = ({ editor }: { editor: any }) => {
       {/* Text Formatting */}
       <button
         onClick={() => editor.chain().focus().toggleBold().run()}
-        className={`px-3 py-1 rounded text-sm font-bold ${
-          editor.isActive('bold') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('bold') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Bold"
       >
-        B
+        <Bold size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={`px-3 py-1 rounded text-sm italic ${
-          editor.isActive('italic') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('italic') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Italic"
       >
-        I
+        <Italic size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleStrike().run()}
-        className={`px-3 py-1 rounded text-sm line-through ${
-          editor.isActive('strike') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('strike') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Strikethrough"
       >
-        S
+        <Strikethrough size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleCode().run()}
-        className={`px-3 py-1 rounded text-sm font-mono ${
-          editor.isActive('code') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('code') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Code"
       >
-        &lt;&gt;
+        <Code size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={`px-3 py-1 rounded text-sm ${
-          editor.isActive('blockquote') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('blockquote') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Blockquote"
       >
-        "
+        <Quote size={16} />
       </button>
 
       <div className="w-px h-6 bg-gray-300 mx-2"></div>
@@ -99,19 +123,21 @@ const Toolbar = ({ editor }: { editor: any }) => {
       {/* Lists */}
       <button
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={`px-3 py-1 rounded text-sm ${
-          editor.isActive('bulletList') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('bulletList') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Bullet List"
       >
-        • List
+        <List size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={`px-3 py-1 rounded text-sm ${
-          editor.isActive('orderedList') ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`p-2 rounded hover:bg-gray-100 ${
+          editor.isActive('orderedList') ? 'bg-blue-500 text-white' : 'text-gray-700'
         }`}
+        title="Numbered List"
       >
-        1. List
+        <ListOrdered size={16} />
       </button>
 
       <div className="w-px h-6 bg-gray-300 mx-2"></div>
@@ -119,21 +145,24 @@ const Toolbar = ({ editor }: { editor: any }) => {
       {/* Media */}
       <button
         onClick={addLink}
-        className="px-3 py-1 rounded text-sm bg-white text-gray-700 hover:bg-gray-100"
+        className="p-2 rounded text-gray-700 hover:bg-gray-100"
+        title="Add Link"
       >
-        Link
+        <Link size={16} />
       </button>
       <button
         onClick={addImage}
-        className="px-3 py-1 rounded text-sm bg-white text-gray-700 hover:bg-gray-100"
+        className="p-2 rounded text-gray-700 hover:bg-gray-100"
+        title="Add Image"
       >
-        Image
+        <Image size={16} />
       </button>
       <button
         onClick={addVideo}
-        className="px-3 py-1 rounded text-sm bg-white text-gray-700 hover:bg-gray-100"
+        className="p-2 rounded text-gray-700 hover:bg-gray-100"
+        title="Add Video"
       >
-        Video
+        <Video size={16} />
       </button>
     </div>
   )
