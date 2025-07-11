@@ -24,7 +24,8 @@ export default function DocumentEditor() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-5xl font-bold text-gray-900 bg-transparent border-none outline-none placeholder-gray-400 leading-tight font-sans"
+              className="w-full text-5xl font-bold bg-transparent border-none outline-none placeholder-gray-400 leading-tight font-sans"
+              style={{ color: 'var(--color-primary)' }}
               placeholder="Untitled Document"
             />
           </div>
