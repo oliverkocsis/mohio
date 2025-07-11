@@ -44,48 +44,48 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       {/* Headings */}
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('heading', { level: 1 }) 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('heading', { level: 1 }) 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Heading 1"
       >
-        <Heading1 size={20} />
+        <Heading1 size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('heading', { level: 2 }) 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('heading', { level: 2 }) 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Heading 2"
       >
-        <Heading2 size={20} />
+        <Heading2 size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('heading', { level: 3 }) 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('heading', { level: 3 }) 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Heading 3"
       >
-        <Heading3 size={20} />
+        <Heading3 size={16} />
       </button>
 
       <div className="w-px h-6 bg-gray-200 mx-2"></div>
@@ -93,78 +93,78 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       {/* Text Formatting */}
       <button
         onClick={() => editor.chain().focus().toggleBold().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('bold') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('bold') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Bold"
       >
-        <Bold size={20} />
+        <Bold size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('italic') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('italic') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Italic"
       >
-        <Italic size={20} />
+        <Italic size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleStrike().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('strike') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('strike') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Strikethrough"
       >
-        <Strikethrough size={20} />
+        <Strikethrough size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleCode().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('code') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('code') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Code"
       >
-        <Code size={20} />
+        <Code size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('blockquote') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('blockquote') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Blockquote"
       >
-        <Quote size={20} />
+        <Quote size={16} />
       </button>
 
       <div className="w-px h-6 bg-gray-200 mx-2"></div>
@@ -172,33 +172,33 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       {/* Lists */}
       <button
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('bulletList') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('bulletList') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Bullet List"
       >
-        <List size={20} />
+        <List size={16} />
       </button>
       <button
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={`p-2 rounded-lg border transition-colors ${
+        className={`p-2 rounded-lg transition-colors ${
           editor.isActive('orderedList') 
-            ? 'border-primary bg-primary text-white' 
-            : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:text-primary'
         }`}
         style={editor.isActive('orderedList') 
-          ? { borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-primary)' }
+          ? { backgroundColor: 'var(--color-primary)' }
           : {}
         }
         title="Numbered List"
       >
-        <ListOrdered size={20} />
+        <ListOrdered size={16} />
       </button>
 
       <div className="w-px h-6 bg-gray-200 mx-2"></div>
@@ -206,24 +206,24 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       {/* Media */}
       <button
         onClick={addLink}
-        className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:border-primary hover:text-primary transition-colors"
+        className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
         title="Add Link"
       >
-        <Link size={20} />
+        <Link size={16} />
       </button>
       <button
         onClick={addImage}
-        className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:border-primary hover:text-primary transition-colors"
+        className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
         title="Add Image"
       >
-        <Image size={20} aria-label="Add Image" />
+        <Image size={16} aria-label="Add Image" />
       </button>
       <button
         onClick={addVideo}
-        className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:border-primary hover:text-primary transition-colors"
+        className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
         title="Add Video"
       >
-        <Video size={20} />
+        <Video size={16} />
       </button>
     </div>
   )
