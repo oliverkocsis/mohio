@@ -13,7 +13,9 @@ import {
   Image, 
   Video 
 } from 'lucide-react'
-const Toolbar = ({ editor }: { editor: any }) => {
+import { Editor } from '@tiptap/react'
+
+const Toolbar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) return null
 
   const addLink = () => {
@@ -154,7 +156,7 @@ const Toolbar = ({ editor }: { editor: any }) => {
         className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
         title="Add Image"
       >
-        <Image size={20} />
+        <Image size={20} aria-label="Add Image" />
       </button>
       <button
         onClick={addVideo}
