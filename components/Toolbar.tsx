@@ -11,11 +11,17 @@ import {
   ListOrdered, 
   Link, 
   Image, 
-  Video 
+  Video,
+  Save
 } from 'lucide-react'
 import { Editor } from '@tiptap/react'
 
-const Toolbar = ({ editor }: { editor: Editor | null }) => {
+interface ToolbarProps {
+  editor: Editor | null
+  onSave?: () => void
+}
+
+const Toolbar = ({ editor, onSave }: ToolbarProps) => {
   if (!editor) return null
 
   const addLink = () => {
@@ -40,7 +46,8 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
   }
 
   return (
-    <div className="sticky top-0 z-50 flex items-center justify-center gap-2 py-3 px-4 bg-white border-b border-gray-100">
+    <div className="sticky top-0 z-50 flex items-center justify-between gap-2 py-3 px-4 bg-white border-b border-gray-100">
+      <div className="flex items-center gap-2">
       {/* Headings */}
       <button
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -225,6 +232,18 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       >
         <Video size={16} />
       </button>
+      </div>
+
+      {/* Save Button */}
+      {onSave && (
+        <button
+          onClick={onSave}
+          className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
+          title="Save Document"
+        >
+          <Save size={16} />
+        </button>
+      )}
     </div>
   )
 }
