@@ -42,7 +42,6 @@ export class FileStorageAdapter implements StorageAdapter {
 
   async getAllArtifacts(): Promise<Artifact[]> {
     try {
-      await this.ensureDataDir()
       const files = await fs.readdir(this.dataDir)
       const jsonFiles = files.filter(file => file.endsWith('.json'))
       
@@ -60,8 +59,6 @@ export class FileStorageAdapter implements StorageAdapter {
   }
 
   async createArtifact(input: CreateArtifactInput): Promise<Artifact> {
-    await this.ensureDataDir()
-    
     const id = this.generateId()
     const now = new Date()
     const artifact: Artifact = {
@@ -72,8 +69,13 @@ export class FileStorageAdapter implements StorageAdapter {
       updatedAt: now
     }
 
-    const filePath = this.getFilePath(id)
-    await fs.writeFile(filePath, JSON.stringify(artifact, null, 2))
+    try {
+      await this.ensureDataDir()
+      const filePath = this.getFilePath(id)
+      await fs.writeFile(filePath, JSON.stringify(artifact, null, 2))
+    } catch (error) {
+      console.warn('Could not persist artifact to file system (production environment):', error)
+    }
     
     return artifact
   }
@@ -89,8 +91,12 @@ export class FileStorageAdapter implements StorageAdapter {
       updatedAt: new Date()
     }
 
-    const filePath = this.getFilePath(id)
-    await fs.writeFile(filePath, JSON.stringify(updated, null, 2))
+    try {
+      const filePath = this.getFilePath(id)
+      await fs.writeFile(filePath, JSON.stringify(updated, null, 2))
+    } catch (error) {
+      console.warn('Could not persist artifact update to file system (production environment):', error)
+    }
     
     return updated
   }
