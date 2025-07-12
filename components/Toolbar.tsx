@@ -54,7 +54,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('heading', { level: 1 }) 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('heading', { level: 1 }) 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -69,7 +69,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('heading', { level: 2 }) 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('heading', { level: 2 }) 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -84,7 +84,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('heading', { level: 3 }) 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('heading', { level: 3 }) 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -103,7 +103,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('bold') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('bold') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -118,7 +118,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('italic') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('italic') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -133,7 +133,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('strike') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('strike') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -148,7 +148,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('code') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('code') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -163,7 +163,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('blockquote') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('blockquote') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -182,7 +182,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('bulletList') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('bulletList') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -197,7 +197,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         className={`p-2 rounded-lg transition-colors ${
           editor.isActive('orderedList') 
             ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary'
+            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
         }`}
         style={editor.isActive('orderedList') 
           ? { backgroundColor: 'var(--color-primary)' }
@@ -213,21 +213,21 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
       {/* Media */}
       <button
         onClick={addLink}
-        className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
+        className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
         title="Add Link"
       >
         <Link size={16} />
       </button>
       <button
         onClick={addImage}
-        className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
+        className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
         title="Add Image"
       >
         <Image size={16} aria-label="Add Image" />
       </button>
       <button
         onClick={addVideo}
-        className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
+        className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
         title="Add Video"
       >
         <Video size={16} />
@@ -238,7 +238,7 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
       {onSave && (
         <button
           onClick={onSave}
-          className="p-2 rounded-lg text-gray-600 hover:text-primary transition-colors"
+          className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
           title="Save Document"
         >
           <Save size={16} />
