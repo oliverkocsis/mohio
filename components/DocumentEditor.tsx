@@ -6,7 +6,7 @@ import { getEditorConfig } from './editorConfig'
 import Toolbar from './Toolbar'
 
 export default function DocumentEditor() {
-  const [title, setTitle] = useState('Lorem Ipsum')
+  const [title, setTitle] = useState('Untitled Document')
   
   const editor = useEditor(getEditorConfig())
 
