@@ -4,73 +4,83 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import { useState, useEffect, useCallback } from 'react'
 import { getEditorConfig } from './editorConfig'
 import Toolbar from './Toolbar'
-import { Artifact } from '@/lib/types'
+import { View } from '@/lib/types'
+import { renderViewAsHTML } from '@/lib/utils/block-utils'
 
 interface DocumentEditorProps {
-  artifactId?: string
+  viewId?: string
 }
 
-export default function DocumentEditor({ artifactId }: DocumentEditorProps) {
+export default function DocumentEditor({ viewId }: DocumentEditorProps) {
   const [title, setTitle] = useState('Untitled Document')
-  const [artifact, setArtifact] = useState<Artifact | null>(null)
+  const [view, setView] = useState<View | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   
   const editor = useEditor(getEditorConfig())
 
-  const loadArtifact = useCallback(async (id: string) => {
+  const loadView = useCallback(async (id: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/artifacts/${id}`)
+      const response = await fetch(`/api/views/${id}`)
       if (response.ok) {
-        const data: Artifact = await response.json()
-        setArtifact(data)
+        const data: View = await response.json()
+        setView(data)
         setTitle(data.title)
         if (editor) {
-          editor.commands.setContent(data.content)
+          const content = renderViewAsHTML(data)
+          editor.commands.setContent(content)
         }
       }
     } catch (error) {
-      console.error('Error loading artifact:', error)
+      console.error('Error loading view:', error)
     } finally {
       setIsLoading(false)
     }
   }, [editor])
 
   useEffect(() => {
-    if (artifactId) {
-      loadArtifact(artifactId)
+    if (viewId) {
+      loadView(viewId)
     }
-  }, [artifactId, loadArtifact])
+  }, [viewId, loadView])
 
-  const saveArtifact = async () => {
+  const saveView = async () => {
     if (!editor) return
 
-    const content = editor.getHTML()
+    // TODO: Convert HTML content back to blocks for proper storage
+    // const content = editor.getHTML()
     
     try {
-      if (artifact) {
-        const response = await fetch(`/api/artifacts/${artifact.id}`, {
+      if (view) {
+        const response = await fetch(`/api/views/${view.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content })
+          body: JSON.stringify({ title })
         })
         if (response.ok) {
           const updated = await response.json()
-          setArtifact(updated)
+          setView(updated)
         }
       } else {
-        const response = await fetch('/api/artifacts', {
+        const response = await fetch('/api/views', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content })
+          body: JSON.stringify({ 
+            type: 'document',
+            title, 
+            purpose: 'User-created document',
+            tone: ['professional'],
+            rootBlocks: [],
+            createdBy: 'user'
+          })
         })
         if (response.ok) {
           const created = await response.json()
-          setArtifact(created)
+          setView(created)
         }
       }
     } catch (error) {
-      console.error('Error saving artifact:', error)
+      console.error('Error saving view:', error)
     }
   }
 
@@ -78,7 +88,7 @@ export default function DocumentEditor({ artifactId }: DocumentEditorProps) {
     <div className="min-h-screen bg-white overscroll-none">
       <div className="max-w-4xl mx-auto overscroll-none">
         {/* Toolbar */}
-        <Toolbar editor={editor} onSave={saveArtifact} />
+        <Toolbar editor={editor} onSave={saveView} />
         
         {/* Content */}
         <div className="px-8 py-12">

@@ -1,5 +1,5 @@
 import DocumentEditor from '../components/DocumentEditor'
 
 export default function Home() {
-  return <DocumentEditor artifactId="md096usm8gerlcdq073" />
+  return <DocumentEditor viewId="mohio_document" />
 }
