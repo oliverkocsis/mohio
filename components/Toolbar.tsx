@@ -15,11 +15,41 @@ import {
   Save
 } from 'lucide-react'
 import { Editor } from '@tiptap/react'
+import { LucideIcon } from 'lucide-react'
 
 interface ToolbarProps {
   editor: Editor | null
   onSave?: () => void
 }
+
+interface ToolbarButtonProps {
+  onClick: () => void
+  isActive?: boolean
+  title: string
+  icon: LucideIcon
+  className?: string
+}
+
+const ToolbarButton = ({ 
+  onClick, 
+  isActive = false, 
+  title, 
+  icon: Icon,
+  className = "" 
+}: ToolbarButtonProps) => (
+  <button
+    onClick={onClick}
+    className={`p-2 rounded-lg transition-colors ${
+      isActive 
+        ? 'bg-primary text-white' 
+        : 'text-gray-600 hover:text-primary hover:bg-gray-100'
+    } ${className}`}
+    style={isActive ? { backgroundColor: 'var(--color-primary)' } : {}}
+    title={title}
+  >
+    <Icon size={16} />
+  </button>
+)
 
 const Toolbar = ({ editor, onSave }: ToolbarProps) => {
   if (!editor) return null
@@ -49,200 +79,102 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
     <div className="sticky top-0 z-50 flex items-center justify-between gap-2 py-3 px-4 bg-white border-b border-gray-100">
       <div className="flex items-center gap-2">
       {/* Headings */}
-      <button
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('heading', { level: 1 }) 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('heading', { level: 1 }) 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('heading', { level: 1 })}
         title="Heading 1"
-      >
-        <Heading1 size={16} />
-      </button>
-      <button
+        icon={Heading1}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('heading', { level: 2 }) 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('heading', { level: 2 }) 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('heading', { level: 2 })}
         title="Heading 2"
-      >
-        <Heading2 size={16} />
-      </button>
-      <button
+        icon={Heading2}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('heading', { level: 3 }) 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('heading', { level: 3 }) 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('heading', { level: 3 })}
         title="Heading 3"
-      >
-        <Heading3 size={16} />
-      </button>
+        icon={Heading3}
+      />
 
       <div className="w-px h-6 bg-gray-200 mx-2"></div>
 
       {/* Text Formatting */}
-      <button
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('bold') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('bold') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('bold')}
         title="Bold"
-      >
-        <Bold size={16} />
-      </button>
-      <button
+        icon={Bold}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('italic') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('italic') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('italic')}
         title="Italic"
-      >
-        <Italic size={16} />
-      </button>
-      <button
+        icon={Italic}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleStrike().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('strike') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('strike') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('strike')}
         title="Strikethrough"
-      >
-        <Strikethrough size={16} />
-      </button>
-      <button
+        icon={Strikethrough}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleCode().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('code') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('code') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('code')}
         title="Code"
-      >
-        <Code size={16} />
-      </button>
-      <button
+        icon={Code}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('blockquote') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('blockquote') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('blockquote')}
         title="Blockquote"
-      >
-        <Quote size={16} />
-      </button>
+        icon={Quote}
+      />
 
       <div className="w-px h-6 bg-gray-200 mx-2"></div>
 
       {/* Lists */}
-      <button
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('bulletList') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('bulletList') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('bulletList')}
         title="Bullet List"
-      >
-        <List size={16} />
-      </button>
-      <button
+        icon={List}
+      />
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={`p-2 rounded-lg transition-colors ${
-          editor.isActive('orderedList') 
-            ? 'bg-primary text-white' 
-            : 'text-gray-600 hover:text-primary hover:bg-gray-100'
-        }`}
-        style={editor.isActive('orderedList') 
-          ? { backgroundColor: 'var(--color-primary)' }
-          : {}
-        }
+        isActive={editor.isActive('orderedList')}
         title="Numbered List"
-      >
-        <ListOrdered size={16} />
-      </button>
+        icon={ListOrdered}
+      />
 
       <div className="w-px h-6 bg-gray-200 mx-2"></div>
 
       {/* Media */}
-      <button
+      <ToolbarButton
         onClick={addLink}
-        className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
         title="Add Link"
-      >
-        <Link size={16} />
-      </button>
-      <button
+        icon={Link}
+      />
+      <ToolbarButton
         onClick={addImage}
-        className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
         title="Add Image"
-      >
-        <Image size={16} aria-label="Add Image" />
-      </button>
-      <button
+        icon={Image}
+      />
+      <ToolbarButton
         onClick={addVideo}
-        className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
         title="Add Video"
-      >
-        <Video size={16} />
-      </button>
+        icon={Video}
+      />
       </div>
 
       {/* Save Button */}
       {onSave && (
-        <button
+        <ToolbarButton
           onClick={onSave}
-          className="p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
           title="Save Document"
-        >
-          <Save size={16} />
-        </button>
+          icon={Save}
+        />
       )}
     </div>
   )
