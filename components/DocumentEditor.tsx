@@ -1,10 +1,10 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { getEditorConfig } from './editorConfig'
 import Toolbar from './Toolbar'
-import { View } from '@/lib/types'
+import { useBlockStore } from '@/lib/store/block-store'
 import { renderViewAsHTML } from '@/lib/utils/block-utils'
 
 interface DocumentEditorProps {
@@ -12,31 +12,34 @@ interface DocumentEditorProps {
 }
 
 export default function DocumentEditor({ viewId }: DocumentEditorProps) {
-  const [title, setTitle] = useState('Untitled Document')
-  const [view, setView] = useState<View | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const {
+    currentView,
+    isLoading,
+    setCurrentView,
+    getView,
+    updateView,
+    createView,
+    loadInitialData,
+    syncEditorWithBlocks
+  } = useBlockStore()
   
   const editor = useEditor(getEditorConfig())
 
   const loadView = useCallback(async (id: string) => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/views/${id}`)
-      if (response.ok) {
-        const data: View = await response.json()
-        setView(data)
-        setTitle(data.title)
-        if (editor) {
-          const content = renderViewAsHTML(data)
-          editor.commands.setContent(content)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading view:', error)
-    } finally {
-      setIsLoading(false)
+    let view = getView(id)
+    if (!view) {
+      await loadInitialData()
+      view = getView(id)
     }
-  }, [editor])
+    
+    if (view) {
+      setCurrentView(view)
+      if (editor) {
+        const content = renderViewAsHTML(view)
+        editor.commands.setContent(content)
+      }
+    }
+  }, [editor, getView, loadInitialData, setCurrentView])
 
   useEffect(() => {
     if (viewId) {
@@ -44,43 +47,38 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
     }
   }, [viewId, loadView])
 
-  const saveView = async () => {
-    if (!editor) return
+  useEffect(() => {
+    if (!viewId && !currentView) {
+      loadInitialData()
+    }
+  }, [viewId, currentView, loadInitialData])
 
-    // TODO: Convert HTML content back to blocks for proper storage
-    // const content = editor.getHTML()
+  const saveView = async () => {
+    if (!editor || !currentView) return
+
+    const content = editor.getHTML()
     
     try {
-      if (view) {
-        const response = await fetch(`/api/views/${view.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title })
-        })
-        if (response.ok) {
-          const updated = await response.json()
-          setView(updated)
-        }
+      if (currentView) {
+        await syncEditorWithBlocks(currentView.id, content)
       } else {
-        const response = await fetch('/api/views', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            type: 'document',
-            title, 
-            purpose: 'User-created document',
-            tone: ['professional'],
-            rootBlocks: [],
-            createdBy: 'user'
-          })
+        await createView({
+          type: 'document',
+          title: 'Untitled Document',
+          purpose: 'User-created document',
+          tone: ['professional'],
+          rootBlocks: [],
+          createdBy: 'user'
         })
-        if (response.ok) {
-          const created = await response.json()
-          setView(created)
-        }
       }
     } catch (error) {
       console.error('Error saving view:', error)
+    }
+  }
+
+  const handleTitleChange = async (newTitle: string) => {
+    if (currentView) {
+      await updateView(currentView.id, { title: newTitle })
     }
   }
 
@@ -96,8 +94,8 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
           <div className="mb-12">
             <input
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={currentView?.title || 'Untitled Document'}
+              onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full text-5xl font-bold bg-transparent border-none outline-none placeholder-gray-400 leading-tight font-sans"
               style={{ color: 'var(--color-primary)' }}
               placeholder="Untitled Document"
