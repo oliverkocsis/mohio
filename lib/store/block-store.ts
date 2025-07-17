@@ -56,7 +56,26 @@ export interface BlockStore {
 export const useBlockStore = create<BlockStore>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set, get) => {
+        // Error handling wrapper
+        const withErrorHandling = <T extends unknown[], R>(
+          operation: (...args: T) => Promise<R>
+        ) => async (...args: T): Promise<R> => {
+          set({ isLoading: true, error: null });
+          try {
+            const result = await operation(...args);
+            set({ isLoading: false });
+            return result;
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Operation failed',
+              isLoading: false
+            });
+            throw error;
+          }
+        };
+        
+        return ({
         // Initial state
         blocks: new Map(),
         views: new Map(),
@@ -75,79 +94,46 @@ export const useBlockStore = create<BlockStore>()(
           return Array.from(get().blocks.values());
         },
 
-        createBlock: async (input: CreateBlockInput) => {
-          set({ isLoading: true, error: null });
+        createBlock: withErrorHandling(async (input: CreateBlockInput) => {
+          const storage = getStorage();
+          const block = await storage.createBlock(input);
+          set((state) => ({
+            ...state,
+            blocks: new Map(state.blocks).set(block.id, block)
+          }));
+          return block;
+        }),
 
-          try {
-            const storage = getStorage();
-            const block = await storage.createBlock(input);
+        updateBlock: withErrorHandling(async (id: BlockID, input: UpdateBlockInput) => {
+          const storage = getStorage();
+          const updatedBlock = await storage.updateBlock(id, input);
+          if (updatedBlock) {
             set((state) => ({
               ...state,
-              blocks: new Map(state.blocks).set(block.id, block),
-              isLoading: false
+              blocks: new Map(state.blocks).set(id, updatedBlock)
             }));
-            return block;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to create block',
-              isLoading: false
-            });
-            throw error;
+            
+            // Sync across views if needed
+            get().syncBlockAcrossViews(id, updatedBlock);
           }
-        },
+          return updatedBlock;
+        }),
 
-        updateBlock: async (id: BlockID, input: UpdateBlockInput) => {
-          set({ isLoading: true, error: null });
-
-          try {
-            const storage = getStorage();
-            const updatedBlock = await storage.updateBlock(id, input);
-            if (updatedBlock) {
-              set((state) => ({
+        deleteBlock: withErrorHandling(async (id: BlockID) => {
+          const storage = getStorage();
+          const success = await storage.deleteBlock(id);
+          if (success) {
+            set((state) => {
+              const newBlocks = new Map(state.blocks);
+              newBlocks.delete(id);
+              return {
                 ...state,
-                blocks: new Map(state.blocks).set(id, updatedBlock),
-                isLoading: false
-              }));
-              
-              // Sync across views if needed
-              get().syncBlockAcrossViews(id, updatedBlock);
-            }
-            return updatedBlock;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to update block',
-              isLoading: false
+                blocks: newBlocks
+              };
             });
-            throw error;
           }
-        },
-
-        deleteBlock: async (id: BlockID) => {
-          set({ isLoading: true, error: null });
-
-          try {
-            const storage = getStorage();
-            const success = await storage.deleteBlock(id);
-            if (success) {
-              set((state) => {
-                const newBlocks = new Map(state.blocks);
-                newBlocks.delete(id);
-                return {
-                  ...state,
-                  blocks: newBlocks,
-                  isLoading: false
-                };
-              });
-            }
-            return success;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to delete block',
-              isLoading: false
-            });
-            throw error;
-          }
-        },
+          return success;
+        }),
 
         // View operations
         getView: (id: string) => {
@@ -158,78 +144,45 @@ export const useBlockStore = create<BlockStore>()(
           return Array.from(get().views.values());
         },
 
-        createView: async (input: CreateViewInput) => {
-          set({ isLoading: true, error: null });
+        createView: withErrorHandling(async (input: CreateViewInput) => {
+          const storage = getStorage();
+          const view = await storage.createView(input);
+          set((state) => ({
+            ...state,
+            views: new Map(state.views).set(view.id, view)
+          }));
+          return view;
+        }),
 
-          try {
-            const storage = getStorage();
-            const view = await storage.createView(input);
+        updateView: withErrorHandling(async (id: string, input: UpdateViewInput) => {
+          const storage = getStorage();
+          const updatedView = await storage.updateView(id, input);
+          if (updatedView) {
             set((state) => ({
               ...state,
-              views: new Map(state.views).set(view.id, view),
-              isLoading: false
+              views: new Map(state.views).set(id, updatedView),
+              currentView: state.currentView?.id === id ? updatedView : state.currentView
             }));
-            return view;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to create view',
-              isLoading: false
-            });
-            throw error;
           }
-        },
+          return updatedView;
+        }),
 
-        updateView: async (id: string, input: UpdateViewInput) => {
-          set({ isLoading: true, error: null });
-
-          try {
-            const storage = getStorage();
-            const updatedView = await storage.updateView(id, input);
-            if (updatedView) {
-              set((state) => ({
+        deleteView: withErrorHandling(async (id: string) => {
+          const storage = getStorage();
+          const success = await storage.deleteView(id);
+          if (success) {
+            set((state) => {
+              const newViews = new Map(state.views);
+              newViews.delete(id);
+              return {
                 ...state,
-                views: new Map(state.views).set(id, updatedView),
-                currentView: state.currentView?.id === id ? updatedView : state.currentView,
-                isLoading: false
-              }));
-            }
-            return updatedView;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to update view',
-              isLoading: false
+                views: newViews,
+                currentView: state.currentView?.id === id ? null : state.currentView
+              };
             });
-            throw error;
           }
-        },
-
-        deleteView: async (id: string) => {
-          set({ isLoading: true, error: null });
-
-          try {
-            const storage = getStorage();
-            const success = await storage.deleteView(id);
-            if (success) {
-              set((state) => {
-                const newViews = new Map(state.views);
-                newViews.delete(id);
-                return {
-                  ...state,
-                  views: newViews,
-                  currentView: state.currentView?.id === id ? null : state.currentView,
-                  isLoading: false
-                };
-              });
-            }
-            return success;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to delete view',
-              isLoading: false
-            });
-            throw error;
-          }
-        },
+          return success;
+        }),
 
         setCurrentView: (view: View | null) => {
           set({ currentView: view });
@@ -245,55 +198,33 @@ export const useBlockStore = create<BlockStore>()(
           return Array.from(get().variants.values());
         },
 
-        createVariant: async (input: CreateSyntacticVariantInput) => {
-          set({ isLoading: true, error: null });
+        createVariant: withErrorHandling(async (input: CreateSyntacticVariantInput) => {
+          const storage = getStorage();
+          const variant = await storage.createSyntacticVariant(input);
+          const key = `${variant.base}:${variant.variant}`;
+          set((state) => ({
+            ...state,
+            variants: new Map(state.variants).set(key, variant)
+          }));
+          return variant;
+        }),
 
-          try {
-            const storage = getStorage();
-            const variant = await storage.createSyntacticVariant(input);
-            const key = `${variant.base}:${variant.variant}`;
-            set((state) => ({
-              ...state,
-              variants: new Map(state.variants).set(key, variant),
-              isLoading: false
-            }));
-            return variant;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to create variant',
-              isLoading: false
+        deleteVariant: withErrorHandling(async (baseId: BlockID, variantId: BlockID) => {
+          const storage = getStorage();
+          const success = await storage.deleteSyntacticVariant(baseId, variantId);
+          if (success) {
+            const key = `${baseId}:${variantId}`;
+            set((state) => {
+              const newVariants = new Map(state.variants);
+              newVariants.delete(key);
+              return {
+                ...state,
+                variants: newVariants
+              };
             });
-            throw error;
           }
-        },
-
-        deleteVariant: async (baseId: BlockID, variantId: BlockID) => {
-          set({ isLoading: true, error: null });
-
-          try {
-            const storage = getStorage();
-            const success = await storage.deleteSyntacticVariant(baseId, variantId);
-            if (success) {
-              const key = `${baseId}:${variantId}`;
-              set((state) => {
-                const newVariants = new Map(state.variants);
-                newVariants.delete(key);
-                return {
-                  ...state,
-                  variants: newVariants,
-                  isLoading: false
-                };
-              });
-            }
-            return success;
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to delete variant',
-              isLoading: false
-            });
-            throw error;
-          }
-        },
+          return success;
+        }),
 
         getVariantsForBlock: (blockId: BlockID) => {
           return Array.from(get().variants.values()).filter(
@@ -308,41 +239,31 @@ export const useBlockStore = create<BlockStore>()(
         },
 
         // Utility operations
-        loadInitialData: async () => {
-          set({ isLoading: true, error: null });
+        loadInitialData: withErrorHandling(async () => {
+          const storage = getStorage();
+          const [blocks, views, variants] = await Promise.all([
+            storage.getAllBlocks(),
+            storage.getAllViews(),
+            storage.getAllSyntacticVariants()
+          ]);
 
-          try {
-            const storage = getStorage();
-            const [blocks, views, variants] = await Promise.all([
-              storage.getAllBlocks(),
-              storage.getAllViews(),
-              storage.getAllSyntacticVariants()
-            ]);
+          const blocksMap = new Map();
+          const viewsMap = new Map();
+          const variantsMap = new Map();
 
-            const blocksMap = new Map();
-            const viewsMap = new Map();
-            const variantsMap = new Map();
+          blocks.forEach(block => blocksMap.set(block.id, block));
+          views.forEach(view => viewsMap.set(view.id, view));
+          variants.forEach(variant => {
+            const key = `${variant.base}:${variant.variant}`;
+            variantsMap.set(key, variant);
+          });
 
-            blocks.forEach(block => blocksMap.set(block.id, block));
-            views.forEach(view => viewsMap.set(view.id, view));
-            variants.forEach(variant => {
-              const key = `${variant.base}:${variant.variant}`;
-              variantsMap.set(key, variant);
-            });
-
-            set({
-              blocks: blocksMap,
-              views: viewsMap,
-              variants: variantsMap,
-              isLoading: false
-            });
-          } catch (error) {
-            set({
-              error: error instanceof Error ? error.message : 'Failed to load initial data',
-              isLoading: false
-            });
-          }
-        },
+          set({
+            blocks: blocksMap,
+            views: viewsMap,
+            variants: variantsMap
+          });
+        }),
 
         setCurrentUser: (userId: UserID) => {
           set({ currentUser: userId });
@@ -411,7 +332,7 @@ export const useBlockStore = create<BlockStore>()(
           return usedInViews;
         },
 
-        cloneBlock: async (blockId: BlockID, newCanonical?: string) => {
+        cloneBlock: withErrorHandling(async (blockId: BlockID, newCanonical?: string) => {
           const originalBlock = get().getBlock(blockId);
           if (!originalBlock) {
             throw new Error('Block not found');
@@ -426,7 +347,7 @@ export const useBlockStore = create<BlockStore>()(
           };
 
           return await get().createBlock(clonedInput);
-        },
+        }),
 
         // Editor integration
         getBlockFromEditor: (editorContent: string) => {
@@ -465,15 +386,16 @@ export const useBlockStore = create<BlockStore>()(
           return blocks;
         },
 
-        syncEditorWithBlocks: async (viewId: string, editorContent: string) => {
+        syncEditorWithBlocks: withErrorHandling(async (viewId: string, editorContent: string) => {
           const blocks = get().getBlockFromEditor(editorContent);
           const updateInput: UpdateViewInput = {
             rootBlocks: blocks
           };
           
           await get().updateView(viewId, updateInput);
-        }
-      }),
+        })
+        });
+      },
       {
         name: 'block-store',
         partialize: (state) => ({
