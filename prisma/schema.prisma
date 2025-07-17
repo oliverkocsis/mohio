@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBlocks Block[] @relation("BlockCreatedBy")
+  updatedBlocks Block[] @relation("BlockUpdatedBy")
+  createdViews  View[]  @relation("ViewCreatedBy")
+  updatedViews  View[]  @relation("ViewUpdatedBy")
+
+  @@map("users")
+}
+
+model Block {
+  id        String    @id @default(cuid())
+  canonical String
+  html      String?
+  style     Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy String
+  updatedBy String
+
+  creator User @relation("BlockCreatedBy", fields: [createdBy], references: [id])
+  updater User @relation("BlockUpdatedBy", fields: [updatedBy], references: [id])
+
+  parent   Block?  @relation("BlockHierarchy", fields: [parentId], references: [id])
+  parentId String?
+  children Block[] @relation("BlockHierarchy")
+
+  rootViews View[] @relation("ViewRootBlocks")
+
+  baseVariants    SyntacticVariant[] @relation("BaseBlock")
+  variantVersions SyntacticVariant[] @relation("VariantBlock")
+
+  @@map("blocks")
+}
+
+model View {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  purpose   String
+  tone      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String
+  updatedBy String
+
+  creator User @relation("ViewCreatedBy", fields: [createdBy], references: [id])
+  updater User @relation("ViewUpdatedBy", fields: [updatedBy], references: [id])
+
+  rootBlocks Block[] @relation("ViewRootBlocks")
+
+  @@map("views")
+}
+
+model SyntacticVariant {
+  id             String   @id @default(cuid())
+  baseId         String
+  variantId      String
+  variance       Float
+  transformation String[]
+  depth          Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  base    Block @relation("BaseBlock", fields: [baseId], references: [id])
+  variant Block @relation("VariantBlock", fields: [variantId], references: [id])
+
+  @@unique([baseId, variantId])
+  @@map("syntactic_variants")
+}
+

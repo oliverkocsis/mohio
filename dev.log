@@ -1,0 +1,38 @@
+
+> mohio@0.1.0 dev
+> next dev --turbopack
+
+ ⚠ Port 3000 is in use, using available port 3001 instead.
+   ▲ Next.js 15.3.5 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.178.244:3001
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 785ms
+ ✓ Compiled /api/views/[id] in 487ms
+ GET /api/views/mohio_document 200 in 1532ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1182ms
+Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+ GET / 200 in 1373ms
+ ○ Compiling /_not-found/page ...
+ ✓ Compiled /_not-found/page in 1254ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1301ms
+ GET /api/variants 200 in 996ms
+ GET /api/variants 200 in 48ms
+ GET /favicon.ico?favicon.7ee873ed.ico 200 in 1181ms
+ GET /api/blocks 200 in 1504ms
+ GET /api/views 200 in 1628ms
+ GET /api/blocks 200 in 144ms
+ GET /api/views 200 in 213ms
+Tiptap Error: SSR has been detected, please set `immediatelyRender` explicitly to `false` to avoid hydration mismatches.
+ GET / 200 in 86ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 168ms
+ GET /api/blocks 200 in 201ms
+ GET /api/views 200 in 262ms
+ GET /favicon.ico?favicon.7ee873ed.ico 200 in 237ms
+ GET /api/blocks 200 in 149ms
+ GET /api/variants 200 in 460ms
+ GET /api/views 200 in 215ms
+ GET /api/variants 200 in 53ms

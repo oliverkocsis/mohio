@@ -5,13 +5,10 @@ let storageInstance: StorageAdapter | null = null
 export function getStorage(): StorageAdapter {
   if (!storageInstance) {
     if (typeof window === 'undefined') {
-      // Server-side: use file storage
+      // Server-side: use Prisma storage
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { FileStorageAdapter } = require('./file-storage')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const path = require('path')
-      const dataDir = path.join(process.cwd(), 'data')
-      storageInstance = new FileStorageAdapter(dataDir)
+      const { PrismaStorageAdapter } = require('./prisma-storage')
+      storageInstance = new PrismaStorageAdapter()
     } else {
       // Client-side: use API calls
       // eslint-disable-next-line @typescript-eslint/no-require-imports
