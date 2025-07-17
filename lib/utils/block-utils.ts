@@ -1,5 +1,24 @@
 import { Block, BlockStyle, View, SyntacticVariant } from '../types'
 
+// Type for HTML renderer functions
+type HTMLRenderer = (content: string, childrenHTML: string) => string
+
+// Tag mapping configuration for HTML rendering
+const TAG_RENDERERS: Record<BlockStyle['format'], HTMLRenderer> = {
+  p: (content: string) => `<p>${content}</p>`,
+  h1: (content: string, childrenHTML: string) => `<h1>${content}</h1>${childrenHTML}`,
+  h2: (content: string, childrenHTML: string) => `<h2>${content}</h2>${childrenHTML}`,
+  h3: (content: string, childrenHTML: string) => `<h3>${content}</h3>${childrenHTML}`,
+  h4: (content: string, childrenHTML: string) => `<h4>${content}</h4>${childrenHTML}`,
+  h5: (content: string, childrenHTML: string) => `<h5>${content}</h5>${childrenHTML}`,
+  h6: (content: string, childrenHTML: string) => `<h6>${content}</h6>${childrenHTML}`,
+  blockquote: (content: string, childrenHTML: string) => `<blockquote>${childrenHTML || content}</blockquote>`,
+  code: (content: string) => `<code>${content}</code>`,
+  li: (content: string) => `<li>${content}</li>`,
+  ul: (content: string, childrenHTML: string) => `<ul>${childrenHTML || content}</ul>`,
+  ol: (content: string, childrenHTML: string) => `<ol>${childrenHTML || content}</ol>`
+}
+
 export function createBlock(
   canonical: string,
   html?: string,
@@ -27,34 +46,14 @@ export function renderBlockAsHTML(block: Block): string {
   // Handle children for container blocks
   const childrenHTML = block.children ? block.children.map(child => renderBlockAsHTML(child)).join('') : ''
 
-  switch (block.style.format) {
-    case 'p':
-      return `<p>${content}</p>`
-    case 'h1':
-      return `<h1>${content}</h1>${childrenHTML}`
-    case 'h2':
-      return `<h2>${content}</h2>${childrenHTML}`
-    case 'h3':
-      return `<h3>${content}</h3>${childrenHTML}`
-    case 'h4':
-      return `<h4>${content}</h4>${childrenHTML}`
-    case 'h5':
-      return `<h5>${content}</h5>${childrenHTML}`
-    case 'h6':
-      return `<h6>${content}</h6>${childrenHTML}`
-    case 'blockquote':
-      return `<blockquote>${childrenHTML || content}</blockquote>`
-    case 'code':
-      return `<code>${content}</code>`
-    case 'li':
-      return `<li>${content}</li>`
-    case 'ul':
-      return `<ul>${childrenHTML || content}</ul>`
-    case 'ol':
-      return `<ol>${childrenHTML || content}</ol>`
-    default:
-      return content
+  // Use the tag renderer configuration
+  const renderer = TAG_RENDERERS[block.style.format]
+  if (renderer) {
+    return renderer(content, childrenHTML)
   }
+
+  // Fallback for unknown formats
+  return content
 }
 
 export function renderViewAsHTML(view: View): string {

@@ -51,27 +51,60 @@ const ToolbarButton = ({
   </button>
 )
 
+// Type-safe URL validation
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Type-safe prompt with validation
+const promptForUrl = (message: string): string | null => {
+  if (typeof window === 'undefined') return null
+  
+  const url = window.prompt(message)
+  if (!url) return null
+  
+  const trimmedUrl = url.trim()
+  if (!trimmedUrl) return null
+  
+  // Basic URL validation - ensure it starts with http/https or add https if missing
+  const urlWithProtocol = trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`
+  
+  if (!isValidUrl(urlWithProtocol)) {
+    alert('Please enter a valid URL')
+    return null
+  }
+  
+  return urlWithProtocol
+}
+
 const Toolbar = ({ editor, onSave }: ToolbarProps) => {
   if (!editor) return null
 
   const addLink = () => {
-    const url = window.prompt('Enter URL:')
+    const url = promptForUrl('Enter URL:')
     if (url) {
       editor.chain().focus().setLink({ href: url }).run()
     }
   }
 
   const addImage = () => {
-    const url = window.prompt('Enter image URL:')
+    const url = promptForUrl('Enter image URL:')
     if (url) {
       editor.chain().focus().setImage({ src: url }).run()
     }
   }
 
   const addVideo = () => {
-    const url = window.prompt('Enter video URL:')
+    const url = promptForUrl('Enter video URL:')
     if (url) {
-      editor.chain().focus().insertContent(`<iframe src="${url}" width="560" height="315" frameborder="0"></iframe>`).run()
+      // Sanitize URL for iframe src
+      const sanitizedUrl = url.replace(/[<>"']/g, '')
+      editor.chain().focus().insertContent(`<iframe src="${sanitizedUrl}" width="560" height="315" frameborder="0"></iframe>`).run()
     }
   }
 
