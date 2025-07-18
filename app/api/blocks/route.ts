@@ -8,7 +8,7 @@ export async function GET() {
     const blocks = await storage.getAllBlocks()
     return NextResponse.json(blocks)
   } catch (error) {
-    console.error('Error fetching blocks:', error)
+    console.error('[BlockAPI] Error fetching blocks:', error)
     return NextResponse.json({ error: 'Failed to fetch blocks' }, { status: 500 })
   }
 }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const block = await storage.createBlock(input)
     return NextResponse.json(block, { status: 201 })
   } catch (error) {
-    console.error('Error creating block:', error)
+    console.error('[BlockAPI] Error creating block:', error)
     return NextResponse.json({ error: 'Failed to create block' }, { status: 500 })
   }
 }

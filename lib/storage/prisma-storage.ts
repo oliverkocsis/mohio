@@ -214,7 +214,7 @@ export class PrismaStorageAdapter implements StorageAdapter {
         updatedAt: view.updatedAt
       }
     } catch (error) {
-      console.error('Error updating view:', error)
+      console.error('[PrismaStorage] Error updating view:', error)
       return null
     }
   }

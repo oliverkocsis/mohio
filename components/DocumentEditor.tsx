@@ -77,7 +77,7 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
         })
       }
     } catch (error) {
-      console.error('Error saving view:', error)
+      console.error('[DocumentEditor] Failed to save view:', error)
     }
   }
 
