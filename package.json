@@ -10,7 +10,10 @@
     "seed": "npx tsx scripts/seed-database.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "db:backup": "npx tsx scripts/db-backup.ts",
+    "db:wipe": "npx tsx scripts/db-wipe.ts",
+    "db:restore": "npx tsx scripts/db-restore.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",
