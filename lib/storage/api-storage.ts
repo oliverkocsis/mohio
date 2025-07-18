@@ -2,6 +2,8 @@ import { StorageAdapter, Block, View, SyntacticVariant, CreateBlockInput, Create
 
 export class ApiStorageAdapter implements StorageAdapter {
   private async fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+    console.log('Making request to:', url, 'with options:', options)
+    console.log('Window location:', typeof window !== 'undefined' ? window.location.href : 'server-side')
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -9,6 +11,8 @@ export class ApiStorageAdapter implements StorageAdapter {
       },
       ...options,
     })
+    
+    console.log('Response status:', response.status, 'for URL:', url)
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)

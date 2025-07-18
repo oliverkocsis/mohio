@@ -21,8 +21,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  console.log('PUT request received for view ID:', id)
   try {
     const body = await request.json()
+    console.log('Request body keys:', Object.keys(body))
     const input: UpdateViewInput = {
       title: body.title,
       purpose: body.purpose,
@@ -31,12 +33,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
     
     const storage = getStorage()
+    console.log('Storage type:', storage.constructor.name)
     const view = await storage.updateView(id, input)
     
     if (!view) {
+      console.log('View not found for ID:', id)
       return NextResponse.json({ error: 'View not found' }, { status: 404 })
     }
     
+    console.log('View updated successfully:', view.id)
     return NextResponse.json(view)
   } catch (error) {
     console.error('Error updating view:', error)

@@ -146,9 +146,38 @@ export class PrismaStorageAdapter implements StorageAdapter {
       if (input.title !== undefined) updateData.title = input.title
       if (input.purpose !== undefined) updateData.purpose = input.purpose
       if (input.tone !== undefined) updateData.tone = input.tone
+      
+      // Handle rootBlocks - create new blocks first, then connect them
       if (input.rootBlocks !== undefined) {
+        // Create or update blocks first
+        const blockIds = []
+        for (const block of input.rootBlocks) {
+          // Use 'system' as the user ID since that's what exists in the database
+          const createdBlock = await this.prisma.block.upsert({
+            where: { id: block.id },
+            update: {
+              canonical: block.canonical,
+              html: block.html || null,
+              style: block.style as any || null,
+              updatedBy: "system",
+              updatedAt: new Date()
+            },
+            create: {
+              id: block.id,
+              canonical: block.canonical,
+              html: block.html || null,
+              style: block.style as any || null,
+              createdBy: "system",
+              updatedBy: "system",
+              createdAt: block.createdAt || new Date(),
+              updatedAt: block.updatedAt || new Date()
+            }
+          })
+          blockIds.push(createdBlock.id)
+        }
+        
         updateData.rootBlocks = {
-          set: input.rootBlocks.map(block => ({ id: block.id }))
+          set: blockIds.map(id => ({ id }))
         }
       }
 
@@ -184,7 +213,8 @@ export class PrismaStorageAdapter implements StorageAdapter {
         updatedBy: view.updatedBy,
         updatedAt: view.updatedAt
       }
-    } catch {
+    } catch (error) {
+      console.error('Error updating view:', error)
       return null
     }
   }
