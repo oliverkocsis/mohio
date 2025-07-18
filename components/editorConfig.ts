@@ -11,6 +11,7 @@ export const getEditorConfig = () => ({
     Image,
   ],
   content: '<p>Start writing your document...</p>',
+  immediatelyRender: false,
   editorProps: {
     attributes: {
       class: 'focus:outline-none min-h-[600px] font-serif text-lg leading-relaxed text-gray-700',
