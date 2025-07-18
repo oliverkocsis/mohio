@@ -326,7 +326,7 @@ export class PrismaStorageAdapter implements StorageAdapter {
       variant: variant.variantId,
       variance: variant.variance,
       transformation: variant.transformation,
-      depth: variant.depth,
+      depth: variant.depth ?? undefined,
       createdAt: variant.createdAt,
       updatedAt: variant.updatedAt
     }
@@ -340,7 +340,7 @@ export class PrismaStorageAdapter implements StorageAdapter {
       variant: variant.variantId,
       variance: variant.variance,
       transformation: variant.transformation,
-      depth: variant.depth,
+      depth: variant.depth ?? undefined,
       createdAt: variant.createdAt,
       updatedAt: variant.updatedAt
     }))
@@ -362,7 +362,7 @@ export class PrismaStorageAdapter implements StorageAdapter {
       variant: variant.variantId,
       variance: variant.variance,
       transformation: variant.transformation,
-      depth: variant.depth,
+      depth: variant.depth ?? undefined,
       createdAt: variant.createdAt,
       updatedAt: variant.updatedAt
     }
@@ -396,7 +396,7 @@ export class PrismaStorageAdapter implements StorageAdapter {
       variant: variant.variantId,
       variance: variant.variance,
       transformation: variant.transformation,
-      depth: variant.depth,
+      depth: variant.depth ?? undefined,
       createdAt: variant.createdAt,
       updatedAt: variant.updatedAt
     }))
@@ -414,7 +414,7 @@ export class PrismaStorageAdapter implements StorageAdapter {
       variant: variant.variantId,
       variance: variant.variance,
       transformation: variant.transformation,
-      depth: variant.depth,
+      depth: variant.depth ?? undefined,
       createdAt: variant.createdAt,
       updatedAt: variant.updatedAt
     }))

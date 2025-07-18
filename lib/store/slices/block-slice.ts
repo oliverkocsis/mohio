@@ -1,4 +1,4 @@
-import { Block, BlockID, CreateBlockInput, UpdateBlockInput, UserID } from '../../types';
+import { Block, BlockID, CreateBlockInput, UpdateBlockInput } from '../../types';
 import { getStorage } from '../../storage';
 import { createErrorHandler } from '../utils/error-handler';
 
@@ -31,8 +31,8 @@ export const createBlockSlice = (set: any, get: any) => {
       return get().blocks.get(id) || null;
     },
 
-    getAllBlocks: () => {
-      return Array.from(get().blocks.values());
+    getAllBlocks: (): Block[] => {
+      return Array.from(get().blocks.values()) as Block[];
     },
 
     createBlock: withErrorHandling(async (input: CreateBlockInput) => {
@@ -109,7 +109,7 @@ export const createBlockSlice = (set: any, get: any) => {
         };
 
         const newViews = new Map(state.views);
-        newViews.forEach((view) => {
+        newViews.forEach((view: any) => {
           view.rootBlocks = updateBlocksRecursively(view.rootBlocks);
         });
 

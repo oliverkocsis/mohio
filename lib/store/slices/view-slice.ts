@@ -29,8 +29,8 @@ export const createViewSlice = (set: any, get: any) => {
       return get().views.get(id) || null;
     },
 
-    getAllViews: () => {
-      return Array.from(get().views.values());
+    getAllViews: (): View[] => {
+      return Array.from(get().views.values()) as View[];
     },
 
     createView: withErrorHandling(async (input: CreateViewInput) => {

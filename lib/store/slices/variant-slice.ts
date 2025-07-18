@@ -28,8 +28,8 @@ export const createVariantSlice = (set: any, get: any) => {
       return get().variants.get(key) || null;
     },
 
-    getAllVariants: () => {
-      return Array.from(get().variants.values());
+    getAllVariants: (): SyntacticVariant[] => {
+      return Array.from(get().variants.values()) as SyntacticVariant[];
     },
 
     createVariant: withErrorHandling(async (input: CreateSyntacticVariantInput) => {
@@ -60,16 +60,16 @@ export const createVariantSlice = (set: any, get: any) => {
       return success;
     }),
 
-    getVariantsForBlock: (blockId: BlockID) => {
+    getVariantsForBlock: (blockId: BlockID): SyntacticVariant[] => {
       return Array.from(get().variants.values()).filter(
-        variant => variant.base === blockId || variant.variant === blockId
-      );
+        (variant: any) => variant.base === blockId || variant.variant === blockId
+      ) as SyntacticVariant[];
     },
 
-    getBaseBlocksForVariant: (variantId: BlockID) => {
+    getBaseBlocksForVariant: (variantId: BlockID): SyntacticVariant[] => {
       return Array.from(get().variants.values()).filter(
-        variant => variant.variant === variantId
-      );
+        (variant: any) => variant.variant === variantId
+      ) as SyntacticVariant[];
     }
   };
 };

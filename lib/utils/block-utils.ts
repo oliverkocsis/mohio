@@ -4,7 +4,7 @@ import { Block, BlockStyle, View, SyntacticVariant } from '../types'
 type HTMLRenderer = (content: string, childrenHTML: string) => string
 
 // Tag mapping configuration for HTML rendering
-const TAG_RENDERERS: Record<BlockStyle['format'], HTMLRenderer> = {
+const TAG_RENDERERS: Record<NonNullable<BlockStyle['format']>, HTMLRenderer> = {
   p: (content: string) => `<p>${content}</p>`,
   h1: (content: string, childrenHTML: string) => `<h1>${content}</h1>${childrenHTML}`,
   h2: (content: string, childrenHTML: string) => `<h2>${content}</h2>${childrenHTML}`,
