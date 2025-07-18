@@ -5,7 +5,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { getEditorConfig } from './editorConfig'
 import Toolbar from './Toolbar'
 import { useBlockStore } from '@/lib/store/block-store'
-import { renderViewAsHTML } from '@/lib/utils/block-utils'
+import { renderViewAsHTML, sanitizeHtmlForTipTap } from '@/lib/utils/block-utils'
 
 interface DocumentEditorProps {
   viewId?: string
@@ -38,7 +38,9 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
       setLocalTitle(view.title)
       if (editor) {
         const content = renderViewAsHTML(view)
-        editor.commands.setContent(content)
+        // Sanitize HTML to prevent TipTap wrapping issues
+        const sanitizedContent = sanitizeHtmlForTipTap(content)
+        editor.commands.setContent(sanitizedContent)
       }
     }
   }, [editor, getView, loadInitialData, setCurrentView])

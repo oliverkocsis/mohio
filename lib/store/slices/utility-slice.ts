@@ -91,7 +91,7 @@ export const createUtilitySlice = (set: any, get: any) => {
             
             // Safe content extraction
             const textContent = element.textContent ?? '';
-            const outerHTML = element.outerHTML ?? '';
+            const innerHTML = element.innerHTML ?? '';
             const tagName = element.tagName?.toLowerCase() ?? 'p';
             
             // Validate format is a valid BlockStyle format
@@ -100,9 +100,11 @@ export const createUtilitySlice = (set: any, get: any) => {
               ? tagName as BlockStyle['format'] 
               : 'p';
             
+            // Fix: Use innerHTML instead of outerHTML to prevent nested tags
+            // This prevents storing <p>content</p> and instead stores just "content"
             const blockData = createBlock(
               textContent,
-              outerHTML,
+              innerHTML,
               { format },
               undefined,
               get().currentUser

@@ -151,3 +151,31 @@ export function getBlockDepth(block: Block): number {
   const maxChildDepth = Math.max(...block.children.map(child => getBlockDepth(child)))
   return 1 + maxChildDepth
 }
+
+// Sanitize HTML to prevent TipTap wrapping issues
+export function sanitizeHtmlForTipTap(html: string): string {
+  if (!html) return html
+  
+  // Remove unnecessary paragraph wrapping that can cause nesting issues
+  // If the entire content is wrapped in a single paragraph, unwrap it
+  const singleParagraphMatch = html.match(/^<p>([\s\S]*)<\/p>$/)
+  if (singleParagraphMatch) {
+    const innerContent = singleParagraphMatch[1]
+    // Only unwrap if the inner content doesn't contain block elements
+    if (!innerContent.includes('<p>') && !innerContent.includes('<h1>') && 
+        !innerContent.includes('<h2>') && !innerContent.includes('<h3>') &&
+        !innerContent.includes('<ul>') && !innerContent.includes('<ol>')) {
+      return innerContent
+    }
+  }
+  
+  return html
+}
+
+// Clean HTML content from blocks to prevent nested structures
+export function cleanBlockHTML(html: string | undefined): string {
+  if (!html) return ''
+  
+  // Remove any outer paragraph tags that might cause nesting
+  return html.replace(/^<p>([\s\S]*)<\/p>$/, '$1').trim()
+}
