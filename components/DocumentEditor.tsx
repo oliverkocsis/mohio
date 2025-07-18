@@ -1,7 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { getEditorConfig } from './editorConfig'
 import Toolbar from './Toolbar'
 import { useBlockStore } from '@/lib/store/block-store'
@@ -23,6 +23,7 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
     syncEditorWithBlocks
   } = useBlockStore()
   
+  const [localTitle, setLocalTitle] = useState('')
   const editor = useEditor(getEditorConfig())
 
   const loadView = useCallback(async (id: string) => {
@@ -34,6 +35,7 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
     
     if (view) {
       setCurrentView(view)
+      setLocalTitle(view.title)
       if (editor) {
         const content = renderViewAsHTML(view)
         editor.commands.setContent(content)
@@ -61,10 +63,13 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
     try {
       if (currentView) {
         await syncEditorWithBlocks(currentView.id, content)
+        if (localTitle !== currentView.title) {
+          await updateView(currentView.id, { title: localTitle })
+        }
       } else {
         await createView({
           type: 'document',
-          title: 'Untitled Document',
+          title: localTitle || 'Untitled Document',
           purpose: 'User-created document',
           tone: ['professional'],
           rootBlocks: [],
@@ -76,11 +81,27 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
     }
   }
 
-  const handleTitleChange = async (newTitle: string) => {
-    if (currentView) {
-      await updateView(currentView.id, { title: newTitle })
-    }
+  const handleTitleChange = (newTitle: string) => {
+    setLocalTitle(newTitle)
   }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        saveView()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [saveView])
+
+  useEffect(() => {
+    if (currentView) {
+      setLocalTitle(currentView.title)
+    }
+  }, [currentView])
 
   return (
     <div className="min-h-screen bg-white overscroll-none">
@@ -94,7 +115,7 @@ export default function DocumentEditor({ viewId }: DocumentEditorProps) {
           <div className="mb-12">
             <input
               type="text"
-              value={currentView?.title || 'Untitled Document'}
+              value={localTitle || 'Untitled Document'}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full text-5xl font-bold bg-transparent border-none outline-none placeholder-gray-400 leading-tight font-sans"
               style={{ color: 'var(--color-primary)' }}
