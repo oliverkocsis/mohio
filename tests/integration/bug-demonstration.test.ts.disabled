@@ -1,0 +1,277 @@
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { testDocument, createTestDocumentCopy, mockPrismaClient } from '../test-data'
+import { Block, BlockID } from '../../lib/types'
+
+// Mock a simple storage service that would actually read/save
+class MockBlockStorage {
+  private blocks: Map<BlockID, Block> = new Map()
+  
+  // Track save operations
+  public saveCallCount = 0
+  public lastSavedBlocks: Block[] = []
+  
+  async loadBlocks(): Promise<Block[]> {
+    // Simulate loading from database
+    const blocks = Array.from(this.blocks.values())
+    // Return the original structure, not just flat blocks
+    return blocks.filter(block => {
+      // Only return root blocks (those not referenced as children)
+      const allBlockIds = new Set(blocks.map(b => b.id))
+      const childIds = new Set()
+      blocks.forEach(b => {
+        if (b.children) {
+          b.children.forEach(child => childIds.add(child.id))
+        }
+      })
+      return !childIds.has(block.id)
+    })
+  }
+  
+  async saveBlocks(blocks: Block[]): Promise<void> {
+    this.saveCallCount++
+    this.lastSavedBlocks = [...blocks]
+    
+    // Simulate database save - this is where the bug might be
+    const flattenAndSave = (blockList: Block[]) => {
+      blockList.forEach(block => {
+        // BUG: Always updating timestamp even when no changes
+        const updatedBlock = {
+          ...block,
+          updatedAt: new Date() // This is the bug!
+        }
+        this.blocks.set(block.id, updatedBlock)
+        
+        // Also save children
+        if (block.children) {
+          flattenAndSave(block.children)
+        }
+      })
+    }
+    
+    flattenAndSave(blocks)
+  }
+  
+  async initializeWithTestData(blocks: Block[]): Promise<void> {
+    this.blocks.clear()
+    
+    const flattenAndStore = (blockList: Block[]) => {
+      blockList.forEach(block => {
+        this.blocks.set(block.id, block)
+        if (block.children) {
+          flattenAndStore(block.children)
+        }
+      })
+    }
+    
+    flattenAndStore(blocks)
+  }
+  
+  getBlock(id: BlockID): Block | undefined {
+    return this.blocks.get(id)
+  }
+}
+
+describe('Read, Do Not Update, Then Save - Bug Detection', () => {
+  let storage: MockBlockStorage
+  let originalBlocks: Block[]
+  let originalTimestamps: Map<BlockID, Date>
+
+  beforeEach(async () => {
+    storage = new MockBlockStorage()
+    originalBlocks = createTestDocumentCopy()
+    
+    // Track original timestamps
+    originalTimestamps = new Map()
+    const flattenBlocks = (blocks: Block[]): Block[] => {
+      return blocks.reduce((acc, block) => {
+        acc.push(block)
+        if (block.children) {
+          acc.push(...flattenBlocks(block.children))
+        }
+        return acc
+      }, [] as Block[])
+    }
+    
+    flattenBlocks(originalBlocks).forEach(block => {
+      originalTimestamps.set(block.id, new Date(block.updatedAt))
+    })
+    
+    // Initialize storage with test data
+    await storage.initializeWithTestData(originalBlocks)
+  })
+
+  describe('No-Change Save Operations', () => {
+    it('should NOT update timestamps when no changes are made', async () => {
+      // Step 1: Load blocks from storage
+      const loadedBlocks = await storage.loadBlocks()
+      
+      // Step 2: Do NOT modify anything
+      // (This simulates reading data and immediately saving without changes)
+      
+      // Step 3: Save back to storage
+      await storage.saveBlocks(loadedBlocks)
+      
+      // Step 4: Verify timestamps were NOT changed for all blocks (including nested)
+      originalTimestamps.forEach((originalTimestamp, blockId) => {
+        const currentBlock = storage.getBlock(blockId)
+        
+        // This test SHOULD FAIL because the bug updates timestamps even without changes
+        expect(currentBlock?.updatedAt).toEqual(originalTimestamp)
+      })
+    })
+    
+    it('should NOT trigger unnecessary database writes', async () => {
+      const initialSaveCount = storage.saveCallCount
+      
+      // Load and immediately save without changes
+      const loadedBlocks = await storage.loadBlocks()
+      await storage.saveBlocks(loadedBlocks)
+      
+      // Should have only one save call
+      expect(storage.saveCallCount).toBe(initialSaveCount + 1)
+      
+      // But the save should be optimized to detect no changes
+      // and avoid actual database operations
+    })
+    
+    it('should preserve all block properties exactly', async () => {
+      const loadedBlocks = await storage.loadBlocks()
+      
+      // Find a nested block to test - block_p1 is a child of block_h1_1
+      const findBlockInHierarchy = (blocks: Block[], id: string): Block | null => {
+        for (const block of blocks) {
+          if (block.id === id) return block
+          if (block.children) {
+            const found = findBlockInHierarchy(block.children, id)
+            if (found) return found
+          }
+        }
+        return null
+      }
+      
+      const originalBlock = findBlockInHierarchy(loadedBlocks, 'block_p1')!
+      expect(originalBlock).toBeDefined()
+      
+      // Save without changes
+      await storage.saveBlocks(loadedBlocks)
+      
+      const savedBlock = storage.getBlock('block_p1' as BlockID)!
+      
+      // All properties should be identical
+      expect(savedBlock.canonical).toBe(originalBlock.canonical)
+      expect(savedBlock.html).toBe(originalBlock.html)
+      expect(savedBlock.style).toEqual(originalBlock.style)
+      expect(savedBlock.createdAt).toEqual(originalBlock.createdAt)
+      expect(savedBlock.createdBy).toBe(originalBlock.createdBy)
+      // This is where the bug shows up:
+      expect(savedBlock.updatedAt).toEqual(originalBlock.updatedAt)
+    })
+    
+    it('should handle nested blocks correctly during no-change saves', async () => {
+      const loadedBlocks = await storage.loadBlocks()
+      await storage.saveBlocks(loadedBlocks)
+      
+      // Check nested blocks maintain their timestamps
+      const nestedBlockIds = ['block_p1', 'block_quote', 'block_h2', 'block_li1', 'block_li2']
+      
+      nestedBlockIds.forEach(blockId => {
+        const originalTimestamp = originalTimestamps.get(blockId as BlockID)
+        const currentBlock = storage.getBlock(blockId as BlockID)
+        
+        if (originalTimestamp && currentBlock) {
+          expect(currentBlock.updatedAt).toEqual(originalTimestamp)
+        }
+      })
+    })
+  })
+
+  describe('Change Detection Logic', () => {
+    it('should detect when no changes were actually made', async () => {
+      const loadedBlocks = await storage.loadBlocks()
+      
+      // Simulate a change detection function
+      const hasChanges = (original: Block[], current: Block[]): boolean => {
+        if (original.length !== current.length) return true
+        
+        return original.some((originalBlock, index) => {
+          const currentBlock = current[index]
+          return (
+            originalBlock.canonical !== currentBlock.canonical ||
+            originalBlock.html !== currentBlock.html ||
+            JSON.stringify(originalBlock.style) !== JSON.stringify(currentBlock.style)
+          )
+        })
+      }
+      
+      const changes = hasChanges(originalBlocks, loadedBlocks)
+      expect(changes).toBe(false) // No changes should be detected
+    })
+    
+    it('should only update timestamps for actually modified blocks', async () => {
+      const loadedBlocks = await storage.loadBlocks()
+      
+      // Helper to modify blocks in nested structure
+      const modifyBlockInHierarchy = (blocks: Block[], targetId: string, newContent: string): Block[] => {
+        return blocks.map(block => {
+          if (block.id === targetId) {
+            return { ...block, canonical: newContent }
+          }
+          if (block.children) {
+            return {
+              ...block,
+              children: modifyBlockInHierarchy(block.children, targetId, newContent)
+            }
+          }
+          return block
+        })
+      }
+      
+      const modifiedBlocks = modifyBlockInHierarchy(loadedBlocks, 'block_p1', 'Modified content')
+      
+      await storage.saveBlocks(modifiedBlocks)
+      
+      // Due to the bug, ALL blocks will have updated timestamps, not just the modified one
+      const modifiedBlock = storage.getBlock('block_p1' as BlockID)!
+      const unmodifiedBlock = storage.getBlock('block_h1_1' as BlockID)!
+      
+      expect(modifiedBlock).toBeDefined()
+      expect(unmodifiedBlock).toBeDefined()
+      
+      // The bug means even unmodified blocks get timestamp updates
+      expect(modifiedBlock.updatedAt).not.toEqual(originalTimestamps.get('block_p1'))
+      // This SHOULD pass but WILL FAIL due to the bug:
+      expect(unmodifiedBlock.updatedAt).toEqual(originalTimestamps.get('block_h1_1'))
+    })
+  })
+
+  describe('Performance Impact of Unnecessary Saves', () => {
+    it('should avoid database calls when no changes are detected', async () => {
+      // Mock database call counter
+      let dbCallCount = 0
+      const mockDbSave = vi.fn(() => { dbCallCount++ })
+      
+      const loadedBlocks = await storage.loadBlocks()
+      
+      // Simulate optimized save that checks for changes first
+      const saveWithChangeDetection = async (blocks: Block[]) => {
+        const hasActualChanges = blocks.some(block => {
+          const original = originalBlocks.find(orig => orig.id === block.id)
+          return !original || 
+                 original.canonical !== block.canonical ||
+                 original.html !== block.html ||
+                 JSON.stringify(original.style) !== JSON.stringify(block.style)
+        })
+        
+        if (hasActualChanges) {
+          mockDbSave()
+        }
+      }
+      
+      await saveWithChangeDetection(loadedBlocks)
+      
+      // No database calls should have been made
+      expect(dbCallCount).toBe(0)
+      expect(mockDbSave).not.toHaveBeenCalled()
+    })
+  })
+})
