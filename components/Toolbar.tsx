@@ -11,15 +11,13 @@ import {
   ListOrdered, 
   Link, 
   Image, 
-  Video,
-  Save
+  Video
 } from 'lucide-react'
 import { Editor } from '@tiptap/react'
 import { LucideIcon } from 'lucide-react'
 
 interface ToolbarProps {
   editor: Editor | null
-  onSave?: () => void
 }
 
 interface ToolbarButtonProps {
@@ -63,8 +61,6 @@ const isValidUrl = (url: string): boolean => {
 
 // Type-safe prompt with validation
 const promptForUrl = (message: string): string | null => {
-  if (typeof window === 'undefined') return null
-  
   const url = window.prompt(message)
   if (!url) return null
   
@@ -82,29 +78,35 @@ const promptForUrl = (message: string): string | null => {
   return urlWithProtocol
 }
 
-const Toolbar = ({ editor, onSave }: ToolbarProps) => {
+const Toolbar = ({ editor }: ToolbarProps) => {
   if (!editor) return null
 
   const addLink = () => {
-    const url = promptForUrl('Enter URL:')
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run()
+    if (typeof window !== 'undefined') {
+      const url = promptForUrl('Enter URL:')
+      if (url) {
+        editor.chain().focus().setLink({ href: url }).run()
+      }
     }
   }
 
   const addImage = () => {
-    const url = promptForUrl('Enter image URL:')
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run()
+    if (typeof window !== 'undefined') {
+      const url = promptForUrl('Enter image URL:')
+      if (url) {
+        editor.chain().focus().setImage({ src: url }).run()
+      }
     }
   }
 
   const addVideo = () => {
-    const url = promptForUrl('Enter video URL:')
-    if (url) {
-      // Sanitize URL for iframe src
-      const sanitizedUrl = url.replace(/[<>"']/g, '')
-      editor.chain().focus().insertContent(`<iframe src="${sanitizedUrl}" width="560" height="315" frameborder="0"></iframe>`).run()
+    if (typeof window !== 'undefined') {
+      const url = promptForUrl('Enter video URL:')
+      if (url) {
+        // Sanitize URL for iframe src
+        const sanitizedUrl = url.replace(/[<>"']/g, '')
+        editor.chain().focus().insertContent(`<iframe src="${sanitizedUrl}" width="560" height="315" frameborder="0"></iframe>`).run()
+      }
     }
   }
 
@@ -200,15 +202,6 @@ const Toolbar = ({ editor, onSave }: ToolbarProps) => {
         icon={Video}
       />
       </div>
-
-      {/* Save Button */}
-      {onSave && (
-        <ToolbarButton
-          onClick={onSave}
-          title="Save Document"
-          icon={Save}
-        />
-      )}
     </div>
   )
 }
