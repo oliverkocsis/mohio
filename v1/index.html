@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mohio v1 Demo</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="aurora aurora-one"></div>
+  <div class="aurora aurora-two"></div>
+
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Mohio (v1 demo)</p>
+      <h1>Git-backed workspace for teams</h1>
+      <p class="subtitle">Edit Markdown, review LLM diffs, and publish with guided conflict resolution.</p>
+    </div>
+    <div class="status-row">
+      <span class="chip chip-online" id="syncStatus">Offline-ready</span>
+      <span class="chip" id="branchBadge"></span>
+      <span class="chip" id="publishBadge"></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel sidebar">
+      <div class="panel-head">
+        <h2>Spaces</h2>
+      </div>
+      <div id="spaceList"></div>
+      <div class="legend">
+        <p><strong>Flow:</strong> Drafts -> AI Diff -> Approve -> Publish</p>
+      </div>
+    </aside>
+
+    <section class="panel editor">
+      <div class="panel-head editor-head">
+        <div>
+          <p class="label">Current page</p>
+          <h2 id="pageTitle"></h2>
+        </div>
+        <button class="ghost" id="saveDraftBtn">Save Draft Commit</button>
+      </div>
+
+      <div class="view-toggle">
+        <button class="tab active" data-view="edit">Edit</button>
+        <button class="tab" data-view="preview">Preview</button>
+      </div>
+
+      <div id="editorView" class="editor-view">
+        <textarea id="editorInput" spellcheck="false"></textarea>
+      </div>
+      <article id="previewView" class="preview-view hidden"></article>
+    </section>
+
+    <section class="panel workflow">
+      <div class="panel-head">
+        <h2>LLM Workflow</h2>
+      </div>
+
+      <label class="label" for="promptInput">Instruction for the assistant</label>
+      <textarea id="promptInput" rows="3" placeholder="Example: Add a publish checklist and make this easier for non-technical teammates."></textarea>
+      <button id="generateBtn">Generate Diff</button>
+
+      <div class="diff-wrap">
+        <div class="diff-head">
+          <p class="label">Reviewable Diff</p>
+          <span id="diffSummary" class="label"></span>
+        </div>
+        <pre id="diffOutput" class="diff-output">No pending AI suggestion.</pre>
+      </div>
+
+      <div class="action-grid">
+        <button id="approveBtn" class="approve">Approve Diff</button>
+        <button id="publishBtn" class="publish">Publish to main</button>
+        <button id="conflictBtn" class="ghost">Simulate conflict</button>
+        <button id="resetBtn" class="ghost">Reset demo</button>
+      </div>
+
+      <div class="timeline-wrap">
+        <p class="label">Activity</p>
+        <ul id="activityList" class="timeline"></ul>
+      </div>
+    </section>
+  </main>
+
+  <section class="panel conflict hidden" id="conflictPanel">
+    <div class="panel-head">
+      <h2>Conflict Resolution</h2>
+      <span class="chip chip-alert">Needs action</span>
+    </div>
+    <p id="conflictText"></p>
+    <div class="action-grid">
+      <button id="keepDraftBtn" class="approve">Keep draft version</button>
+      <button id="keepMainBtn" class="ghost">Keep main version</button>
+      <button id="mergeBtn" class="publish">Merge both</button>
+    </div>
+  </section>
+
+  <script src="./app.js"></script>
+</body>
+</html>
