@@ -1,57 +1,84 @@
 # Mohio (working name)
 
-Mohio is an open-source, desktop + mobile, team knowledge workspace that feels like Confluence/Notion to use, but stores everything as plain Markdown in a Git repository.
+Mohio is an open-source, desktop + mobile knowledge workspace for teams. It feels clean and simple to use, while storing everything as plain Markdown in a Git repository.
 
-It’s built for teams who want a **single source of truth** that is:
-- **Shareable** with teammates (like Confluence),
-- **Offline-first** and fast (like Obsidian),
-- **Portable and future-proof** (it’s just a repo of Markdown),
-- **LLM-native** (Codex/Claude Code/Gemini-style agents can propose changes as diffs you can review and approve).
+## Who it is for (v1)
+
+- Small teams (3-20 people), especially SaaS startups.
+- Teams with at least one technical champion who can set up the GitHub repo once.
+- Teams that want simple, fast docs without SaaS wiki bloat.
+
+## Who it is not for (yet)
+
+- Teams that require zero-setup onboarding with no technical owner.
+- Teams that need real-time multiplayer editing.
+- Teams that need heavy enterprise compliance or admin controls out of the box.
+
+## Positioning
+
+Note-taking and knowledge sharing made easy for teams, without the bloat of traditional wikis.
 
 ## The core idea
 
 Your workspace is a GitHub repo (first target). Each page is a Markdown file.
 
-Git provides the superpowers (history, diffs, branching, merging, rollback). Mohio hides the complexity and presents a non-technical UX: spaces, pages, drafts, publishing, and guided conflict resolution.
+Git provides history, diffs, branching, merging, and rollback. Mohio hides Git complexity behind a non-technical UX: spaces, pages, drafts, publish, and guided conflict resolution.
 
-## How collaboration works (no real-time, by design)
+Mohio is built around connected knowledge, not rigid folder trees. You can link ideas across docs and navigate your workspace like a graph.
 
-Mohio is intentionally **async**:
-- You edit locally (offline-friendly).
-- Draft changes are saved to a personal drafts branch and pushed so they appear on your other devices.
-- Publishing moves approved draft changes into the published branch.
+Mohio is bring-your-own AI engine by design. Each workspace must connect an AI provider and embeddings backend. Semantic linking, quality checks, and agent workflows depend on embeddings, so Mohio does not run as intended without AI + embeddings configured.
 
-### Drafts, approval, and publishing (Git-backed, UI-first)
+## How collaboration works (async by design)
 
-- **Drafts**: edits live on a per-user branch (e.g. `drafts/<username>`), auto-committed and pushed for cross-device sync.
-- **LLM edits**: the chat proposes edits as a *reviewable diff*. You must approve before it becomes a commit.
-- **Publish**: a Confluence-like button that applies selected draft changes onto `main` and pushes to GitHub.
-- **Conflicts**: rare but expected. When they happen, Mohio presents a guided, modern merge UI (and can optionally ask an LLM to propose a resolution you still approve).
+- You edit locally (offline-first).
+- Changes sync through GitHub so drafts stay available across your devices.
+- Publish applies selected draft changes to shared docs.
+- When conflicts happen, Mohio guides users through resolution in product language, not Git jargon.
+
+## AI workflow (assistant, not gatekeeper)
+
+- AI is required and user-controlled (BYO).
+- You can write directly, or ask AI to propose edits and improvements.
+- Teams can use existing model subscriptions (BYOK) based on budget and policy.
+- Agents can help detect outdated docs, inconsistencies, and missing links.
 
 ## What makes it different
 
 ### Versus Notion / Confluence
-- No lock-in: pages are real files you own.
-- Every change is reviewable and reversible (diffs + history).
-- AI isn’t a side panel; it’s the primary editing workflow (diff → approve → publish).
 
-### Versus Obsidian
-- Team-first workflows: drafts, publishing, and review.
-- Sharing is built-in via GitHub, without requiring teammates to understand Git.
+- No lock-in: pages are files your team owns.
+- Offline-first and portable by default.
+- Simpler, cleaner workflow for startup docs.
 
-## LLM-first (bring your own provider)
+### Versus Obsidian + plugins
 
-Mohio is designed to work with best-in-class coding/document agents:
-- Codex-style document editing (diff-based, multi-file when needed)
-- Claude Code-style workflows
-- Optional additional providers (e.g. Gemini)
+- Team-native workflow, not single-player first.
+- Shared drafting and publishing model built in.
+- AI helpers focused on maintaining team knowledge quality.
 
-Provider configuration is intended to be per-workspace and user-controlled (BYOK), so teams can choose the model that matches their policies and budget.
+## Scope for v1
+
+- GitHub-backed workspaces.
+- Markdown-first docs (plus Mermaid diagrams).
+- Core startup documentation workflows: strategy, product, engineering, design.
+- Desktop + mobile with async collaboration.
 
 ## Non-goals (initially)
 
-- Real-time collaborative editing
-- Notion-style databases/relations
-- Heavy rich media workflows (start text-first: Markdown + Mermaid diagrams)
-- Hosted service / enterprise compliance features (Git history is the baseline audit trail)
+- Real-time collaborative editing.
+- Notion-style databases and relations.
+- Heavy rich media workflows.
+- Full enterprise governance/compliance platform.
 
+## 90-day proof targets
+
+- 10 active pilot teams.
+- At least 3 weekly active publishing teams.
+- Median time-to-first-shared-doc under 30 minutes.
+- Week-4 team retention above 40%.
+
+## Sustainability (planned)
+
+- Open-source core remains free.
+- Paid layer later focuses on easier onboarding and non-technical team workflows.
+- License will be finalized before public alpha.
