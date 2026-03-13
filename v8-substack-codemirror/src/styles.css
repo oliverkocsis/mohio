@@ -1,0 +1,322 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap");
+
+:root {
+  --font-ui: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-editor: "Source Serif 4", Georgia, serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --page-bg: #f7f6f3;
+  --surface: #fcfbf8;
+  --surface-strong: #ffffff;
+  --surface-muted: rgba(38, 37, 34, 0.035);
+  --surface-hover: rgba(38, 37, 34, 0.06);
+  --border-subtle: rgba(38, 37, 34, 0.1);
+  --border-strong: rgba(38, 37, 34, 0.16);
+  --text-strong: #272522;
+  --text-muted: #8b8781;
+  --editor-text: #35312c;
+  --editor-title: #7c7872;
+  --editor-heading: #312d29;
+  --editor-link: #3565a3;
+  --editor-code: #6a4c2c;
+  --editor-quote: #6a6259;
+  --editor-marker: #aba59d;
+  --quote-rule: #d9d2c9;
+  --selection-bg: rgba(84, 115, 151, 0.18);
+  --shadow-toolbar: 0 14px 32px rgba(34, 31, 28, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--text-strong);
+  font-family: var(--font-ui);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+button,
+textarea {
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(53, 101, 163, 0.12);
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 34px 24px 48px;
+}
+
+.editor-screen {
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
+.editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 0 22px;
+  background: linear-gradient(180deg, rgba(247, 246, 243, 0.96) 0%, rgba(247, 246, 243, 0.84) 76%, rgba(247, 246, 243, 0) 100%);
+  backdrop-filter: blur(6px);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 44px;
+  margin: 0 6px;
+  background: var(--border-subtle);
+}
+
+.toolbar-divider-wide {
+  margin-left: 2px;
+  margin-right: auto;
+}
+
+.toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 11px;
+  border-radius: 10px;
+  color: var(--text-strong);
+}
+
+.toolbar-button:hover {
+  background: var(--surface-muted);
+}
+
+.toolbar-button svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.toolbar-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.toolbar-glyph-bold {
+  font-weight: 700;
+}
+
+.toolbar-glyph-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+}
+
+.toolbar-glyph-strikethrough {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.toolbar-menu {
+  position: relative;
+}
+
+.toolbar-menu-end {
+  margin-left: auto;
+}
+
+.toolbar-menu-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.toolbar-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  min-width: 200px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-toolbar);
+}
+
+.toolbar-dropdown-more {
+  right: 0;
+  left: auto;
+}
+
+.toolbar-dropdown-divider {
+  height: 1px;
+  margin: 8px 2px;
+  background: var(--border-subtle);
+}
+
+.toolbar-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.toolbar-dropdown-item:hover,
+.toolbar-dropdown-item[data-selected="true"] {
+  background: var(--surface-muted);
+}
+
+.toolbar-dropdown-item svg {
+  width: 14px;
+  height: 14px;
+}
+
+.article-stage {
+  min-height: calc(100vh - 112px);
+}
+
+.article-column {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.article-canvas {
+  position: relative;
+  min-height: calc(100vh - 140px);
+}
+
+.article-placeholder {
+  position: absolute;
+  inset: 0;
+  padding: 68px 24px 96px;
+  pointer-events: none;
+}
+
+.article-placeholder-title,
+.article-placeholder-body {
+  margin: 0;
+}
+
+.article-placeholder-title {
+  color: var(--editor-title);
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 5vw, 3.35rem);
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+  font-weight: 700;
+}
+
+.article-placeholder-body {
+  margin-top: 30px;
+  color: #b6b1aa;
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  line-height: 1.5;
+}
+
+.markdown-editor-host,
+.markdown-textarea {
+  width: 100%;
+  min-height: calc(100vh - 140px);
+}
+
+.markdown-textarea {
+  display: block;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--editor-text);
+  padding: 68px 24px 96px;
+  font-family: var(--font-editor);
+  font-size: 24px;
+  line-height: 1.85;
+}
+
+.markdown-textarea[data-editor-mode="source"] {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1.72;
+  color: var(--text-strong);
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    padding: 20px 14px 28px;
+  }
+
+  .editor-toolbar {
+    gap: 2px;
+    padding: 6px 0 18px;
+  }
+
+  .toolbar-divider {
+    height: 36px;
+    margin: 0 2px;
+  }
+
+  .toolbar-divider-wide {
+    margin-right: 4px;
+  }
+
+  .toolbar-button {
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0 9px;
+  }
+
+  .toolbar-menu-label {
+    font-size: 13px;
+  }
+
+  .article-placeholder,
+  .markdown-textarea {
+    padding: 44px 16px 72px;
+  }
+}
