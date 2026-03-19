@@ -1,0 +1,169 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Tailwind CSS theme - Mohio
+   * tailwind.config.ts expects the following color variables to be expressed as HSL values.
+   */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 225 10% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 225 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 10% 15%;
+
+    --primary: 225 100% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 225 15% 90%;
+    --secondary-foreground: 225 10% 15%;
+
+    --muted: 225 10% 75%;
+    --muted-foreground: 225 5% 45%;
+
+    --accent: 40 100% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 225 10% 90%;
+    --input: 225 10% 95%;
+    --ring: 225 100% 55%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 225 12% 97%;
+    --sidebar-foreground: 225 10% 25%;
+    --sidebar-primary: 225 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 15% 88%;
+    --sidebar-accent-foreground: 225 10% 25%;
+    --sidebar-border: 225 10% 90%;
+    --sidebar-ring: 225 100% 55%;
+  }
+
+  .dark {
+    --background: 225 10% 12%;
+    --foreground: 225 8% 90%;
+
+    --card: 225 12% 18%;
+    --card-foreground: 225 8% 90%;
+
+    --popover: 225 12% 18%;
+    --popover-foreground: 225 8% 90%;
+
+    --primary: 225 100% 60%;
+    --primary-foreground: 225 10% 12%;
+
+    --secondary: 225 15% 25%;
+    --secondary-foreground: 225 8% 90%;
+
+    --muted: 225 12% 30%;
+    --muted-foreground: 225 8% 65%;
+
+    --accent: 40 100% 55%;
+    --accent-foreground: 225 10% 12%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 225 15% 22%;
+    --input: 225 15% 25%;
+    --ring: 225 100% 60%;
+
+    --sidebar-background: 225 12% 10%;
+    --sidebar-foreground: 225 8% 85%;
+    --sidebar-primary: 225 100% 60%;
+    --sidebar-primary-foreground: 225 10% 12%;
+    --sidebar-accent: 225 15% 20%;
+    --sidebar-accent-foreground: 225 8% 85%;
+    --sidebar-border: 225 15% 20%;
+    --sidebar-ring: 225 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-inter;
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Markdown editor styling */
+  .editor {
+    @apply text-base leading-relaxed;
+  }
+
+  .editor h1 {
+    @apply text-3xl font-bold mt-6 mb-3 text-foreground;
+  }
+
+  .editor h2 {
+    @apply text-2xl font-bold mt-5 mb-2 text-foreground;
+  }
+
+  .editor h3 {
+    @apply text-xl font-bold mt-4 mb-2 text-foreground;
+  }
+
+  .editor h4 {
+    @apply text-lg font-bold mt-3 mb-1 text-foreground;
+  }
+
+  .editor strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .editor em {
+    @apply italic text-foreground;
+  }
+
+  .editor code {
+    @apply bg-secondary/50 px-1.5 py-0.5 rounded text-sm font-mono text-foreground;
+  }
+
+  .editor pre {
+    overflow-x: auto;
+    white-space: pre;
+    @apply bg-secondary/50 p-4 rounded-lg my-3 font-mono text-sm;
+  }
+
+  .editor blockquote {
+    @apply border-l-4 border-muted-foreground/30 pl-4 italic text-muted-foreground my-3;
+  }
+
+  .editor ul,
+  .editor ol {
+    @apply ml-6 my-2;
+  }
+
+  .editor li {
+    @apply mb-1;
+  }
+
+  .editor a {
+    @apply text-primary hover:underline;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+}
