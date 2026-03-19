@@ -70,9 +70,13 @@ This document describes the intended product feature set. It is broader than any
 
 ### 6. Review, History, and Checkpoints
 
-- Let users create named checkpoints for the current note.
-- Make checkpoints easy to browse later.
-- Allow restoring an earlier checkpoint.
+- Create checkpoints automatically in the background instead of asking users to manage them manually.
+- Create a checkpoint before any AI-generated change is applied.
+- Create a checkpoint after a meaningful local editing burst followed by a pause, rather than on a fixed short timer.
+- Use a safer heuristic than a simple 60-second idle rule:
+  create a checkpoint only when there has been material document change and the user has been idle for around 90 seconds.
+- Optionally create checkpoints before other high-risk transitions such as publish or destructive note actions.
+- Keep checkpoints primarily as a recovery and safety mechanism rather than a visible workflow step.
 - Preserve visible page-level history over time.
 - Support reviewable diffs before important shared changes are accepted.
 
@@ -108,7 +112,7 @@ The product should consistently prioritize:
 
 1. Current document content.
 2. Workspace browsing and search.
-3. Chat, checkpoints, and publish actions.
+3. Chat and publish actions.
 
 The editor should remain the center of gravity in the interface.
 
@@ -122,8 +126,7 @@ Mohio's core workflow should support this sequence cleanly:
 4. Search or follow links to related notes.
 5. Ask the assistant for help.
 6. Review the proposed result.
-7. Create a checkpoint when needed.
-8. Publish when ready.
+7. Publish when ready.
 
 ## Out of Scope for the Initial Release
 

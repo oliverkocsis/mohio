@@ -8,16 +8,18 @@ Update this document when the product's visual system, interaction principles, c
 
 Mohio should feel calm, focused, document-centered, and trustworthy. It should not feel like a developer IDE, and it should not look like a generic SaaS dashboard.
 
-This document captures the shared visual and interaction rules that should remain relatively stable across implementations.
+This document is the single source of truth for Mohio's visual and interaction direction and should remain aligned with the product as the interface evolves.
 
 ## Design Principles
 
 - Writing comes first. The editor is always the center of gravity.
 - Navigation stays quiet and predictable.
 - AI assistance feels integrated, not louder than the document.
-- `Create checkpoint` and `Publish` feel deliberate.
+- `Publish` feels deliberate.
 - Automatic persistence stays mostly invisible.
+- System safety features should happen automatically rather than asking the user to manage them.
 - Trust comes from clarity, not decoration.
+- The interface should feel structured and productive before it feels expressive.
 
 ## Product Character
 
@@ -28,6 +30,7 @@ Mohio should feel:
 - readable
 - lightweight
 - document-first
+- practical
 
 It should avoid:
 
@@ -35,6 +38,7 @@ It should avoid:
 - IDE-like chrome
 - brightly colored chat-first interfaces
 - playful or novelty-heavy visual language
+- overly decorative editorial styling
 
 ## Layout Model
 
@@ -48,8 +52,16 @@ Should include:
 - current file title
 - search entry point
 - `New note`
-- `Create checkpoint`
 - `Publish`
+
+The top bar should use:
+
+- `56px` height
+- white background
+- subtle bottom border
+- muted workspace breadcrumb text
+- lightweight secondary actions
+- a stronger blue primary publish button
 
 ### Left Sidebar
 
@@ -62,13 +74,24 @@ Used for workspace browsing:
 - rename and delete actions
 - a clearly visible active-note state
 
+The left sidebar should use:
+
+- `320px` width
+- light gray background
+- pinned and unpinned note sections
+- compact note rows with title and relative date
+- blue-tinted active note highlighting
+- contextual row menus for rename, pin, and delete
+
 ### Center Panel
 
 The largest area in the interface. It contains:
 
 - document title field
-- primary WYSIWYG editor surface
+- primary styled Markdown editor surface
 - lightweight formatting toolbar
+
+The readable content should sit inside a narrower text column rather than stretching full width.
 
 ### Right Sidebar
 
@@ -76,17 +99,30 @@ Used for document-adjacent secondary workflows:
 
 - assistant chat
 - suggested actions
-- checkpoint history
 - publish state or last published status
+
+The right sidebar should use:
+
+- `384px` width
+- assistant-first layout
+- suggested actions when chat is empty
+- composer fixed to the bottom of the panel
 
 ## Layout Guidance
 
 Suggested desktop proportions:
 
-- left sidebar: `280px` to `320px`
-- center editor: flexible, with readable width around `760px` to `960px`
-- right sidebar: `340px` to `420px`
-- top bar: `56px` to `64px`
+- left sidebar: `320px`
+- center editor: flexible, with readable width around `768px`
+- right sidebar: `384px`
+- top bar: `56px`
+
+Internal spacing should stay compact and regular:
+
+- top bar horizontal padding: `24px`
+- editor title and toolbar horizontal padding: `32px`
+- editor body horizontal padding: `32px`
+- sidebar section padding: `16px`
 
 ## Responsive Behavior
 
@@ -95,45 +131,46 @@ On narrow screens:
 - the editor remains the default visible surface
 - the workspace browser becomes a drawer
 - the right panel becomes a drawer or tab
-- checkpoint and publish actions remain accessible
+- publish actions remain accessible
 
 ## Color Direction
 
-Mohio should use warm, editorial, low-noise surfaces rather than cold product grays.
+Mohio should use a light neutral product palette with restrained blue emphasis.
 
 ### Core Palette
 
-- `--bg-app: #f4f1ec`
-- `--bg-sidebar: #f1ede7`
-- `--bg-panel: #fcfbf8`
-- `--bg-editor: #fffdf9`
-- `--bg-muted: #f7f4ef`
-- `--border-subtle: #e5dfd6`
-- `--border-strong: #d6cfc5`
-- `--text-primary: #171614`
-- `--text-secondary: #6e685f`
-- `--text-muted: #9a9388`
-- `--accent-link: #2457d6`
-- `--action-primary: #171614`
-- `--action-primary-hover: #24211d`
-- `--action-primary-text: #fffdf9`
+- `--background: #ffffff`
+- `--card: #ffffff`
+- `--sidebar-surface: #f9fafb`
+- `--muted-surface: #f3f4f6`
+- `--muted-surface-strong: #ececf0`
+- `--border: rgba(0, 0, 0, 0.1)`
+- `--text-primary: #111827`
+- `--text-secondary: #4b5563`
+- `--text-muted: #6b7280`
+- `--text-subtle: #9ca3af`
+- `--accent-blue: #2563eb`
+- `--accent-blue-hover: #1d4ed8`
+- `--accent-blue-soft: #eff6ff`
+- `--success-soft: #f0fdf4`
+- `--success-text: #15803d`
 
 ### Color Rules
 
-- Keep the palette small.
-- Prefer light surfaces.
-- Use dark fills sparingly.
-- Reserve the strongest default emphasis for `Publish`.
-- Use link color as an accent, not a dominant theme.
+- Keep the palette neutral and high-contrast.
+- Use white as the primary document surface.
+- Use soft gray backgrounds to separate chrome from content.
+- Use blue for active states, focus treatment, and primary actions.
+- Reserve green for success states such as publish confirmation.
+- Do not reintroduce warm beige surfaces unless the product direction changes again.
 
 ## Typography
 
-Use only two font families by default.
+Mohio should use a clean sans-serif stack and rely on spacing and weight more than font personality.
 
-### Primary UI and Document Font
+### Primary Font
 
-- `Instrument Sans`
-- fallback: `ui-sans-serif, system-ui, sans-serif`
+- `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
 
 Use for:
 
@@ -145,7 +182,6 @@ Use for:
 
 ### Monospace Font
 
-- `IBM Plex Mono`
 - fallback: `ui-monospace, monospace`
 
 Use for:
@@ -156,14 +192,20 @@ Use for:
 
 ### Type Scale
 
-- top bar title: `18px / 24px`, `600`
-- document title: `40px / 44px`, `650`
-- utility label: `12px / 16px`, `600`
-- file row: `15px / 20px`, `500`
-- body text: `18px / 31px`, `400`
-- secondary UI text: `14px / 20px`, `500`
-- button label: `14px / 18px`, `600`
-- chat text: `15px / 24px`, `400`
+- workspace and breadcrumb text: `14px`, `400`
+- current note title in top bar: `14px`, `500`
+- document title: `30px`, `600`
+- utility label: `12px`, `600`
+- file row title: `14px`, `500`
+- file row metadata: `12px`, `400`
+- body text: `16px / 24px`, `400`
+- button label: `14px`, `500`
+- chat text: `14px / 20px`, `400`
+- Markdown heading levels in the editor:
+  `#` heading: `30px`, `600`
+  `##` heading: `24px`, `600`
+  `###` heading: `20px`, `600`
+  `####` heading: `18px`, `600`
 
 ## Spacing, Radius, and Surface Rules
 
@@ -178,25 +220,26 @@ Use for:
 
 ### Radius
 
-- app shell: `20px`
-- panel: `16px`
-- input and button: `12px`
-- small row highlight: `10px`
+- controls and buttons: `4px`
+- note rows and cards: `4px`
+- menus and popups: `4px`
+- larger containers should stay restrained and generally not exceed `8px`
 
 ### Borders and Shadow
 
-- default border: `1px solid var(--border-subtle)`
-- default shadow when needed: `0 6px 18px rgba(23, 22, 20, 0.06)`
+- default border: `1px solid rgba(0, 0, 0, 0.1)`
+- menu shadow: soft floating shadow for contextual menus only
 
-Structure should come from tone, spacing, and borders before shadow.
+Structure should come from borders, surface contrast, and compact spacing before shadow.
 
 ## Component Rules
 
 ### Buttons
 
-- `Publish` is the primary button.
-- `New note` and `Create checkpoint` use quiet secondary styling.
-- Primary and secondary actions should be visually distinct without making the chrome noisy.
+- `Publish` is the strongest primary action in the top bar.
+- `New note` in the left sidebar is also a primary blue-filled action.
+- Secondary actions in the top bar use ghost styling with neutral text.
+- Icon-and-label buttons are preferred over heavy solid toolbars.
 
 ### Inputs
 
@@ -208,46 +251,55 @@ Use a shared treatment for:
 
 Style direction:
 
-- light background
-- subtle border
-- soft radius
-- clear text contrast
+- white or very light gray background
+- `1px` neutral border
+- `4px` radius
+- blue focus ring
+- compact `14px` input text
+- search inputs may use left icons inside the field
 
 ### File Rows
 
 - stay compact
-- use subtle hover and selected states
-- keep the active note obvious without shouting
+- use subtle hover states
+- show title first and relative timestamp second
+- keep contextual controls hidden until hover when possible
+- active rows use soft blue background and darker blue text
 
 ### Checkpoint Rows
 
-- keep them compact and informational
-- avoid heavy card styling
-- emphasize name first, metadata second
+Checkpoints are system-managed and should not appear as a primary user-facing component in the interface.
 
 ### Assistant Chat
 
-- keep assistant and user messages within the same quiet surface system
-- avoid bright chat bubbles
-- distinguish messages through spacing, alignment, and label treatment
+- use an assistant-first side panel
+- user messages may use blue filled bubbles
+- agent messages use neutral gray bubbles
+- suggested actions appear before the conversation starts
 - keep the composer anchored and easy to reach
+- keep message widths constrained so the panel stays readable
 
 ## Editor Rules
 
 - The document surface should feel generous and highly readable.
-- Rich text editing should stay clean and uncluttered.
-- The default editing experience should support direct rich-text editing without making writing feel tool-heavy.
+- The editing surface should keep raw Markdown editable while visually styling headings, lists, quotes, and code.
+- Formatting controls should insert Markdown syntax rather than act like a heavyweight document toolbar.
 - Markdown source editing should remain legible rather than code-editor harsh.
 - Avoid relying on a separate preview as the main reading experience.
 - Code blocks, links, headings, and quotes need clear hierarchy without overpowering normal prose.
+- The document title should live above the toolbar in its own quiet header row.
+- The readable document column should stay narrower than the full window.
 
 ## Interaction Rules
 
 - Favor explicit actions over hidden automation where trust matters.
 - Keep destructive actions simple and visible.
 - Make AI changes reviewable.
-- Preserve orientation when moving between notes, search, chat, checkpoints, and publish.
+- Preserve orientation when moving between notes, search, chat, history states, and publish.
 - Do not force users to understand Git concepts during normal workflows.
+- Use blue consistently for active tabs, focused inputs, and primary action states.
+- Keep menus and destructive controls contextual until the user asks for them.
+- Keep checkpointing invisible in normal workflows. It is a background safety system, not a visible productivity feature.
 
 ## Maintenance Rules
 

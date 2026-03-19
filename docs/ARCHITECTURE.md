@@ -163,10 +163,6 @@ Responsibilities:
 - Which parts of publishing should be represented in files versus app metadata?
 - How should search scale from simple local filtering to richer workspace discovery?
 
-## Prototype Directories
-
-This repository contains multiple exploratory implementations such as `v7-quill`, `v9-electron`, `v10-tauri`, and other versioned experiments. Treat them as research and implementation references unless and until a prototype is explicitly adopted as the product baseline.
-
 ## Maintenance Rules
 
 - Update this file in the same PR as any major engineering decision change.
