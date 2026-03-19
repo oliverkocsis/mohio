@@ -6,7 +6,7 @@ Update this document whenever a user-visible capability is added, removed, renam
 
 ## Purpose
 
-Mohio is a local-first knowledge workspace for small teams. It combines fast note capture, structured shared documentation, and AI-assisted editing while keeping content portable as plain Markdown in a Git-backed workspace.
+Mohio is a local-first knowledge workspace for small teams. It combines fast note capture, structured shared documentation, and bring-your-own AI-assisted editing that works with Codex and Claude Code while keeping content portable as plain Markdown in a Git-backed workspace.
 
 This document describes the intended product feature set. It is broader than any single prototype and should stay aligned with the product as development continues.
 
@@ -15,7 +15,7 @@ This document describes the intended product feature set. It is broader than any
 - Make note capture fast and low-friction.
 - Help teams turn rough notes into structured knowledge.
 - Keep shared documentation readable, reviewable, and easy to publish.
-- Let AI assist with drafting and organization without silently taking control.
+- Let connected AI tools assist with drafting and organization without silently taking control.
 - Preserve content ownership through durable Markdown files.
 
 ## Feature Areas
@@ -60,13 +60,13 @@ This document describes the intended product feature set. It is broader than any
 
 ### 5. AI Assistance
 
-- Provide an embedded chat assistant inside the workspace.
-- Let the assistant summarize, rewrite, organize, expand, and update the current note.
+- Provide an embedded AI panel inside the workspace for connected assistants such as Codex and Claude Code.
+- Let connected assistants summarize, rewrite, organize, expand, and update the current note.
 - Allow the assistant to propose creating new notes when useful.
 - Surface suggested assistant actions where they help the current document workflow.
 - Keep assistant actions explicit and reviewable.
 - Show what the assistant changed instead of hiding modifications.
-- Aim for natural product-language interactions rather than developer tooling workflows.
+- Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
 
 ### 6. Review, History, and Checkpoints
 

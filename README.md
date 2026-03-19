@@ -1,12 +1,14 @@
 # Mohio
 
-Mohio is an open source knowledge workspace for small teams. It combines fast note capture, structured team documentation, and AI-assisted organization while keeping content stored as plain Markdown in a Git-backed workspace.
+Mohio is an open source knowledge workspace for small teams. It combines fast note capture, structured team documentation, and bring-your-own AI assistance that works with Codex and Claude Code while keeping content stored as plain Markdown in a Git-backed workspace.
 
 The goal is simple: make team knowledge easy to capture, refine, and share without forcing every contributor to think in Git, file structures, or documentation bureaucracy.
 
 ## Project Status
 
-Mohio is in an early design and prototype stage. The repository currently focuses on product direction, documentation, and browser or desktop prototype exploration.
+Mohio is in active development. The repository currently focuses on product direction, documentation, and browser or desktop application development.
+
+The first real desktop application scaffold now lives in `desktop/`. It is an Electron + React + TypeScript foundation for the final product shell, while the `prototypes/` directories remain exploration work.
 
 ## Documentation
 
@@ -19,6 +21,21 @@ The main project documentation lives in `docs/`:
 - [Roadmap](docs/ROADMAP.md)
 
 `README.md` should stay high level. Detailed product scope, design-system decisions, and engineering direction belong in the sub-documents above.
+
+## Desktop App
+
+The real Mohio desktop app starts in `desktop/`.
+
+Typical local workflow:
+
+1. `cd desktop`
+2. `npm install`
+3. `npm run dev`
+
+Other useful commands:
+
+- `npm test`
+- `npm run build`
 
 ## Documentation Maintenance
 
@@ -63,10 +80,10 @@ Mohio is aimed at small teams that want a lightweight, document-first workspace 
 Mohio is especially relevant for teams that:
 
 - prefer open formats over proprietary document storage,
-- want AI assistance without giving up human review,
+- want bring-your-own AI assistance with tools like Codex and Claude Code without giving up human review,
 - need a simpler alternative to heavyweight wiki platforms,
 - have at least one technical team member who can help with initial setup.
 
 ## Contributing
 
-The project is still taking shape, so feedback on product direction, workflows, prototypes, and documentation is useful. Issues and pull requests are welcome.
+The project is in active development, so feedback on product direction, workflows, prototypes, and documentation is useful. Issues and pull requests are welcome.

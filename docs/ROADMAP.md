@@ -13,13 +13,13 @@ Mohio is currently focused on validating the core workflow for a lightweight tea
 
 ## Phase 1: Core Workspace
 
-The first milestone is a usable foundation for an AI-assisted, Markdown-based team wiki.
+The first milestone is a usable foundation for a bring-your-own-AI, Markdown-based team wiki that works with Codex and Claude Code.
 
 Planned focus areas:
 
 - Personal scratchpad for quick note capture
 - Markdown-based wiki pages for shared knowledge
-- AI proposals that suggest new pages, edits, and links
+- AI proposals from connected tools that suggest new pages, edits, and links
 - Reviewable diffs before shared content changes
 - Snapshots and visible history for page-level changes
 - Explicit publish flow for shared updates
@@ -84,4 +84,4 @@ The initial release is intentionally narrow. These areas are not current priorit
 
 ## How to Read This Roadmap
 
-Mohio is being developed in phases rather than fixed calendar dates. The order reflects current priorities, but scope may change as the prototype matures and the project receives feedback from the open source community.
+Mohio is being developed in phases rather than fixed calendar dates. The order reflects current priorities, but scope may change as development continues and the project receives feedback from the open source community.

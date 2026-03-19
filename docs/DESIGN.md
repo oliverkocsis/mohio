@@ -14,7 +14,7 @@ This document is the single source of truth for Mohio's visual and interaction d
 
 - Writing comes first. The editor is always the center of gravity.
 - Navigation stays quiet and predictable.
-- AI assistance feels integrated, not louder than the document.
+- Connected AI assistance feels integrated, not louder than the document.
 - `Publish` feels deliberate.
 - Automatic persistence stays mostly invisible.
 - System safety features should happen automatically rather than asking the user to manage them.
@@ -48,27 +48,23 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 
 Should include:
 
-- workspace name
-- current file title
-- search entry point
+- workspace label
+- centered search bar
 - `New note`
-- `Publish`
 
 The top bar should use:
 
 - `56px` height
 - white background
 - subtle bottom border
-- muted workspace breadcrumb text
-- lightweight secondary actions
-- a stronger blue primary publish button
+- streamlined workspace label with a subtle chevron aligned with the neutral chrome
+- centered search bar between the workspace label and actions
+- a single primary `New note` action
 
 ### Left Sidebar
 
 Used for workspace browsing:
 
-- search field
-- new note entry point
 - file list or tree
 - recent or pinned notes
 - rename and delete actions
@@ -89,7 +85,7 @@ The largest area in the interface. It contains:
 
 - document title field
 - primary styled Markdown editor surface
-- lightweight formatting toolbar
+- compact formatting toolbar with centered icon controls and lightweight selectors
 
 The readable content should sit inside a narrower text column rather than stretching full width.
 
@@ -97,15 +93,17 @@ The readable content should sit inside a narrower text column rather than stretc
 
 Used for document-adjacent secondary workflows:
 
-- assistant chat
+- connected assistant chat
 - suggested actions
 - publish state or last published status
 
 The right sidebar should use:
 
 - `384px` width
-- assistant-first layout
-- suggested actions when chat is empty
+- assistant-first layout for connected tools such as Codex and Claude Code
+- the same light gray sidebar surface as the left panel
+- assistant label at the top without a large instructional card
+- suggested actions near the bottom composer when chat is empty
 - composer fixed to the bottom of the panel
 
 ## Layout Guidance
@@ -178,7 +176,7 @@ Use for:
 - file list
 - titles
 - document body
-- assistant chat
+- connected assistant chat
 
 ### Monospace Font
 
@@ -236,9 +234,9 @@ Structure should come from borders, surface contrast, and compact spacing before
 
 ### Buttons
 
-- `Publish` is the strongest primary action in the top bar.
-- `New note` in the left sidebar is also a primary blue-filled action.
-- Secondary actions in the top bar use ghost styling with neutral text.
+- `New note` is the strongest primary action in the top bar.
+- Avoid duplicating the same primary CTA in the left sidebar when it is already prominent in the app chrome.
+- Secondary actions in the top bar use ghost styling with neutral text when present.
 - Icon-and-label buttons are preferred over heavy solid toolbars.
 
 ### Inputs
@@ -275,15 +273,19 @@ Checkpoints are system-managed and should not appear as a primary user-facing co
 - use an assistant-first side panel
 - user messages may use blue filled bubbles
 - agent messages use neutral gray bubbles
-- suggested actions appear before the conversation starts
+- suggested actions appear before the conversation starts and sit close to the composer
+- suggested actions use rounded pill-like treatments
 - keep the composer anchored and easy to reach
 - keep message widths constrained so the panel stays readable
+- keep the experience product-like even when the connected assistant is Codex or Claude Code
 
 ## Editor Rules
 
 - The document surface should feel generous and highly readable.
 - The editing surface should keep raw Markdown editable while visually styling headings, lists, quotes, and code.
 - Formatting controls should insert Markdown syntax rather than act like a heavyweight document toolbar.
+- The formatting toolbar should use centered compact icon buttons, borderless control styling, and small selectors for extended options such as heading levels and additional text styles.
+- Extended heading, text-style, and alignment options should collapse into compact dropdown-style affordances instead of expanding into full-width tool rows.
 - Markdown source editing should remain legible rather than code-editor harsh.
 - Avoid relying on a separate preview as the main reading experience.
 - Code blocks, links, headings, and quotes need clear hierarchy without overpowering normal prose.

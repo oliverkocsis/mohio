@@ -12,16 +12,18 @@ This document captures the current technical direction. It is not a promise that
 
 ## Current State
 
-- The repository is still in an early design and prototype stage.
+- The repository is in active development.
 - Multiple prototype directories exist to explore layout, editor, and desktop-shell decisions.
 - Current prototypes are used to validate product and implementation direction rather than represent a finished application architecture.
+- A new `desktop/` Electron application now exists as the starting point for the real product codebase.
+- The currently implemented desktop slice is app-shell only: it renders the Mohio frame and preload boundary, but does not yet include workspace selection, document loading, or AI workflows.
 
 ## Architectural Goals
 
 - Keep content stored as portable Markdown files.
 - Keep the default workflow local-first.
 - Hide Git complexity from everyday users.
-- Support AI-assisted workflows without giving AI silent write access to shared knowledge.
+- Support bring-your-own AI workflows, including Codex and Claude Code, without giving AI silent write access to shared knowledge.
 - Separate private editing, reviewable changes, checkpoints, and publishing.
 - Build a desktop-first foundation before expanding companion mobile workflows.
 
@@ -73,6 +75,8 @@ The current repo direction and prototype work imply the following stack choices.
 ### Product Stack
 
 - Desktop shell: `Electron`
+- Desktop renderer foundation: `React` + `TypeScript` + `Vite`
+- AI integration direction: bring-your-own assistants with Codex and Claude Code support
 - Mobile app: `Flutter`
 - Rich text editor: `Quill`
 - Markdown source editor: `CodeMirror`
@@ -100,6 +104,13 @@ Responsibilities:
 - local workspace selection
 - filesystem integration
 - application lifecycle and packaging
+- preload bridge for controlled renderer access to native capabilities
+
+Current implementation status:
+
+- single-window Electron shell
+- secure preload bridge exposing basic app info
+- renderer shell with placeholder top bar, navigation, editor center, and assistant panel
 
 ### 2. Workspace and File Layer
 
@@ -133,7 +144,7 @@ Responsibilities:
 
 Responsibilities:
 
-- embedded chat interaction
+- embedded interaction layer for connected assistants such as Codex and Claude Code
 - document summarization, rewriting, organization, and expansion
 - controlled creation or modification of workspace documents
 - explicit, reviewable changes rather than opaque mutation
@@ -159,7 +170,7 @@ Responsibilities:
 
 - How should formatted editing map cleanly back to durable Markdown in all supported cases?
 - How should checkpoints be stored and restored at the file level?
-- What is the right local architecture for assistant-generated edits and reviewable diffs?
+- What is the right local architecture for Codex- and Claude Code-driven edits and reviewable diffs?
 - Which parts of publishing should be represented in files versus app metadata?
 - How should search scale from simple local filtering to richer workspace discovery?
 
