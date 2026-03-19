@@ -37,7 +37,20 @@ Planned focus areas:
 - Guided conflict resolution in product language
 - Clearer signals for draft, published, and incoming changes
 
-## Phase 3: Mobile and Workflow Expansion
+## Phase 3: Internal Tools from Documented Knowledge
+
+Once the core workspace and collaboration workflows are stable, Mohio should grow beyond ad-hoc AI code generation into a dependable internal-tool builder for small teams. The product should help teams turn documented procedures, requirements, and business cases into reviewable software that can be maintained and distributed through Mohio's Git-based workflow.
+
+Planned focus areas:
+
+- Turn documented procedures and requirements into structured internal tool proposals
+- Ground generated software changes in existing workspace documentation, not only prompts
+- Help users define workflows, data shapes, UI requirements, and acceptance criteria from business context
+- Produce reviewable implementation plans and code changes with clear traceability back to source documents
+- Support minimal IT teams with safer iteration, validation, and handoff workflows
+- Make internal tools easy to version, review, and distribute through Mohio and the existing Git ecosystem
+
+## Phase 4: Mobile and Workflow Expansion
 
 After the desktop-first experience is solid, Mohio can expand the companion workflows that matter most away from the main workspace.
 
@@ -48,7 +61,7 @@ Planned focus areas:
 - Lightweight proposal review on smaller screens
 - Faster discovery of related knowledge and backlinks
 
-## Phase 4: Shared Storage and Workspace Connectivity
+## Phase 5: Shared Storage and Workspace Connectivity
 
 Once the core local-first workflows are mature, Mohio can expand to support shared storage providers for teams that already organize documents in external file platforms.
 
