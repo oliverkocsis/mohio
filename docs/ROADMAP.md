@@ -48,6 +48,19 @@ Planned focus areas:
 - Lightweight proposal review on smaller screens
 - Faster discovery of related knowledge and backlinks
 
+## Phase 4: Shared Storage and Workspace Connectivity
+
+Once the core local-first workflows are mature, Mohio can expand to support shared storage providers for teams that already organize documents in external file platforms.
+
+Planned focus areas:
+
+- Google Drive workspace support
+- OneDrive workspace support
+- Clear handling of shared-folder document structure
+- Reliable sync-aware file change detection
+- Clear product language for connected versus purely local workspaces
+- Safe handling of publishing, checkpoints, and review flows across shared storage backends
+
 ## Areas of Ongoing Exploration
 
 Several product decisions are still open and will be shaped by prototypes and user feedback.
