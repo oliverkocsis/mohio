@@ -1,5 +1,9 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import path from "node:path";
+import { MOHIO_CHANNELS } from "@shared/mohio-api";
+import { getWorkspaceSummary } from "./workspace";
+
+let currentWorkspacePath: string | null = null;
 
 function createMainWindow(): BrowserWindow {
   const appPath = app.getAppPath();
@@ -31,8 +35,42 @@ function createMainWindow(): BrowserWindow {
   return mainWindow;
 }
 
+async function loadCurrentWorkspace() {
+  if (!currentWorkspacePath) {
+    return null;
+  }
+
+  try {
+    return await getWorkspaceSummary(currentWorkspacePath);
+  } catch (error) {
+    currentWorkspacePath = null;
+    throw error;
+  }
+}
+
+function registerMohioHandlers() {
+  ipcMain.handle(MOHIO_CHANNELS.getCurrentWorkspace, () => loadCurrentWorkspace());
+  ipcMain.handle(MOHIO_CHANNELS.openWorkspace, async () => {
+    const parentWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const result = await dialog.showOpenDialog(parentWindow, {
+      buttonLabel: "Open Workspace",
+      properties: ["openDirectory"],
+      title: "Open Mohio Workspace",
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return loadCurrentWorkspace();
+    }
+
+    currentWorkspacePath = result.filePaths[0];
+
+    return loadCurrentWorkspace();
+  });
+}
+
 app.whenReady().then(() => {
   app.setName("Mohio");
+  registerMohioHandlers();
   createMainWindow();
 
   app.on("activate", () => {

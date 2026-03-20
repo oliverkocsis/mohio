@@ -16,7 +16,7 @@ This document captures the current technical direction. It is not a promise that
 - Multiple prototype directories exist to explore layout, editor, and desktop-shell decisions.
 - Current prototypes are used to validate product and implementation direction rather than represent a finished application architecture.
 - A new `desktop/` Electron application now exists as the starting point for the real product codebase.
-- The currently implemented desktop slice is app-shell only: it renders the Mohio frame and preload boundary, but does not yet include workspace selection, document loading, or AI workflows.
+- The desktop app now includes local workspace selection and Markdown file-tree enumeration through the Electron main process, while document content loading and AI workflows are still ahead.
 
 ## Architectural Goals
 
@@ -109,8 +109,8 @@ Responsibilities:
 Current implementation status:
 
 - single-window Electron shell
-- secure preload bridge exposing basic app info
-- renderer shell with placeholder top bar, navigation, editor center, and assistant panel
+- secure preload bridge exposing app info plus workspace-selection and workspace-loading actions
+- renderer shell with a real workspace selector and Markdown file tree in the left navigation
 
 ### 2. Workspace and File Layer
 

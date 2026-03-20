@@ -34,6 +34,7 @@ body {
 
 button {
   font: inherit;
+  cursor: pointer;
 }
 
 .app-shell {
@@ -81,6 +82,20 @@ button {
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.01em;
+}
+
+.workspace-label--button {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.workspace-label__name {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-label__chevron {
@@ -149,6 +164,19 @@ button {
   color: var(--text-muted);
 }
 
+.sidebar__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .primary-button,
 .ghost-button,
 .toolbar-button {
@@ -160,7 +188,6 @@ button {
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 500;
-  cursor: default;
 }
 
 .primary-button {
@@ -187,11 +214,56 @@ button {
   color: var(--text-muted);
 }
 
+.workspace-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-panel__name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.workspace-panel__path,
+.workspace-panel__copy,
+.workspace-panel__error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.workspace-panel__error {
+  color: #b91c1c;
+}
+
+.workspace-panel__button {
+  justify-content: center;
+}
+
 .note-list,
-.action-list {
+.action-list,
+.workspace-tree,
+.workspace-tree__group {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.workspace-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-tree__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .note-row {
@@ -201,6 +273,52 @@ button {
   border-radius: 4px;
   padding: 10px 12px;
   color: var(--text-secondary);
+}
+
+.tree-node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tree-node__row,
+.tree-node__button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.tree-node__row--directory {
+  color: var(--text-muted);
+}
+
+.tree-node__button--active {
+  background: var(--accent-blue-soft);
+  color: var(--accent-blue);
+}
+
+.tree-node__kind {
+  min-width: 26px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tree-node__label {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note-row--active {

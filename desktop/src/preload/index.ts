@@ -1,11 +1,15 @@
-import { contextBridge } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import packageJson from "../../package.json";
-import { createMohioApi } from "@shared/mohio-api";
+import { MOHIO_CHANNELS, createMohioApi } from "@shared/mohio-api";
 
 const mohioApi = createMohioApi({
-  name: "Mohio",
-  version: packageJson.version,
-  platform: process.platform,
+  appInfo: {
+    name: "Mohio",
+    version: packageJson.version,
+    platform: process.platform,
+  },
+  getCurrentWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.getCurrentWorkspace),
+  openWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.openWorkspace),
 });
 
 contextBridge.exposeInMainWorld("mohio", mohioApi);

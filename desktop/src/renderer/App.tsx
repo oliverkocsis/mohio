@@ -1,15 +1,10 @@
-import type { AppInfo } from "@shared/mohio-types";
-
-const leftRailSections = [
-  {
-    title: "Recent",
-    items: ["Welcome note", "Team handbook", "Publishing checklist"],
-  },
-  {
-    title: "Pinned",
-    items: ["Roadmap", "Architecture"],
-  },
-];
+import { useEffect, useState } from "react";
+import type {
+  AppInfo,
+  WorkspaceDocumentNode,
+  WorkspaceSummary,
+  WorkspaceTreeNode,
+} from "@shared/mohio-types";
 
 const headingTools = [
   { label: "Heading 1", displayLabel: "H1" },
@@ -36,24 +31,94 @@ const insertTools = [
 
 export function App() {
   const appInfo: AppInfo = window.mohio.getAppInfo();
+  const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
+  const [isWorkspaceOpening, setIsWorkspaceOpening] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadWorkspace = async () => {
+      try {
+        const currentWorkspace = await window.mohio.getCurrentWorkspace();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setWorkspace(currentWorkspace);
+        setSelectedDocumentId(getInitialDocumentId(currentWorkspace));
+        setWorkspaceError(null);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setWorkspaceError("Mohio could not load the current workspace.");
+      } finally {
+        if (isMounted) {
+          setIsWorkspaceLoading(false);
+        }
+      }
+    };
+
+    void loadWorkspace();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedDocument = workspace && selectedDocumentId
+    ? findDocumentById(workspace.documents, selectedDocumentId)
+    : null;
+
+  const handleOpenWorkspace = async () => {
+    try {
+      setIsWorkspaceOpening(true);
+
+      const nextWorkspace = await window.mohio.openWorkspace();
+
+      setWorkspace(nextWorkspace);
+      setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
+      setWorkspaceError(null);
+    } catch {
+      setWorkspaceError("Mohio could not open that folder as a workspace.");
+    } finally {
+      setIsWorkspaceLoading(false);
+      setIsWorkspaceOpening(false);
+    }
+  };
 
   return (
     <div className="app-shell">
       <header className="top-bar" data-testid="top-bar">
         <div className="top-bar__context">
-          <span className="workspace-label">
-            <span>Mohio</span>
+          <button
+            aria-label={workspace ? `Switch workspace from ${workspace.name}` : "Select workspace"}
+            className="workspace-label workspace-label--button"
+            disabled={isWorkspaceOpening}
+            onClick={() => {
+              void handleOpenWorkspace();
+            }}
+            type="button"
+          >
+            <span className="workspace-label__name">
+              {workspace?.name ?? "Open a workspace"}
+            </span>
             <span className="workspace-label__chevron" aria-hidden="true">
               <ChevronDownIcon />
             </span>
-          </span>
+          </button>
         </div>
 
         <div className="top-bar__search">
           <input
             aria-label="Search workspace"
             className="search-input search-input--top-bar"
-            placeholder="Search workspace"
+            placeholder={workspace ? `Search ${workspace.name}` : "Search workspace"}
             readOnly
             type="search"
           />
@@ -68,19 +133,85 @@ export function App() {
 
       <div className="workspace-shell">
         <aside className="sidebar sidebar--left" data-testid="workspace-sidebar">
-          {leftRailSections.map((section) => (
-            <section className="sidebar__section" key={section.title}>
-              <h2 className="sidebar__title">{section.title}</h2>
-              <ul className="note-list">
-                {section.items.map((item, index) => (
-                  <li className={`note-row${index === 0 && section.title === "Recent" ? " note-row--active" : ""}`} key={item}>
-                    <span className="note-row__title">{item}</span>
-                    <span className="note-row__meta">Draft</span>
-                  </li>
-                ))}
+          <section className="sidebar__section">
+            <h2 className="sidebar__title">Workspace</h2>
+
+            {isWorkspaceLoading ? (
+              <p className="workspace-panel__copy">Loading current workspace...</p>
+            ) : workspace ? (
+              <>
+                <div className="workspace-panel__header">
+                  <h3 className="workspace-panel__name">{workspace.name}</h3>
+                  <p className="workspace-panel__path">{workspace.path}</p>
+                </div>
+                <button
+                  className="ghost-button workspace-panel__button"
+                  disabled={isWorkspaceOpening}
+                  onClick={() => {
+                    void handleOpenWorkspace();
+                  }}
+                  type="button"
+                >
+                  {isWorkspaceOpening ? "Opening folder..." : "Open folder"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="workspace-panel__header">
+                  <h3 className="workspace-panel__name">No workspace selected</h3>
+                  <p className="workspace-panel__copy">
+                    Open a local folder to browse its Markdown documents in Mohio.
+                  </p>
+                </div>
+                <button
+                  className="ghost-button workspace-panel__button"
+                  disabled={isWorkspaceOpening}
+                  onClick={() => {
+                    void handleOpenWorkspace();
+                  }}
+                  type="button"
+                >
+                  {isWorkspaceOpening ? "Opening folder..." : "Open folder"}
+                </button>
+              </>
+            )}
+
+            {workspaceError ? (
+              <p className="workspace-panel__error" role="status">
+                {workspaceError}
+              </p>
+            ) : null}
+          </section>
+
+          <section className="sidebar__section">
+            <div className="sidebar__title-row">
+              <h2 className="sidebar__title">Documents</h2>
+              {workspace ? (
+                <span className="sidebar__count">{workspace.documentCount}</span>
+              ) : null}
+            </div>
+
+            {!workspace ? (
+              <p className="workspace-panel__copy">
+                Select a workspace to see its Markdown document tree.
+              </p>
+            ) : workspace.documentCount === 0 ? (
+              <p className="workspace-panel__copy">
+                No Markdown documents were found in this folder yet.
+              </p>
+            ) : (
+              <ul className="workspace-tree" role="tree">
+                {workspace.documents.map((node) =>
+                  renderWorkspaceNode({
+                    node,
+                    selectedDocumentId,
+                    depth: 0,
+                    onSelect: setSelectedDocumentId,
+                  }),
+                )}
               </ul>
-            </section>
-          ))}
+            )}
+          </section>
         </aside>
 
         <main className="editor-panel">
@@ -178,29 +309,75 @@ export function App() {
               </div>
             </div>
 
-            <section className="hello-state" data-testid="hello-state">
-              <h1>Hello Mohio</h1>
-              <p className="hello-state__copy">
-                The first real Mohio desktop shell is running. Workspace selection,
-                Markdown documents, and assistant workflows will layer onto this
-                frame next.
-              </p>
+            {workspace && selectedDocument ? (
+              <section className="hello-state" data-testid="document-state">
+                <h1>{getDocumentTitle(selectedDocument.name)}</h1>
+                <p className="hello-state__copy">
+                  Mohio is treating this Markdown file as the active workspace document.
+                  The workspace browser now reflects the local folder structure directly.
+                </p>
 
-              <dl className="hello-state__meta">
-                <div>
-                  <dt>App</dt>
-                  <dd>{appInfo.name}</dd>
-                </div>
-                <div>
-                  <dt>Version</dt>
-                  <dd>{appInfo.version}</dd>
-                </div>
-                <div>
-                  <dt>Platform</dt>
-                  <dd>{appInfo.platform}</dd>
-                </div>
-              </dl>
-            </section>
+                <dl className="hello-state__meta">
+                  <div>
+                    <dt>Workspace</dt>
+                    <dd>{workspace.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Document</dt>
+                    <dd>{selectedDocument.relativePath}</dd>
+                  </div>
+                  <div>
+                    <dt>Platform</dt>
+                    <dd>{appInfo.platform}</dd>
+                  </div>
+                </dl>
+              </section>
+            ) : workspace ? (
+              <section className="hello-state" data-testid="document-state">
+                <h1>{workspace.name}</h1>
+                <p className="hello-state__copy">
+                  This workspace is open, but Mohio did not find any Markdown documents yet.
+                </p>
+
+                <dl className="hello-state__meta">
+                  <div>
+                    <dt>Workspace</dt>
+                    <dd>{workspace.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Location</dt>
+                    <dd>{workspace.path}</dd>
+                  </div>
+                  <div>
+                    <dt>Documents</dt>
+                    <dd>{workspace.documentCount}</dd>
+                  </div>
+                </dl>
+              </section>
+            ) : (
+              <section className="hello-state" data-testid="document-state">
+                <h1>Open a workspace</h1>
+                <p className="hello-state__copy">
+                  Choose a local folder to load its Markdown files into Mohio&apos;s
+                  workspace browser.
+                </p>
+
+                <dl className="hello-state__meta">
+                  <div>
+                    <dt>App</dt>
+                    <dd>{appInfo.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Version</dt>
+                    <dd>{appInfo.version}</dd>
+                  </div>
+                  <div>
+                    <dt>Platform</dt>
+                    <dd>{appInfo.platform}</dd>
+                  </div>
+                </dl>
+              </section>
+            )}
           </div>
         </main>
 
@@ -226,6 +403,116 @@ export function App() {
       </div>
     </div>
   );
+}
+
+function renderWorkspaceNode({
+  node,
+  selectedDocumentId,
+  depth,
+  onSelect,
+}: {
+  node: WorkspaceTreeNode;
+  selectedDocumentId: string | null;
+  depth: number;
+  onSelect: (documentId: string) => void;
+}) {
+  const rowStyle = {
+    paddingInlineStart: `${12 + depth * 18}px`,
+  };
+
+  if (node.kind === "directory") {
+    return (
+      <li className="tree-node tree-node--directory" key={node.id} role="treeitem">
+        <div className="tree-node__row tree-node__row--directory" style={rowStyle}>
+          <span aria-hidden="true" className="tree-node__kind">
+            Dir
+          </span>
+          <span className="tree-node__label">{node.name}</span>
+        </div>
+
+        <ul className="workspace-tree__group" role="group">
+          {node.children.map((child) =>
+            renderWorkspaceNode({
+              node: child,
+              selectedDocumentId,
+              depth: depth + 1,
+              onSelect,
+            }),
+          )}
+        </ul>
+      </li>
+    );
+  }
+
+  const isActive = node.id === selectedDocumentId;
+
+  return (
+    <li className="tree-node" key={node.id} role="treeitem">
+      <button
+        aria-current={isActive ? "page" : undefined}
+        className={`tree-node__button${isActive ? " tree-node__button--active" : ""}`}
+        onClick={() => {
+          onSelect(node.id);
+        }}
+        style={rowStyle}
+        type="button"
+      >
+        <span aria-hidden="true" className="tree-node__kind">
+          MD
+        </span>
+        <span className="tree-node__label">{getDocumentTitle(node.name)}</span>
+      </button>
+    </li>
+  );
+}
+
+function getInitialDocumentId(workspace: WorkspaceSummary | null): string | null {
+  if (!workspace) {
+    return null;
+  }
+
+  return findFirstDocumentId(workspace.documents);
+}
+
+function findFirstDocumentId(nodes: WorkspaceTreeNode[]): string | null {
+  for (const node of nodes) {
+    if (node.kind === "document") {
+      return node.id;
+    }
+
+    const firstChildDocumentId = findFirstDocumentId(node.children);
+
+    if (firstChildDocumentId) {
+      return firstChildDocumentId;
+    }
+  }
+
+  return null;
+}
+
+function findDocumentById(
+  nodes: WorkspaceTreeNode[],
+  documentId: string,
+): WorkspaceDocumentNode | null {
+  for (const node of nodes) {
+    if (node.kind === "document" && node.id === documentId) {
+      return node;
+    }
+
+    if (node.kind === "directory") {
+      const nestedDocument = findDocumentById(node.children, documentId);
+
+      if (nestedDocument) {
+        return nestedDocument;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getDocumentTitle(fileName: string): string {
+  return fileName.replace(/\.(md|markdown|mdx)$/iu, "");
 }
 
 function BoldIcon() {
