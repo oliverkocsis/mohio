@@ -100,3 +100,7 @@ Mohio is especially relevant for teams that:
 ## Contributing
 
 The project is in active development, so feedback on product direction, workflows, prototypes, and documentation is useful. Issues and pull requests are welcome.
+
+## License
+
+Mohio is licensed under the [MIT License](LICENSE).
