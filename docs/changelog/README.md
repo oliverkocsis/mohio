@@ -1,27 +1,27 @@
 # Mohio Changelog
 
-This folder contains the detailed change history for Mohio.
+This folder contains the merged feature changelogs for Mohio.
 
-Every software change must be recorded here in its own Markdown file.
+Every feature branch that is merged into `main` must have one final changelog file in this folder.
 
 ## Filename Format
 
 Use this format:
 
-`YYYYMMDD_description-of-the-change.md`
+`feature-yyyymmdd-descriptive-feature-name.md`
 
 Examples:
 
-- `20260319_add-changelog-process.md`
-- `20260319_switch-desktop-shell-to-electron.md`
-- `20260320_add-checkpoint-history-panel.md`
+- `feature-20260319-add-changelog-process.md`
+- `feature-20260319-switch-desktop-shell-to-electron.md`
+- `feature-20260320-add-checkpoint-history-panel.md`
 
 ## Required Contents
 
-Each changelog entry should explain:
+Each final changelog should explain:
 
-- why the change was made
-- what changed exactly
+- why the feature was developed
+- what the final merged version contains
 - which parts of the product or codebase were affected
 
 ## Suggested Entry Structure
@@ -35,11 +35,11 @@ YYYY-MM-DD
 
 ## Why
 
-Explain the reason for the change, including the problem, goal, or decision behind it.
+Explain the reason for the feature, including the problem, goal, or decision behind it.
 
 ## What Changed
 
-List the exact product, code, architecture, or design changes that were made.
+List the exact product, code, architecture, or design changes included in the final merged version.
 
 ## Impact
 
@@ -48,7 +48,8 @@ Describe any user-facing, design, or engineering consequences.
 
 ## Rules
 
-- Create the changelog entry in the same PR as the software change.
-- Do not batch unrelated changes into one file.
+- Development must happen on a feature branch named `feature-yyyymmdd-descriptive-feature-name`.
+- A code review is required on the feature branch before it is merged into `main`.
+- Before merging into `main`, consolidate all branch changelog notes into one final changelog file with the same name as the branch.
+- The final changelog should focus on the merged result and why it was developed, not on the full development history.
 - Prefer specific descriptions over vague summaries.
-- If the same area changes multiple times, create multiple entries.
