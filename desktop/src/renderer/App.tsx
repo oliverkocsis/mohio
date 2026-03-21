@@ -28,11 +28,18 @@ export function App() {
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const lastSavedSnapshotRef = useRef<DocumentSnapshot | null>(null);
+  const pendingSaveSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const loadSequenceRef = useRef(0);
   const saveSequenceRef = useRef(0);
   const selectedDocumentIdRef = useRef<string | null>(null);
+  const saveStateRef = useRef<SaveState>("idle");
+  const draftTitleRef = useRef("");
+  const draftMarkdownRef = useRef("");
 
   selectedDocumentIdRef.current = selectedDocumentId;
+  saveStateRef.current = saveState;
+  draftTitleRef.current = draftTitle;
+  draftMarkdownRef.current = draftMarkdown;
 
   useEffect(() => {
     let isMounted = true;
@@ -91,6 +98,7 @@ export function App() {
       setDocumentError(null);
       setSaveState("idle");
       lastSavedSnapshotRef.current = null;
+      pendingSaveSnapshotRef.current = null;
       return;
     }
 
@@ -113,6 +121,7 @@ export function App() {
           title: nextDocument.displayTitle,
           markdown: nextDocument.markdown,
         };
+        pendingSaveSnapshotRef.current = null;
         setSaveState("saved");
       },
       () => {
@@ -126,6 +135,82 @@ export function App() {
       },
     );
   }, [selectedDocumentId]);
+
+  useEffect(() => {
+    void window.mohio.watchDocument(selectedDocumentId);
+
+    return () => {
+      void window.mohio.watchDocument(null);
+    };
+  }, [selectedDocumentId]);
+
+  useEffect(() => {
+    const disposeDocumentChangedListener = window.mohio.onDocumentChanged((event) => {
+      if (event.relativePath !== selectedDocumentIdRef.current) {
+        return;
+      }
+
+      if (event.workspace) {
+        setWorkspace(event.workspace);
+        setExpandedDirectoryIds(getExpandedDirectoryIds(event.workspace));
+      } else {
+        setWorkspace(null);
+      }
+
+      if (!event.document) {
+        setDocument(null);
+        setDocumentError("This document was removed or renamed on disk.");
+        setSelectedDocumentId(getPreferredDocumentId(event.workspace));
+        setSaveState("error");
+        lastSavedSnapshotRef.current = null;
+        pendingSaveSnapshotRef.current = null;
+        return;
+      }
+
+      const incomingSnapshot = {
+        relativePath: event.document.relativePath,
+        title: event.document.displayTitle,
+        markdown: event.document.markdown,
+      };
+      const hadUnsavedLocalChanges = !snapshotsMatch(
+        {
+          relativePath: selectedDocumentIdRef.current ?? event.document.relativePath,
+          title: draftTitleRef.current,
+          markdown: draftMarkdownRef.current,
+        },
+        lastSavedSnapshotRef.current,
+      );
+      const currentDraftSnapshot = {
+        relativePath: selectedDocumentIdRef.current ?? event.document.relativePath,
+        title: draftTitleRef.current,
+        markdown: draftMarkdownRef.current,
+      };
+      const matchesPendingSave = snapshotsMatch(
+        incomingSnapshot,
+        pendingSaveSnapshotRef.current,
+      );
+
+      setDocument(event.document);
+      setSelectedDocumentId(event.document.relativePath);
+      setDocumentError(null);
+      lastSavedSnapshotRef.current = incomingSnapshot;
+      pendingSaveSnapshotRef.current = null;
+
+      if (
+        !hadUnsavedLocalChanges ||
+        snapshotsMatch(incomingSnapshot, currentDraftSnapshot)
+      ) {
+        setDraftTitle(event.document.displayTitle);
+        setDraftMarkdown(event.document.markdown);
+      }
+
+      setSaveState("saved");
+    });
+
+    return () => {
+      disposeDocumentChangedListener();
+    };
+  }, []);
 
   const isDirty = useMemo(() => {
     const lastSavedSnapshot = lastSavedSnapshotRef.current;
@@ -203,6 +288,7 @@ export function App() {
 
     const saveSequence = saveSequenceRef.current + 1;
     saveSequenceRef.current = saveSequence;
+    pendingSaveSnapshotRef.current = snapshot;
     setSaveState("saving");
     setDocumentError(null);
 
@@ -237,6 +323,7 @@ export function App() {
         return;
       }
 
+      pendingSaveSnapshotRef.current = null;
       setDocumentError("Mohio could not save that document.");
       setSaveState("error");
     }
@@ -332,20 +419,17 @@ export function App() {
         <main className="editor-panel">
           <div className="editor-panel__inner">
             {workspace && document ? (
-              <section className="document-editor" data-testid="document-state">
-                <RichTextEditor
-                  markdown={draftMarkdown}
-                  onChange={(nextMarkdown) => {
-                    setDraftMarkdown(nextMarkdown);
-                  }}
-                  onTitleChange={(nextTitle) => {
-                    setDraftTitle(nextTitle);
-                  }}
-                  saveStateLabel={getSaveStateLabel(saveState, isDirty)}
-                  saveStateTone={saveState}
-                  title={draftTitle}
-                />
-              </section>
+              <RichTextEditor
+                dataTestId="document-state"
+                markdown={draftMarkdown}
+                onChange={(nextMarkdown) => {
+                  setDraftMarkdown(nextMarkdown);
+                }}
+                onTitleChange={(nextTitle) => {
+                  setDraftTitle(nextTitle);
+                }}
+                title={draftTitle}
+              />
             ) : workspace ? (
               <section className="hello-state" data-testid="document-state">
                 <h1>{workspace.name}</h1>
@@ -381,6 +465,8 @@ export function App() {
           <section className="sidebar__section assistant-panel-header">
             <p className="assistant-panel__label">Assistant</p>
           </section>
+
+          <div className="assistant-panel__body" />
 
           <div className="assistant-panel__footer">
             <section className="sidebar__section">
@@ -567,6 +653,21 @@ function getSaveStateLabel(saveState: SaveState, isDirty: boolean): string {
   }
 
   return "Saved";
+}
+
+function snapshotsMatch(
+  left: DocumentSnapshot | null,
+  right: DocumentSnapshot | null,
+): boolean {
+  if (!left || !right) {
+    return false;
+  }
+
+  return (
+    left.relativePath === right.relativePath &&
+    left.title === right.title &&
+    left.markdown === right.markdown
+  );
 }
 
 function ChevronDownIcon() {

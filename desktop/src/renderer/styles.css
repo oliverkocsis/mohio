@@ -127,12 +127,15 @@ button {
 
 .workspace-shell {
   display: grid;
-  min-height: calc(100vh - 56px);
+  height: calc(100vh - 56px);
+  min-height: 0;
   grid-template-columns: 320px minmax(0, 1fr) 384px;
+  overflow: hidden;
 }
 
 .sidebar {
   display: flex;
+  min-height: 0;
   flex-direction: column;
   gap: 16px;
   padding: 16px;
@@ -141,11 +144,13 @@ button {
 .sidebar--left {
   border-right: 1px solid var(--border);
   background: var(--sidebar-surface);
+  overflow-y: auto;
 }
 
 .sidebar--right {
   border-left: 1px solid var(--border);
   background: var(--sidebar-surface);
+  overflow: hidden;
 }
 
 .sidebar__section {
@@ -331,37 +336,54 @@ button {
 
 .editor-panel {
   display: flex;
+  min-height: 0;
   justify-content: center;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.98) 220px),
     var(--muted-surface);
+  overflow: hidden;
 }
 
 .editor-panel__inner {
   display: flex;
+  flex: 1;
+  min-height: 0;
   width: min(100%, 832px);
   flex-direction: column;
-  gap: 20px;
+  overflow: hidden;
 }
 
 .editor-toolbar {
   display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 56px;
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid var(--border);
-  padding: 16px;
+  background: var(--background);
+  padding: 0 16px;
 }
 
 .toolbar-actions {
   display: flex;
-  flex-wrap: wrap;
+  width: 100%;
   align-items: center;
   justify-content: center;
+  flex-wrap: nowrap;
   gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.toolbar-actions::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbar-group {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 2px;
 }
@@ -376,9 +398,18 @@ button {
   min-width: 28px;
   height: 28px;
   border: none;
+  border-radius: 6px;
   background: transparent;
   padding: 0 6px;
   color: var(--text-secondary);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.toolbar-button:hover {
+  background: var(--muted-surface);
+  color: var(--text-primary);
 }
 
 .toolbar-button--text,
@@ -402,78 +433,55 @@ button {
   height: 10px;
 }
 
-.formatting-icon {
+.toolbar-button__icon {
   width: 16px;
   height: 16px;
+  stroke-width: 2px;
 }
 
-.document-editor {
+.editor-surface {
   display: flex;
   flex: 1;
+  min-height: 0;
   flex-direction: column;
-  padding: 0px;
-}
-
-.document-editor__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  overflow-y: auto;
   background: var(--background);
-  padding: 32px 32px 0px 32px;
 }
 
-.document-title-input {
+.editor-surface__header {
+  display: block;
+  padding: 32px 32px 18px 32px;
+}
+
+.editor-surface__title-input {
   width: 100%;
   border: none;
   background: transparent;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: inherit;
   font-size: 30px;
   font-weight: 600;
   line-height: 1.2;
   color: var(--text-primary);
   outline: none;
+  padding: 0;
+  margin: 0;
+  field-sizing: content;
 }
 
-.document-title-input::placeholder {
+.editor-surface__title-input::placeholder {
   color: var(--text-subtle);
 }
 
-.document-save-indicator {
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.document-save-indicator--saved {
-  color: #15803d;
-}
-
-.document-save-indicator--saving,
-.document-save-indicator--loading {
-  color: var(--text-muted);
-}
-
-.document-save-indicator--error {
-  color: #b91c1c;
-}
-
-.editor-surface {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
 .quill-editor-frame {
-  min-height: 420px;
-  background: var(--background);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .quill-editor {
-  min-height: 420px;
+  min-height: 0;
 }
 
 .quill-editor .ql-toolbar.ql-snow {
@@ -483,6 +491,9 @@ button {
 .quill-editor .ql-container.ql-snow {
   border: none;
   font-family: inherit;
+  height: auto;
+  min-height: 420px;
+  overflow: visible;
 }
 
 .quill-editor-frame:focus-within,
@@ -493,8 +504,10 @@ button {
 }
 
 .quill-editor .ql-editor {
+  height: auto;
   min-height: 420px;
-  padding: 36px;
+  overflow-y: visible;
+  padding: 0 32px 32px 32px;
   font-size: 16px;
   line-height: 1.7;
   color: var(--text-primary);
@@ -636,13 +649,25 @@ button {
 
 .assistant-panel-header {
   gap: 0;
+  flex: 0 0 auto;
+}
+
+.assistant-panel__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
 }
 
 .assistant-panel__footer {
   display: flex;
-  margin-top: auto;
   flex-direction: column;
   gap: 12px;
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .action-list {

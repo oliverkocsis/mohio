@@ -18,6 +18,7 @@ Mohio needed to move beyond a placeholder editor shell and deliver the first rea
 - Replaced the placeholder toolbar with working controls for headings, bold, italic, strikethrough, block quotes, lists, links, images, inline code, code blocks, horizontal rules, and clear formatting.
 - Added autosave for title and body changes with a single `1000ms` idle debounce.
 - Updated the workspace tree to show parsed document titles instead of only filename stems when frontmatter or H1 titles are available.
+- Added active file watching for the selected document so the editor reloads on-disk file changes and stays in sync when the file is overridden outside Mohio.
 - Added preservation handling for unsupported task-list and table Markdown blocks so they remain intact through editing and saving.
 - Expanded main-process, shared API, and renderer test coverage for document loading, saving, renaming, autosave, and the updated editor UI.
 

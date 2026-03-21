@@ -107,7 +107,7 @@ async function ensureAvailableRelativePath({
   throw new Error("Mohio could not allocate a unique document name.");
 }
 
-function resolveWorkspacePath(workspacePath: string, relativePath: string): string {
+export function resolveWorkspacePath(workspacePath: string, relativePath: string): string {
   const absoluteWorkspacePath = path.resolve(workspacePath);
   const absoluteDocumentPath = path.resolve(absoluteWorkspacePath, relativePath);
 

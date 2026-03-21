@@ -31,6 +31,8 @@ describe("createMohioApi", () => {
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
     });
+    const watchDocument = vi.fn().mockResolvedValue(undefined);
+    const onDocumentChanged = vi.fn().mockReturnValue(() => undefined);
     const onWorkspaceChanged = vi.fn().mockReturnValue(() => undefined);
 
     const api = createMohioApi({
@@ -43,6 +45,8 @@ describe("createMohioApi", () => {
       openWorkspace,
       readDocument,
       saveDocument,
+      watchDocument,
+      onDocumentChanged,
       onWorkspaceChanged,
     });
 
@@ -62,7 +66,9 @@ describe("createMohioApi", () => {
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
     });
+    await expect(api.watchDocument("README.md")).resolves.toBeUndefined();
     expect(api.onWorkspaceChanged(() => undefined)).toEqual(expect.any(Function));
+    expect(api.onDocumentChanged(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
     expect(readDocument).toHaveBeenCalledWith("README.md");
@@ -71,6 +77,8 @@ describe("createMohioApi", () => {
       title: "README",
       markdown: "Body",
     });
+    expect(watchDocument).toHaveBeenCalledWith("README.md");
+    expect(onDocumentChanged).toHaveBeenCalledTimes(1);
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
   });
 });

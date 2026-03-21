@@ -1,5 +1,6 @@
 import type {
   AppInfo,
+  DocumentChangedEvent,
   MohioApi,
   SaveDocumentInput,
   SaveDocumentResult,
@@ -12,6 +13,8 @@ export const MOHIO_CHANNELS = {
   openWorkspace: "mohio:workspace:open",
   readDocument: "mohio:document:read",
   saveDocument: "mohio:document:save",
+  watchDocument: "mohio:document:watch",
+  documentChanged: "mohio:document:changed",
   workspaceChanged: "mohio:workspace:changed",
 } as const;
 
@@ -21,6 +24,10 @@ interface CreateMohioApiOptions {
   openWorkspace: () => Promise<WorkspaceSummary | null>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
+  watchDocument: (relativePath: string | null) => Promise<void>;
+  onDocumentChanged: (
+    listener: (event: DocumentChangedEvent) => void,
+  ) => () => void;
   onWorkspaceChanged: (
     listener: (workspace: WorkspaceSummary | null) => void,
   ) => () => void;
@@ -32,6 +39,8 @@ export function createMohioApi({
   openWorkspace,
   readDocument,
   saveDocument,
+  watchDocument,
+  onDocumentChanged,
   onWorkspaceChanged,
 }: CreateMohioApiOptions): MohioApi {
   return {
@@ -40,6 +49,8 @@ export function createMohioApi({
     openWorkspace,
     readDocument,
     saveDocument,
+    watchDocument,
+    onDocumentChanged,
     onWorkspaceChanged,
   };
 }

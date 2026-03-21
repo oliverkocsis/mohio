@@ -51,12 +51,22 @@ export interface SaveDocumentResult {
   savedAt: string;
 }
 
+export interface DocumentChangedEvent {
+  relativePath: string;
+  document: WorkspaceDocument | null;
+  workspace: WorkspaceSummary | null;
+}
+
 export interface MohioApi {
   getAppInfo: () => AppInfo;
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
+  watchDocument: (relativePath: string | null) => Promise<void>;
+  onDocumentChanged: (
+    listener: (event: DocumentChangedEvent) => void,
+  ) => () => void;
   onWorkspaceChanged: (
     listener: (workspace: WorkspaceSummary | null) => void,
   ) => () => void;

@@ -12,6 +12,21 @@ const mohioApi = createMohioApi({
   openWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.openWorkspace),
   readDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.readDocument, relativePath),
   saveDocument: (input) => ipcRenderer.invoke(MOHIO_CHANNELS.saveDocument, input),
+  watchDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.watchDocument, relativePath),
+  onDocumentChanged: (listener) => {
+    const handleDocumentChanged = (
+      _event: Electron.IpcRendererEvent,
+      documentChangedEvent: Awaited<ReturnType<typeof ipcRenderer.invoke>>,
+    ) => {
+      listener(documentChangedEvent);
+    };
+
+    ipcRenderer.on(MOHIO_CHANNELS.documentChanged, handleDocumentChanged);
+
+    return () => {
+      ipcRenderer.removeListener(MOHIO_CHANNELS.documentChanged, handleDocumentChanged);
+    };
+  },
   onWorkspaceChanged: (listener) => {
     const handleWorkspaceChanged = (
       _event: Electron.IpcRendererEvent,

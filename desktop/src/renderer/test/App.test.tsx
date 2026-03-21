@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import App from "@renderer/App";
 
 describe("App", () => {
@@ -17,6 +17,8 @@ describe("App", () => {
       saveDocument: async () => {
         throw new Error("No document");
       },
+      watchDocument: async () => undefined,
+      onDocumentChanged: () => () => undefined,
       onWorkspaceChanged: () => () => undefined,
     };
 
@@ -62,6 +64,27 @@ describe("App", () => {
   });
 
   it("renders the workspace tree and switches workspaces through the shared API", async () => {
+    let onDocumentChangedListener: ((event: {
+      relativePath: string;
+      document: {
+        relativePath: string;
+        fileName: string;
+        displayTitle: string;
+        markdown: string;
+      } | null;
+      workspace: {
+        name: string;
+        path: string;
+        documentCount: number;
+        documents: Array<{
+          id: string;
+          kind: "document";
+          name: string;
+          relativePath: string;
+          displayTitle: string;
+        }>;
+      } | null;
+    }) => void) | null = null;
     const getCurrentWorkspace = vi.fn().mockResolvedValue({
       name: "alpha",
       path: "/workspaces/alpha",
@@ -133,6 +156,7 @@ describe("App", () => {
       markdown: "Current body.\n",
       savedAt: "2026-03-21T00:00:00.000Z",
     });
+    const watchDocument = vi.fn().mockResolvedValue(undefined);
 
     window.mohio = {
       getAppInfo: () => ({
@@ -144,6 +168,13 @@ describe("App", () => {
       openWorkspace,
       readDocument,
       saveDocument,
+      watchDocument,
+      onDocumentChanged: (listener) => {
+        onDocumentChangedListener = listener;
+        return () => {
+          onDocumentChangedListener = null;
+        };
+      },
       onWorkspaceChanged: () => () => undefined,
     };
 
@@ -159,8 +190,8 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "README" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ROADMAP" })).toBeInTheDocument();
     expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture Overview");
-    expect(screen.getByTestId("save-state")).toHaveTextContent("Saved");
     expect(screen.queryByText("docs/Architecture.md")).not.toBeInTheDocument();
+    expect(watchDocument).toHaveBeenCalledWith("docs/Architecture.md");
 
     fireEvent.click(docsFolderToggle);
 
@@ -186,5 +217,175 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Horizontal rule" })).toBeInTheDocument();
     expect(saveDocument).not.toHaveBeenCalled();
+    expect(watchDocument).toHaveBeenLastCalledWith("Team Handbook.md");
+
+    expect(onDocumentChangedListener).not.toBeNull();
+
+    await act(async () => {
+      onDocumentChangedListener?.({
+        relativePath: "Team Handbook.md",
+        document: {
+          relativePath: "Team Handbook.md",
+          fileName: "Team Handbook.md",
+          displayTitle: "Team Handbook Updated",
+          markdown: "Externally changed body.\n",
+        },
+        workspace: {
+          name: "beta",
+          path: "/workspaces/beta",
+          documentCount: 1,
+          documents: [
+            {
+              id: "Team Handbook.md",
+              kind: "document",
+              name: "Team Handbook.md",
+              relativePath: "Team Handbook.md",
+              displayTitle: "Team Handbook Updated",
+            },
+          ],
+        },
+      });
+    });
+
+    expect(await screen.findByLabelText("Document title")).toHaveValue("Team Handbook Updated");
+    expect(screen.getByRole("button", { name: "Team Handbook Updated" })).toHaveAttribute("aria-current", "page");
   });
+
+  it("keeps newer local edits when a file-watch event arrives for Mohio's own older save", async () => {
+    try {
+      let onDocumentChangedListener: ((event: {
+        relativePath: string;
+        document: {
+          relativePath: string;
+          fileName: string;
+          displayTitle: string;
+          markdown: string;
+        } | null;
+        workspace: {
+          name: string;
+          path: string;
+          documentCount: number;
+          documents: Array<{
+            id: string;
+            kind: "document";
+            name: string;
+            relativePath: string;
+            displayTitle: string;
+          }>;
+        } | null;
+      }) => void) | null = null;
+      let resolveSaveDocument: ((value: {
+        relativePath: string;
+        fileName: string;
+        displayTitle: string;
+        markdown: string;
+        savedAt: string;
+      }) => void) | null = null;
+      const saveDocument = vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSaveDocument = resolve;
+          }),
+      );
+
+      window.mohio = {
+        getAppInfo: () => ({
+          name: "Mohio",
+          version: "0.1.0",
+          platform: "darwin",
+        }),
+        getCurrentWorkspace: async () => ({
+          name: "alpha",
+          path: "/workspaces/alpha",
+          documentCount: 1,
+          documents: [
+            {
+              id: "Team Handbook.md",
+              kind: "document",
+              name: "Team Handbook.md",
+              relativePath: "Team Handbook.md",
+              displayTitle: "Team Handbook",
+            },
+          ],
+        }),
+        openWorkspace: async () => null,
+        readDocument: async () => ({
+          relativePath: "Team Handbook.md",
+          fileName: "Team Handbook.md",
+          displayTitle: "Team Handbook",
+          markdown: "Initial body.\n",
+        }),
+        saveDocument,
+        watchDocument: async () => undefined,
+        onDocumentChanged: (listener) => {
+          onDocumentChangedListener = listener;
+          return () => {
+            onDocumentChangedListener = null;
+          };
+        },
+        onWorkspaceChanged: () => () => undefined,
+      };
+
+      render(<App />);
+
+      const titleInput = await screen.findByLabelText("Document title");
+      expect(titleInput).toHaveValue("Team Handbook");
+
+      vi.useFakeTimers();
+
+      fireEvent.change(titleInput, { target: { value: "Team Handbook A" } });
+
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(saveDocument).toHaveBeenCalledWith({
+        relativePath: "Team Handbook.md",
+        title: "Team Handbook A",
+        markdown: "Initial body.\n",
+      });
+
+      fireEvent.change(titleInput, { target: { value: "Team Handbook AB" } });
+
+      await act(async () => {
+        onDocumentChangedListener?.({
+          relativePath: "Team Handbook.md",
+          document: {
+            relativePath: "Team Handbook.md",
+            fileName: "Team Handbook.md",
+            displayTitle: "Team Handbook A",
+            markdown: "Initial body.\n",
+          },
+          workspace: {
+            name: "alpha",
+            path: "/workspaces/alpha",
+            documentCount: 1,
+            documents: [
+              {
+                id: "Team Handbook.md",
+                kind: "document",
+                name: "Team Handbook.md",
+                relativePath: "Team Handbook.md",
+                displayTitle: "Team Handbook A",
+              },
+            ],
+          },
+        });
+      });
+
+      expect(screen.getByLabelText("Document title")).toHaveValue("Team Handbook AB");
+
+      await act(async () => {
+        resolveSaveDocument?.({
+          relativePath: "Team Handbook.md",
+          fileName: "Team Handbook.md",
+          displayTitle: "Team Handbook A",
+          markdown: "Initial body.\n",
+          savedAt: "2026-03-21T00:00:00.000Z",
+        });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10000);
 });

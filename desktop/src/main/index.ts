@@ -1,13 +1,20 @@
+import { watchFile, unwatchFile } from "node:fs";
+import type { Stats } from "node:fs";
 import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
-import type { BaseWindow } from "electron";
+import type { BaseWindow, IpcMainInvokeEvent, WebContents } from "electron";
 import path from "node:path";
 import { MOHIO_CHANNELS } from "@shared/mohio-api";
-import type { WorkspaceSummary } from "@shared/mohio-types";
-import { readDocument, saveDocument } from "./document-store";
+import type { DocumentChangedEvent, WorkspaceSummary } from "@shared/mohio-types";
+import { readDocument, resolveWorkspacePath, saveDocument } from "./document-store";
 import { buildAppMenuTemplate } from "./menu";
 import { getWorkspaceSummary } from "./workspace";
 
 let currentWorkspacePath: string | null = null;
+const activeDocumentWatches = new Map<number, {
+  absolutePath: string;
+  listener: (currentStats: Stats, previousStats: Stats) => void;
+  relativePath: string;
+}>();
 
 function createMainWindow(): BrowserWindow {
   const appPath = app.getAppPath();
@@ -58,6 +65,83 @@ function broadcastWorkspaceChange(workspace: WorkspaceSummary | null) {
   }
 }
 
+async function broadcastDocumentChange({
+  relativePath,
+  webContents,
+}: {
+  relativePath: string;
+  webContents: WebContents;
+}) {
+  if (webContents.isDestroyed()) {
+    unwatchDocumentForContents(webContents.id);
+    return;
+  }
+
+  const workspace = await loadCurrentWorkspace().catch(() => null);
+  const document = currentWorkspacePath
+    ? await readDocument(currentWorkspacePath, relativePath).catch(() => null)
+    : null;
+  const payload: DocumentChangedEvent = {
+    relativePath,
+    document,
+    workspace,
+  };
+
+  if (!webContents.isDestroyed()) {
+    webContents.send(MOHIO_CHANNELS.documentChanged, payload);
+  }
+}
+
+function unwatchDocumentForContents(contentsId: number) {
+  const activeWatch = activeDocumentWatches.get(contentsId);
+
+  if (!activeWatch) {
+    return;
+  }
+
+  unwatchFile(activeWatch.absolutePath, activeWatch.listener);
+  activeDocumentWatches.delete(contentsId);
+}
+
+function clearDocumentWatches() {
+  for (const contentsId of activeDocumentWatches.keys()) {
+    unwatchDocumentForContents(contentsId);
+  }
+}
+
+function watchDocumentForEventSender(
+  event: IpcMainInvokeEvent,
+  relativePath: string | null,
+) {
+  unwatchDocumentForContents(event.sender.id);
+
+  if (!relativePath || !currentWorkspacePath || event.sender.isDestroyed()) {
+    return;
+  }
+
+  const absolutePath = resolveWorkspacePath(currentWorkspacePath, relativePath);
+  const listener = (currentStats: Stats, previousStats: Stats) => {
+    if (
+      currentStats.mtimeMs === previousStats.mtimeMs &&
+      currentStats.size === previousStats.size
+    ) {
+      return;
+    }
+
+    void broadcastDocumentChange({
+      relativePath,
+      webContents: event.sender,
+    });
+  };
+
+  watchFile(absolutePath, { interval: 500 }, listener);
+  activeDocumentWatches.set(event.sender.id, {
+    absolutePath,
+    listener,
+    relativePath,
+  });
+}
+
 async function openWorkspace(browserWindow?: BaseWindow) {
   const parentWindow = browserWindow ?? BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
   const result = await dialog.showOpenDialog(parentWindow, {
@@ -71,6 +155,7 @@ async function openWorkspace(browserWindow?: BaseWindow) {
   }
 
   currentWorkspacePath = result.filePaths[0];
+  clearDocumentWatches();
 
   const workspace = await loadCurrentWorkspace();
   broadcastWorkspaceChange(workspace);
@@ -95,6 +180,9 @@ function registerMohioHandlers() {
 
     return saveDocument(currentWorkspacePath, input);
   });
+  ipcMain.handle(MOHIO_CHANNELS.watchDocument, async (event, relativePath: string | null) => {
+    watchDocumentForEventSender(event, relativePath);
+  });
 }
 
 function registerApplicationMenu() {
@@ -111,16 +199,24 @@ app.whenReady().then(() => {
   app.setName("Mohio");
   registerMohioHandlers();
   registerApplicationMenu();
-  createMainWindow();
+  const mainWindow = createMainWindow();
+
+  mainWindow.webContents.on("destroyed", () => {
+    unwatchDocumentForContents(mainWindow.webContents.id);
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
+      const nextWindow = createMainWindow();
+      nextWindow.webContents.on("destroyed", () => {
+        unwatchDocumentForContents(nextWindow.webContents.id);
+      });
     }
   });
 });
 
 app.on("window-all-closed", () => {
+  clearDocumentWatches();
   if (process.platform !== "darwin") {
     app.quit();
   }
