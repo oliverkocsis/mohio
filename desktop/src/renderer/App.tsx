@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type {
-  AppInfo,
   WorkspaceDocumentNode,
   WorkspaceSummary,
   WorkspaceTreeNode,
@@ -30,9 +29,9 @@ const insertTools = [
 ] as const;
 
 export function App() {
-  const appInfo: AppInfo = window.mohio.getAppInfo();
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [expandedDirectoryIds, setExpandedDirectoryIds] = useState<Set<string>>(new Set());
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
   const [isWorkspaceOpening, setIsWorkspaceOpening] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
@@ -40,17 +39,22 @@ export function App() {
   useEffect(() => {
     let isMounted = true;
 
+    const applyWorkspace = (nextWorkspace: WorkspaceSummary | null) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setWorkspace(nextWorkspace);
+      setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
+      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
+      setWorkspaceError(null);
+      setIsWorkspaceLoading(false);
+    };
+
     const loadWorkspace = async () => {
       try {
         const currentWorkspace = await window.mohio.getCurrentWorkspace();
-
-        if (!isMounted) {
-          return;
-        }
-
-        setWorkspace(currentWorkspace);
-        setSelectedDocumentId(getInitialDocumentId(currentWorkspace));
-        setWorkspaceError(null);
+        applyWorkspace(currentWorkspace);
       } catch {
         if (!isMounted) {
           return;
@@ -64,16 +68,35 @@ export function App() {
       }
     };
 
+    const disposeWorkspaceListener = window.mohio.onWorkspaceChanged((nextWorkspace) => {
+      applyWorkspace(nextWorkspace);
+    });
+
     void loadWorkspace();
 
     return () => {
       isMounted = false;
+      disposeWorkspaceListener();
     };
   }, []);
 
   const selectedDocument = workspace && selectedDocumentId
     ? findDocumentById(workspace.documents, selectedDocumentId)
     : null;
+
+  const toggleDirectory = (directoryId: string) => {
+    setExpandedDirectoryIds((currentExpandedDirectoryIds) => {
+      const nextExpandedDirectoryIds = new Set(currentExpandedDirectoryIds);
+
+      if (nextExpandedDirectoryIds.has(directoryId)) {
+        nextExpandedDirectoryIds.delete(directoryId);
+      } else {
+        nextExpandedDirectoryIds.add(directoryId);
+      }
+
+      return nextExpandedDirectoryIds;
+    });
+  };
 
   const handleOpenWorkspace = async () => {
     try {
@@ -83,6 +106,7 @@ export function App() {
 
       setWorkspace(nextWorkspace);
       setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
+      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
       setWorkspaceError(null);
     } catch {
       setWorkspaceError("Mohio could not open that folder as a workspace.");
@@ -106,7 +130,7 @@ export function App() {
             type="button"
           >
             <span className="workspace-label__name">
-              {workspace?.name ?? "Open a workspace"}
+              {workspace?.name ?? "No workspace opened"}
             </span>
             <span className="workspace-label__chevron" aria-hidden="true">
               <ChevronDownIcon />
@@ -125,9 +149,11 @@ export function App() {
         </div>
 
         <div className="top-bar__actions">
-          <button className="primary-button" type="button">
-            New note
-          </button>
+          {workspace ? (
+            <button className="primary-button" type="button">
+              New note
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -140,40 +166,27 @@ export function App() {
               <p className="workspace-panel__copy">Loading current workspace...</p>
             ) : workspace ? (
               <>
-                <div className="workspace-panel__header">
-                  <h3 className="workspace-panel__name">{workspace.name}</h3>
-                  <p className="workspace-panel__path">{workspace.path}</p>
-                </div>
-                <button
-                  className="ghost-button workspace-panel__button"
-                  disabled={isWorkspaceOpening}
-                  onClick={() => {
-                    void handleOpenWorkspace();
-                  }}
-                  type="button"
-                >
-                  {isWorkspaceOpening ? "Opening folder..." : "Open folder"}
-                </button>
+                {workspace.documentCount === 0 ? (
+                  <p className="workspace-panel__copy">
+                    No Markdown documents found.
+                  </p>
+                ) : (
+                  <ul className="workspace-tree" role="tree">
+                    {workspace.documents.map((node) =>
+                      renderWorkspaceNode({
+                        node,
+                        selectedDocumentId,
+                        expandedDirectoryIds,
+                        depth: 0,
+                        onSelect: setSelectedDocumentId,
+                        onToggleDirectory: toggleDirectory,
+                      }),
+                    )}
+                  </ul>
+                )}
               </>
             ) : (
-              <>
-                <div className="workspace-panel__header">
-                  <h3 className="workspace-panel__name">No workspace selected</h3>
-                  <p className="workspace-panel__copy">
-                    Open a local folder to browse its Markdown documents in Mohio.
-                  </p>
-                </div>
-                <button
-                  className="ghost-button workspace-panel__button"
-                  disabled={isWorkspaceOpening}
-                  onClick={() => {
-                    void handleOpenWorkspace();
-                  }}
-                  type="button"
-                >
-                  {isWorkspaceOpening ? "Opening folder..." : "Open folder"}
-                </button>
-              </>
+              <p className="workspace-panel__copy">You have not yet opened a workspace.</p>
             )}
 
             {workspaceError ? (
@@ -182,200 +195,129 @@ export function App() {
               </p>
             ) : null}
           </section>
-
-          <section className="sidebar__section">
-            <div className="sidebar__title-row">
-              <h2 className="sidebar__title">Documents</h2>
-              {workspace ? (
-                <span className="sidebar__count">{workspace.documentCount}</span>
-              ) : null}
-            </div>
-
-            {!workspace ? (
-              <p className="workspace-panel__copy">
-                Select a workspace to see its Markdown document tree.
-              </p>
-            ) : workspace.documentCount === 0 ? (
-              <p className="workspace-panel__copy">
-                No Markdown documents were found in this folder yet.
-              </p>
-            ) : (
-              <ul className="workspace-tree" role="tree">
-                {workspace.documents.map((node) =>
-                  renderWorkspaceNode({
-                    node,
-                    selectedDocumentId,
-                    depth: 0,
-                    onSelect: setSelectedDocumentId,
-                  }),
-                )}
-              </ul>
-            )}
-          </section>
         </aside>
 
         <main className="editor-panel">
           <div className="editor-panel__inner">
-            <div className="editor-toolbar">
-              <div className="toolbar-actions">
-                <div className="toolbar-group">
-                  {headingTools.map((tool) => (
+            {workspace ? (
+              <div className="editor-toolbar">
+                <div className="toolbar-actions">
+                  <div className="toolbar-group">
+                    {headingTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--text"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <span className="toolbar-button__text">{tool.displayLabel}</span>
+                      </button>
+                    ))}
                     <button
-                      aria-label={tool.label}
-                      className="toolbar-button toolbar-button--text"
-                      key={tool.label}
+                      aria-label="Heading styles"
+                      className="toolbar-button toolbar-button--selector-only"
                       type="button"
                     >
-                      <span className="toolbar-button__text">{tool.displayLabel}</span>
+                      <span className="toolbar-button__chevron" aria-hidden="true">
+                        <ChevronDownIcon />
+                      </span>
                     </button>
-                  ))}
-                  <button
-                    aria-label="Heading styles"
-                    className="toolbar-button toolbar-button--selector-only"
-                    type="button"
-                  >
-                    <span className="toolbar-button__chevron" aria-hidden="true">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
-                </div>
-                <span className="toolbar-separator" aria-hidden="true" />
+                  </div>
+                  <span className="toolbar-separator" aria-hidden="true" />
 
-                <div className="toolbar-group">
-                  {textStyleTools.map((tool) => (
+                  <div className="toolbar-group">
+                    {textStyleTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--icon"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <tool.icon />
+                      </button>
+                    ))}
                     <button
-                      aria-label={tool.label}
-                      className="toolbar-button toolbar-button--icon"
-                      key={tool.label}
+                      aria-label="Text styles"
+                      className="toolbar-button toolbar-button--selector-only"
                       type="button"
                     >
-                      <tool.icon />
+                      <span className="toolbar-button__chevron" aria-hidden="true">
+                        <ChevronDownIcon />
+                      </span>
                     </button>
-                  ))}
-                  <button
-                    aria-label="Text styles"
-                    className="toolbar-button toolbar-button--selector-only"
-                    type="button"
-                  >
-                    <span className="toolbar-button__chevron" aria-hidden="true">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
-                </div>
-                <span className="toolbar-separator" aria-hidden="true" />
+                  </div>
+                  <span className="toolbar-separator" aria-hidden="true" />
 
-                <div className="toolbar-group">
-                  {listTools.map((tool) => (
+                  <div className="toolbar-group">
+                    {listTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--icon"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <tool.icon />
+                      </button>
+                    ))}
                     <button
-                      aria-label={tool.label}
+                      aria-label="Text alignment"
                       className="toolbar-button toolbar-button--icon"
-                      key={tool.label}
                       type="button"
                     >
-                      <tool.icon />
+                      <AlignLeftIcon />
                     </button>
-                  ))}
-                  <button
-                    aria-label="Text alignment"
-                    className="toolbar-button toolbar-button--icon"
-                    type="button"
-                  >
-                    <AlignLeftIcon />
-                  </button>
-                  <button
-                    aria-label="Alignment options"
-                    className="toolbar-button toolbar-button--selector-only"
-                    type="button"
-                  >
-                    <span className="toolbar-button__chevron" aria-hidden="true">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
-                </div>
-                <span className="toolbar-separator" aria-hidden="true" />
+                    <button
+                      aria-label="Alignment options"
+                      className="toolbar-button toolbar-button--selector-only"
+                      type="button"
+                    >
+                      <span className="toolbar-button__chevron" aria-hidden="true">
+                        <ChevronDownIcon />
+                      </span>
+                    </button>
+                  </div>
+                  <span className="toolbar-separator" aria-hidden="true" />
 
-                <div className="toolbar-group">
-                  {insertTools.map((tool) => (
-                    <button
-                      aria-label={tool.label}
-                      className="toolbar-button toolbar-button--icon"
-                      key={tool.label}
-                      type="button"
-                    >
-                      <tool.icon />
-                    </button>
-                  ))}
+                  <div className="toolbar-group">
+                    {insertTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--icon"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <tool.icon />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
 
             {workspace && selectedDocument ? (
               <section className="hello-state" data-testid="document-state">
                 <h1>{getDocumentTitle(selectedDocument.name)}</h1>
-                <p className="hello-state__copy">
-                  Mohio is treating this Markdown file as the active workspace document.
-                  The workspace browser now reflects the local folder structure directly.
-                </p>
-
-                <dl className="hello-state__meta">
-                  <div>
-                    <dt>Workspace</dt>
-                    <dd>{workspace.name}</dd>
-                  </div>
-                  <div>
-                    <dt>Document</dt>
-                    <dd>{selectedDocument.relativePath}</dd>
-                  </div>
-                  <div>
-                    <dt>Platform</dt>
-                    <dd>{appInfo.platform}</dd>
-                  </div>
-                </dl>
               </section>
             ) : workspace ? (
               <section className="hello-state" data-testid="document-state">
                 <h1>{workspace.name}</h1>
-                <p className="hello-state__copy">
-                  This workspace is open, but Mohio did not find any Markdown documents yet.
-                </p>
-
-                <dl className="hello-state__meta">
-                  <div>
-                    <dt>Workspace</dt>
-                    <dd>{workspace.name}</dd>
-                  </div>
-                  <div>
-                    <dt>Location</dt>
-                    <dd>{workspace.path}</dd>
-                  </div>
-                  <div>
-                    <dt>Documents</dt>
-                    <dd>{workspace.documentCount}</dd>
-                  </div>
-                </dl>
+                <p className="hello-state__copy">No Markdown documents found.</p>
               </section>
             ) : (
-              <section className="hello-state" data-testid="document-state">
-                <h1>Open a workspace</h1>
-                <p className="hello-state__copy">
-                  Choose a local folder to load its Markdown files into Mohio&apos;s
-                  workspace browser.
+              <section className="empty-workspace-state" data-testid="document-state">
+                <p className="empty-workspace-state__copy">
+                  Choose a folder to open as a workspace.
                 </p>
-
-                <dl className="hello-state__meta">
-                  <div>
-                    <dt>App</dt>
-                    <dd>{appInfo.name}</dd>
-                  </div>
-                  <div>
-                    <dt>Version</dt>
-                    <dd>{appInfo.version}</dd>
-                  </div>
-                  <div>
-                    <dt>Platform</dt>
-                    <dd>{appInfo.platform}</dd>
-                  </div>
-                </dl>
+                <button
+                  className="primary-button empty-workspace-state__button"
+                  disabled={isWorkspaceOpening}
+                  onClick={() => {
+                    void handleOpenWorkspace();
+                  }}
+                  type="button"
+                >
+                  {isWorkspaceOpening ? "Opening Workspace ..." : "Open Workspace"}
+                </button>
               </section>
             )}
           </div>
@@ -408,38 +350,56 @@ export function App() {
 function renderWorkspaceNode({
   node,
   selectedDocumentId,
+  expandedDirectoryIds,
   depth,
   onSelect,
+  onToggleDirectory,
 }: {
   node: WorkspaceTreeNode;
   selectedDocumentId: string | null;
+  expandedDirectoryIds: Set<string>;
   depth: number;
   onSelect: (documentId: string) => void;
+  onToggleDirectory: (directoryId: string) => void;
 }) {
   const rowStyle = {
     paddingInlineStart: `${12 + depth * 18}px`,
   };
 
   if (node.kind === "directory") {
+    const isExpanded = expandedDirectoryIds.has(node.id);
+
     return (
       <li className="tree-node tree-node--directory" key={node.id} role="treeitem">
-        <div className="tree-node__row tree-node__row--directory" style={rowStyle}>
-          <span aria-hidden="true" className="tree-node__kind">
-            Dir
+        <button
+          aria-expanded={isExpanded}
+          className="tree-node__row tree-node__row--directory tree-node__row--toggle"
+          onClick={() => {
+            onToggleDirectory(node.id);
+          }}
+          style={rowStyle}
+          type="button"
+        >
+          <span className="tree-node__chevron" aria-hidden="true">
+            <TreeChevronIcon isExpanded={isExpanded} />
           </span>
           <span className="tree-node__label">{node.name}</span>
-        </div>
+        </button>
 
-        <ul className="workspace-tree__group" role="group">
-          {node.children.map((child) =>
-            renderWorkspaceNode({
-              node: child,
-              selectedDocumentId,
-              depth: depth + 1,
-              onSelect,
-            }),
-          )}
-        </ul>
+        {isExpanded ? (
+          <ul className="workspace-tree__group" role="group">
+            {node.children.map((child) =>
+              renderWorkspaceNode({
+                node: child,
+                selectedDocumentId,
+                expandedDirectoryIds,
+                depth: depth + 1,
+                onSelect,
+                onToggleDirectory,
+              }),
+            )}
+          </ul>
+        ) : null}
       </li>
     );
   }
@@ -457,9 +417,6 @@ function renderWorkspaceNode({
         style={rowStyle}
         type="button"
       >
-        <span aria-hidden="true" className="tree-node__kind">
-          MD
-        </span>
         <span className="tree-node__label">{getDocumentTitle(node.name)}</span>
       </button>
     </li>
@@ -488,6 +445,26 @@ function findFirstDocumentId(nodes: WorkspaceTreeNode[]): string | null {
   }
 
   return null;
+}
+
+function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string> {
+  if (!workspace) {
+    return new Set();
+  }
+
+  return new Set(collectDirectoryIds(workspace.documents));
+}
+
+function collectDirectoryIds(nodes: WorkspaceTreeNode[]): string[] {
+  const directoryIds: string[] = [];
+
+  for (const node of nodes) {
+    if (node.kind === "directory") {
+      directoryIds.push(node.id, ...collectDirectoryIds(node.children));
+    }
+  }
+
+  return directoryIds;
 }
 
 function findDocumentById(
@@ -716,6 +693,25 @@ function ClearFormattingIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="1.1"
+      />
+    </svg>
+  );
+}
+
+function TreeChevronIcon({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="tree-chevron-icon"
+      fill="none"
+      viewBox="0 0 16 16"
+    >
+      <path
+        d={isExpanded ? "M4.75 6.5 8 9.75 11.25 6.5" : "M6.5 4.75 9.75 8 6.5 11.25"}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.45"
       />
     </svg>
   );

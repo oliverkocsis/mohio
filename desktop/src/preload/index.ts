@@ -10,6 +10,20 @@ const mohioApi = createMohioApi({
   },
   getCurrentWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.getCurrentWorkspace),
   openWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.openWorkspace),
+  onWorkspaceChanged: (listener) => {
+    const handleWorkspaceChanged = (
+      _event: Electron.IpcRendererEvent,
+      workspace: Awaited<ReturnType<typeof ipcRenderer.invoke>>,
+    ) => {
+      listener(workspace);
+    };
+
+    ipcRenderer.on(MOHIO_CHANNELS.workspaceChanged, handleWorkspaceChanged);
+
+    return () => {
+      ipcRenderer.removeListener(MOHIO_CHANNELS.workspaceChanged, handleWorkspaceChanged);
+    };
+  },
 });
 
 contextBridge.exposeInMainWorld("mohio", mohioApi);

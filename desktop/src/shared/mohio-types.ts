@@ -32,4 +32,7 @@ export interface MohioApi {
   getAppInfo: () => AppInfo;
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
+  onWorkspaceChanged: (
+    listener: (workspace: WorkspaceSummary | null) => void,
+  ) => () => void;
 }

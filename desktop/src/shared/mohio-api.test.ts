@@ -19,6 +19,7 @@ describe("createMohioApi", () => {
 
     const getCurrentWorkspace = vi.fn().mockResolvedValue(workspace);
     const openWorkspace = vi.fn().mockResolvedValue(workspace);
+    const onWorkspaceChanged = vi.fn().mockReturnValue(() => undefined);
 
     const api = createMohioApi({
       appInfo: {
@@ -28,6 +29,7 @@ describe("createMohioApi", () => {
       },
       getCurrentWorkspace,
       openWorkspace,
+      onWorkspaceChanged,
     });
 
     expect(api.getAppInfo()).toEqual({
@@ -37,7 +39,9 @@ describe("createMohioApi", () => {
     });
     await expect(api.getCurrentWorkspace()).resolves.toEqual(workspace);
     await expect(api.openWorkspace()).resolves.toEqual(workspace);
+    expect(api.onWorkspaceChanged(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
+    expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
   });
 });

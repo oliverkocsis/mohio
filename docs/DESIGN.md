@@ -74,8 +74,11 @@ The left sidebar should use:
 
 - `320px` width
 - light gray background
-- pinned and unpinned note sections
+- a single `Workspace` label in the earliest empty state
+- a short `No workspace is open.` message instead of a duplicate left-rail CTA when no folder is selected
 - compact note rows with title and relative date
+- collapsible folder rows with chevrons that point right when collapsed and down when expanded
+- condensed row spacing closer to a Notion-style navigation density than a roomy file explorer
 - blue-tinted active note highlighting
 - contextual row menus for rename, pin, and delete
 
@@ -86,6 +89,7 @@ The largest area in the interface. It contains:
 - document title field
 - primary styled Markdown editor surface
 - compact formatting toolbar with centered icon controls and lightweight selectors
+- when no workspace is open, a single centered folder-selection button with one short line of setup copy above it
 
 The readable content should sit inside a narrower text column rather than stretching full width.
 
