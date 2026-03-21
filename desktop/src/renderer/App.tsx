@@ -1,15 +1,9 @@
-import type { AppInfo } from "@shared/mohio-types";
-
-const leftRailSections = [
-  {
-    title: "Recent",
-    items: ["Welcome note", "Team handbook", "Publishing checklist"],
-  },
-  {
-    title: "Pinned",
-    items: ["Roadmap", "Architecture"],
-  },
-];
+import { useEffect, useState } from "react";
+import type {
+  WorkspaceDocumentNode,
+  WorkspaceSummary,
+  WorkspaceTreeNode,
+} from "@shared/mohio-types";
 
 const headingTools = [
   { label: "Heading 1", displayLabel: "H1" },
@@ -35,172 +29,297 @@ const insertTools = [
 ] as const;
 
 export function App() {
-  const appInfo: AppInfo = window.mohio.getAppInfo();
+  const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [expandedDirectoryIds, setExpandedDirectoryIds] = useState<Set<string>>(new Set());
+  const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
+  const [isWorkspaceOpening, setIsWorkspaceOpening] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const applyWorkspace = (nextWorkspace: WorkspaceSummary | null) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setWorkspace(nextWorkspace);
+      setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
+      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
+      setWorkspaceError(null);
+      setIsWorkspaceLoading(false);
+    };
+
+    const loadWorkspace = async () => {
+      try {
+        const currentWorkspace = await window.mohio.getCurrentWorkspace();
+        applyWorkspace(currentWorkspace);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setWorkspaceError("Mohio could not load the current workspace.");
+      } finally {
+        if (isMounted) {
+          setIsWorkspaceLoading(false);
+        }
+      }
+    };
+
+    const disposeWorkspaceListener = window.mohio.onWorkspaceChanged((nextWorkspace) => {
+      applyWorkspace(nextWorkspace);
+    });
+
+    void loadWorkspace();
+
+    return () => {
+      isMounted = false;
+      disposeWorkspaceListener();
+    };
+  }, []);
+
+  const selectedDocument = workspace && selectedDocumentId
+    ? findDocumentById(workspace.documents, selectedDocumentId)
+    : null;
+
+  const toggleDirectory = (directoryId: string) => {
+    setExpandedDirectoryIds((currentExpandedDirectoryIds) => {
+      const nextExpandedDirectoryIds = new Set(currentExpandedDirectoryIds);
+
+      if (nextExpandedDirectoryIds.has(directoryId)) {
+        nextExpandedDirectoryIds.delete(directoryId);
+      } else {
+        nextExpandedDirectoryIds.add(directoryId);
+      }
+
+      return nextExpandedDirectoryIds;
+    });
+  };
+
+  const handleOpenWorkspace = async () => {
+    try {
+      setIsWorkspaceOpening(true);
+
+      const nextWorkspace = await window.mohio.openWorkspace();
+
+      setWorkspace(nextWorkspace);
+      setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
+      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
+      setWorkspaceError(null);
+    } catch {
+      setWorkspaceError("Mohio could not open that folder as a workspace.");
+    } finally {
+      setIsWorkspaceLoading(false);
+      setIsWorkspaceOpening(false);
+    }
+  };
 
   return (
     <div className="app-shell">
       <header className="top-bar" data-testid="top-bar">
         <div className="top-bar__context">
-          <span className="workspace-label">
-            <span>Mohio</span>
+          <button
+            aria-label={workspace ? `Switch workspace from ${workspace.name}` : "Select workspace"}
+            className="workspace-label workspace-label--button"
+            disabled={isWorkspaceOpening}
+            onClick={() => {
+              void handleOpenWorkspace();
+            }}
+            type="button"
+          >
+            <span className="workspace-label__name">
+              {workspace?.name ?? "No workspace opened"}
+            </span>
             <span className="workspace-label__chevron" aria-hidden="true">
               <ChevronDownIcon />
             </span>
-          </span>
+          </button>
         </div>
 
         <div className="top-bar__search">
           <input
             aria-label="Search workspace"
             className="search-input search-input--top-bar"
-            placeholder="Search workspace"
+            placeholder={workspace ? `Search ${workspace.name}` : "Search workspace"}
             readOnly
             type="search"
           />
         </div>
 
         <div className="top-bar__actions">
-          <button className="primary-button" type="button">
-            New note
-          </button>
+          {workspace ? (
+            <button className="primary-button" type="button">
+              New note
+            </button>
+          ) : null}
         </div>
       </header>
 
       <div className="workspace-shell">
         <aside className="sidebar sidebar--left" data-testid="workspace-sidebar">
-          {leftRailSections.map((section) => (
-            <section className="sidebar__section" key={section.title}>
-              <h2 className="sidebar__title">{section.title}</h2>
-              <ul className="note-list">
-                {section.items.map((item, index) => (
-                  <li className={`note-row${index === 0 && section.title === "Recent" ? " note-row--active" : ""}`} key={item}>
-                    <span className="note-row__title">{item}</span>
-                    <span className="note-row__meta">Draft</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+          <section className="sidebar__section">
+            <h2 className="sidebar__title">Workspace</h2>
+
+            {isWorkspaceLoading ? (
+              <p className="workspace-panel__copy">Loading current workspace...</p>
+            ) : workspace ? (
+              <>
+                {workspace.documentCount === 0 ? (
+                  <p className="workspace-panel__copy">
+                    No Markdown documents found.
+                  </p>
+                ) : (
+                  <ul className="workspace-tree" role="tree">
+                    {workspace.documents.map((node) =>
+                      renderWorkspaceNode({
+                        node,
+                        selectedDocumentId,
+                        expandedDirectoryIds,
+                        depth: 0,
+                        onSelect: setSelectedDocumentId,
+                        onToggleDirectory: toggleDirectory,
+                      }),
+                    )}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p className="workspace-panel__copy">You have not yet opened a workspace.</p>
+            )}
+
+            {workspaceError ? (
+              <p className="workspace-panel__error" role="status">
+                {workspaceError}
+              </p>
+            ) : null}
+          </section>
         </aside>
 
         <main className="editor-panel">
           <div className="editor-panel__inner">
-            <div className="editor-toolbar">
-              <div className="toolbar-actions">
-                <div className="toolbar-group">
-                  {headingTools.map((tool) => (
+            {workspace ? (
+              <div className="editor-toolbar">
+                <div className="toolbar-actions">
+                  <div className="toolbar-group">
+                    {headingTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--text"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <span className="toolbar-button__text">{tool.displayLabel}</span>
+                      </button>
+                    ))}
                     <button
-                      aria-label={tool.label}
-                      className="toolbar-button toolbar-button--text"
-                      key={tool.label}
+                      aria-label="Heading styles"
+                      className="toolbar-button toolbar-button--selector-only"
                       type="button"
                     >
-                      <span className="toolbar-button__text">{tool.displayLabel}</span>
+                      <span className="toolbar-button__chevron" aria-hidden="true">
+                        <ChevronDownIcon />
+                      </span>
                     </button>
-                  ))}
-                  <button
-                    aria-label="Heading styles"
-                    className="toolbar-button toolbar-button--selector-only"
-                    type="button"
-                  >
-                    <span className="toolbar-button__chevron" aria-hidden="true">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
-                </div>
-                <span className="toolbar-separator" aria-hidden="true" />
+                  </div>
+                  <span className="toolbar-separator" aria-hidden="true" />
 
-                <div className="toolbar-group">
-                  {textStyleTools.map((tool) => (
+                  <div className="toolbar-group">
+                    {textStyleTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--icon"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <tool.icon />
+                      </button>
+                    ))}
                     <button
-                      aria-label={tool.label}
-                      className="toolbar-button toolbar-button--icon"
-                      key={tool.label}
+                      aria-label="Text styles"
+                      className="toolbar-button toolbar-button--selector-only"
                       type="button"
                     >
-                      <tool.icon />
+                      <span className="toolbar-button__chevron" aria-hidden="true">
+                        <ChevronDownIcon />
+                      </span>
                     </button>
-                  ))}
-                  <button
-                    aria-label="Text styles"
-                    className="toolbar-button toolbar-button--selector-only"
-                    type="button"
-                  >
-                    <span className="toolbar-button__chevron" aria-hidden="true">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
-                </div>
-                <span className="toolbar-separator" aria-hidden="true" />
+                  </div>
+                  <span className="toolbar-separator" aria-hidden="true" />
 
-                <div className="toolbar-group">
-                  {listTools.map((tool) => (
+                  <div className="toolbar-group">
+                    {listTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--icon"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <tool.icon />
+                      </button>
+                    ))}
                     <button
-                      aria-label={tool.label}
+                      aria-label="Text alignment"
                       className="toolbar-button toolbar-button--icon"
-                      key={tool.label}
                       type="button"
                     >
-                      <tool.icon />
+                      <AlignLeftIcon />
                     </button>
-                  ))}
-                  <button
-                    aria-label="Text alignment"
-                    className="toolbar-button toolbar-button--icon"
-                    type="button"
-                  >
-                    <AlignLeftIcon />
-                  </button>
-                  <button
-                    aria-label="Alignment options"
-                    className="toolbar-button toolbar-button--selector-only"
-                    type="button"
-                  >
-                    <span className="toolbar-button__chevron" aria-hidden="true">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
-                </div>
-                <span className="toolbar-separator" aria-hidden="true" />
+                    <button
+                      aria-label="Alignment options"
+                      className="toolbar-button toolbar-button--selector-only"
+                      type="button"
+                    >
+                      <span className="toolbar-button__chevron" aria-hidden="true">
+                        <ChevronDownIcon />
+                      </span>
+                    </button>
+                  </div>
+                  <span className="toolbar-separator" aria-hidden="true" />
 
-                <div className="toolbar-group">
-                  {insertTools.map((tool) => (
-                    <button
-                      aria-label={tool.label}
-                      className="toolbar-button toolbar-button--icon"
-                      key={tool.label}
-                      type="button"
-                    >
-                      <tool.icon />
-                    </button>
-                  ))}
+                  <div className="toolbar-group">
+                    {insertTools.map((tool) => (
+                      <button
+                        aria-label={tool.label}
+                        className="toolbar-button toolbar-button--icon"
+                        key={tool.label}
+                        type="button"
+                      >
+                        <tool.icon />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
 
-            <section className="hello-state" data-testid="hello-state">
-              <h1>Hello Mohio</h1>
-              <p className="hello-state__copy">
-                The first real Mohio desktop shell is running. Workspace selection,
-                Markdown documents, and assistant workflows will layer onto this
-                frame next.
-              </p>
-
-              <dl className="hello-state__meta">
-                <div>
-                  <dt>App</dt>
-                  <dd>{appInfo.name}</dd>
-                </div>
-                <div>
-                  <dt>Version</dt>
-                  <dd>{appInfo.version}</dd>
-                </div>
-                <div>
-                  <dt>Platform</dt>
-                  <dd>{appInfo.platform}</dd>
-                </div>
-              </dl>
-            </section>
+            {workspace && selectedDocument ? (
+              <section className="hello-state" data-testid="document-state">
+                <h1>{getDocumentTitle(selectedDocument.name)}</h1>
+              </section>
+            ) : workspace ? (
+              <section className="hello-state" data-testid="document-state">
+                <h1>{workspace.name}</h1>
+                <p className="hello-state__copy">No Markdown documents found.</p>
+              </section>
+            ) : (
+              <section className="empty-workspace-state" data-testid="document-state">
+                <p className="empty-workspace-state__copy">
+                  Choose a folder to open as a workspace.
+                </p>
+                <button
+                  className="primary-button empty-workspace-state__button"
+                  disabled={isWorkspaceOpening}
+                  onClick={() => {
+                    void handleOpenWorkspace();
+                  }}
+                  type="button"
+                >
+                  {isWorkspaceOpening ? "Opening Workspace ..." : "Open Workspace"}
+                </button>
+              </section>
+            )}
           </div>
         </main>
 
@@ -226,6 +345,151 @@ export function App() {
       </div>
     </div>
   );
+}
+
+function renderWorkspaceNode({
+  node,
+  selectedDocumentId,
+  expandedDirectoryIds,
+  depth,
+  onSelect,
+  onToggleDirectory,
+}: {
+  node: WorkspaceTreeNode;
+  selectedDocumentId: string | null;
+  expandedDirectoryIds: Set<string>;
+  depth: number;
+  onSelect: (documentId: string) => void;
+  onToggleDirectory: (directoryId: string) => void;
+}) {
+  const rowStyle = {
+    paddingInlineStart: `${12 + depth * 18}px`,
+  };
+
+  if (node.kind === "directory") {
+    const isExpanded = expandedDirectoryIds.has(node.id);
+
+    return (
+      <li className="tree-node tree-node--directory" key={node.id} role="treeitem">
+        <button
+          aria-expanded={isExpanded}
+          className="tree-node__row tree-node__row--directory tree-node__row--toggle"
+          onClick={() => {
+            onToggleDirectory(node.id);
+          }}
+          style={rowStyle}
+          type="button"
+        >
+          <span className="tree-node__chevron" aria-hidden="true">
+            <TreeChevronIcon isExpanded={isExpanded} />
+          </span>
+          <span className="tree-node__label">{node.name}</span>
+        </button>
+
+        {isExpanded ? (
+          <ul className="workspace-tree__group" role="group">
+            {node.children.map((child) =>
+              renderWorkspaceNode({
+                node: child,
+                selectedDocumentId,
+                expandedDirectoryIds,
+                depth: depth + 1,
+                onSelect,
+                onToggleDirectory,
+              }),
+            )}
+          </ul>
+        ) : null}
+      </li>
+    );
+  }
+
+  const isActive = node.id === selectedDocumentId;
+
+  return (
+    <li className="tree-node" key={node.id} role="treeitem">
+      <button
+        aria-current={isActive ? "page" : undefined}
+        className={`tree-node__button${isActive ? " tree-node__button--active" : ""}`}
+        onClick={() => {
+          onSelect(node.id);
+        }}
+        style={rowStyle}
+        type="button"
+      >
+        <span className="tree-node__label">{getDocumentTitle(node.name)}</span>
+      </button>
+    </li>
+  );
+}
+
+function getInitialDocumentId(workspace: WorkspaceSummary | null): string | null {
+  if (!workspace) {
+    return null;
+  }
+
+  return findFirstDocumentId(workspace.documents);
+}
+
+function findFirstDocumentId(nodes: WorkspaceTreeNode[]): string | null {
+  for (const node of nodes) {
+    if (node.kind === "document") {
+      return node.id;
+    }
+
+    const firstChildDocumentId = findFirstDocumentId(node.children);
+
+    if (firstChildDocumentId) {
+      return firstChildDocumentId;
+    }
+  }
+
+  return null;
+}
+
+function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string> {
+  if (!workspace) {
+    return new Set();
+  }
+
+  return new Set(collectDirectoryIds(workspace.documents));
+}
+
+function collectDirectoryIds(nodes: WorkspaceTreeNode[]): string[] {
+  const directoryIds: string[] = [];
+
+  for (const node of nodes) {
+    if (node.kind === "directory") {
+      directoryIds.push(node.id, ...collectDirectoryIds(node.children));
+    }
+  }
+
+  return directoryIds;
+}
+
+function findDocumentById(
+  nodes: WorkspaceTreeNode[],
+  documentId: string,
+): WorkspaceDocumentNode | null {
+  for (const node of nodes) {
+    if (node.kind === "document" && node.id === documentId) {
+      return node;
+    }
+
+    if (node.kind === "directory") {
+      const nestedDocument = findDocumentById(node.children, documentId);
+
+      if (nestedDocument) {
+        return nestedDocument;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getDocumentTitle(fileName: string): string {
+  return fileName.replace(/\.(md|markdown|mdx)$/iu, "");
 }
 
 function BoldIcon() {
@@ -429,6 +693,25 @@ function ClearFormattingIcon() {
         stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="1.1"
+      />
+    </svg>
+  );
+}
+
+function TreeChevronIcon({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="tree-chevron-icon"
+      fill="none"
+      viewBox="0 0 16 16"
+    >
+      <path
+        d={isExpanded ? "M4.75 6.5 8 9.75 11.25 6.5" : "M6.5 4.75 9.75 8 6.5 11.25"}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.45"
       />
     </svg>
   );

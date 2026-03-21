@@ -50,25 +50,38 @@ When making changes, update the relevant document in the same PR:
 
 If a change affects product behavior, visual system, and engineering direction, update more than one document. Do not keep detailed feature, design, or architecture notes only in code or PR descriptions.
 
+## Development Workflow
+
+All development work must happen on a feature branch using this exact format:
+
+- `feature-yyyymmdd-descriptive-feature-name`
+
+Rules:
+
+- Do not develop directly on `main`.
+- Complete the feature on its branch first.
+- A code review is required on the feature branch before it can be merged into `main`.
+- Do not merge into `main` until the code review is finished.
+
 ## Change Log
 
-Every software change must be recorded in `docs/changelog/` as its own Markdown file.
+All software changes must be documented in `docs/changelog/`.
 
-Use this filename format:
+During feature development, developers may keep working changelog notes for the branch. Before the reviewed feature branch is merged into `main`, all changelog notes for that branch must be consolidated into one final Markdown file named exactly after the branch:
 
-- `YYYYMMDD_description-of-the-change.md`
+- `feature-yyyymmdd-descriptive-feature-name.md`
 
-Each changelog file must explain:
+The final changelog must explain:
 
-- why the change was made
-- what changed exactly
+- why the feature was developed
+- what the final merged version includes
 - which parts of the software were affected
 
 Rules:
 
-- Create the changelog file in the same PR as the software change.
-- Record changes in enough detail that another developer can understand the decision and the exact implementation impact later.
-- Do not combine unrelated software changes into one changelog entry.
+- The final changelog must be ready before the feature branch is merged into `main`.
+- The final changelog should describe the merged result, not the full development history.
+- Merge all branch changelog notes into the single final changelog file for that branch.
 - Do not rely on commit messages or PR descriptions as the only historical record.
 
 ## Product Direction

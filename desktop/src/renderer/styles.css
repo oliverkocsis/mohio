@@ -34,6 +34,7 @@ body {
 
 button {
   font: inherit;
+  cursor: pointer;
 }
 
 .app-shell {
@@ -81,6 +82,20 @@ button {
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.01em;
+}
+
+.workspace-label--button {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.workspace-label__name {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-label__chevron {
@@ -136,7 +151,7 @@ button {
 .sidebar__section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .sidebar__title,
@@ -160,7 +175,6 @@ button {
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 500;
-  cursor: default;
 }
 
 .primary-button {
@@ -187,11 +201,39 @@ button {
   color: var(--text-muted);
 }
 
+.workspace-panel__copy,
+.workspace-panel__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.workspace-panel__error {
+  color: #b91c1c;
+}
+
 .note-list,
-.action-list {
+.action-list,
+.workspace-tree,
+.workspace-tree__group {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.workspace-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.workspace-tree__group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .note-row {
@@ -201,6 +243,75 @@ button {
   border-radius: 4px;
   padding: 10px 12px;
   color: var(--text-secondary);
+}
+
+.tree-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tree-node__row,
+.tree-node__button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  padding: 7px 10px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.tree-node__row--directory {
+  color: var(--text-muted);
+}
+
+.tree-node__row--toggle {
+  cursor: pointer;
+}
+
+.tree-node__row--toggle:hover,
+.tree-node__button:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.tree-node__chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-subtle);
+}
+
+.tree-node__button--active {
+  background: var(--accent-blue-soft);
+  color: var(--accent-blue);
+}
+
+.tree-node__button--active .tree-node__chevron {
+  color: currentColor;
+}
+
+.tree-node__button {
+  gap: 0;
+}
+
+.tree-node__label {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-chevron-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .note-row--active {
@@ -238,7 +349,7 @@ button {
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid var(--border);
-  padding: 16px 0px;
+  padding: 16px;
 }
 
 .toolbar-actions {
@@ -300,8 +411,8 @@ button {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
-  padding: 8px 0 64px;
+  gap: 12px;
+  padding: 32px;
 }
 
 .hello-state h1 {
@@ -312,6 +423,7 @@ button {
 }
 
 .hello-state__copy,
+.empty-workspace-state__copy,
 .assistant-panel__copy {
   margin: 0;
   max-width: 640px;
@@ -320,33 +432,23 @@ button {
   color: var(--text-secondary);
 }
 
-.hello-state__meta {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin: 8px 0 0;
+.empty-workspace-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px;
+  text-align: center;
 }
 
-.hello-state__meta div {
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--background);
-  padding: 16px;
+.empty-workspace-state__copy {
+  max-width: 420px;
 }
 
-.hello-state__meta dt {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.hello-state__meta dd {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
+.empty-workspace-state__button {
+  min-width: 168px;
 }
 
 .assistant-panel-header {
