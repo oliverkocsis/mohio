@@ -27,7 +27,28 @@ This document describes the intended product feature set. It is broader than any
 - Show the current workspace name and context clearly.
 - Keep the default experience local-first without requiring a hosted backend.
 
-### 2. Note and Document Management
+### 2. Editing Experience
+
+- Default to a polished document editing experience for non-technical users.
+- Use `Quill` as the WYSIWYG editor for standard writing workflows.
+- Show a clear document title field as part of the editing surface.
+- Provide a lightweight formatting toolbar for common writing actions.
+- Preserve Markdown as the durable source format.
+- Support default Markdown formatting options including paragraphs, headings, ordered and unordered lists, task lists, block quotes, links, images, bold, italic, strikethrough, inline code, code blocks, tables, and horizontal rules.
+- Save edits continuously without a manual save workflow.
+- Keep the document editor as the visual center of the product.
+
+### 3. AI Assistance
+
+- Provide an embedded AI panel inside the workspace for connected assistants such as Codex and Claude Code.
+- Let connected assistants summarize, rewrite, organizeUse, expand, and update the current note.
+- Allow the assistant to propose creating new notes when useful.
+- Surface suggested assistant actions where they help the current document workflow.
+- Keep assistant actions explicit and reviewable.
+- Show what the assistant changed instead of hiding modifications.
+- Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
+
+### 5. Note and Document Management
 
 - Create a new note from inside the app.
 - Open a newly created note immediately.
@@ -37,18 +58,6 @@ This document describes the intended product feature set. It is broader than any
 - Support recent or pinned notes for fast return paths.
 - Keep the active note clearly highlighted in the workspace browser.
 
-### 3. Editing Experience
-
-- Default to a polished document editing experience for non-technical users.
-- Provide a formatted WYSIWYG editing mode for standard writing workflows.
-- Show a clear document title field as part of the editing surface.
-- Provide a lightweight formatting toolbar for common writing actions.
-- Preserve Markdown as the durable source format.
-- Provide a source editing mode for advanced Markdown editing.
-- Support headings, lists, quotes, links, emphasis, and code blocks.
-- Save edits continuously without a manual save workflow.
-- Keep the document editor as the visual center of the product.
-
 ### 4. Navigation and Discovery
 
 - Switch between notes quickly from the workspace browser.
@@ -57,16 +66,6 @@ This document describes the intended product feature set. It is broader than any
 - Recognize internal Markdown links between documents.
 - Open linked notes directly from the editor.
 - Support contextual navigation between related pages over time.
-
-### 5. AI Assistance
-
-- Provide an embedded AI panel inside the workspace for connected assistants such as Codex and Claude Code.
-- Let connected assistants summarize, rewrite, organize, expand, and update the current note.
-- Allow the assistant to propose creating new notes when useful.
-- Surface suggested assistant actions where they help the current document workflow.
-- Keep assistant actions explicit and reviewable.
-- Show what the assistant changed instead of hiding modifications.
-- Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
 
 ### 6. Review, History, and Checkpoints
 
