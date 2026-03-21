@@ -3,6 +3,7 @@ import type { BaseWindow } from "electron";
 import path from "node:path";
 import { MOHIO_CHANNELS } from "@shared/mohio-api";
 import type { WorkspaceSummary } from "@shared/mohio-types";
+import { readDocument, saveDocument } from "./document-store";
 import { buildAppMenuTemplate } from "./menu";
 import { getWorkspaceSummary } from "./workspace";
 
@@ -80,6 +81,20 @@ async function openWorkspace(browserWindow?: BaseWindow) {
 function registerMohioHandlers() {
   ipcMain.handle(MOHIO_CHANNELS.getCurrentWorkspace, () => loadCurrentWorkspace());
   ipcMain.handle(MOHIO_CHANNELS.openWorkspace, (_event) => openWorkspace());
+  ipcMain.handle(MOHIO_CHANNELS.readDocument, async (_event, relativePath: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading documents.");
+    }
+
+    return readDocument(currentWorkspacePath, relativePath);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.saveDocument, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before saving documents.");
+    }
+
+    return saveDocument(currentWorkspacePath, input);
+  });
 }
 
 function registerApplicationMenu() {

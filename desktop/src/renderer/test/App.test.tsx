@@ -11,6 +11,12 @@ describe("App", () => {
       }),
       getCurrentWorkspace: async () => null,
       openWorkspace: async () => null,
+      readDocument: async () => {
+        throw new Error("No document");
+      },
+      saveDocument: async () => {
+        throw new Error("No document");
+      },
       onWorkspaceChanged: () => () => undefined,
     };
 
@@ -72,6 +78,7 @@ describe("App", () => {
               kind: "document" as const,
               name: "Architecture.md",
               relativePath: "docs/Architecture.md",
+              displayTitle: "Architecture Overview",
             },
           ],
         },
@@ -80,12 +87,14 @@ describe("App", () => {
           kind: "document" as const,
           name: "README.md",
           relativePath: "README.md",
+          displayTitle: "README",
         },
         {
           id: "ROADMAP.md",
           kind: "document" as const,
           name: "ROADMAP.md",
           relativePath: "ROADMAP.md",
+          displayTitle: "ROADMAP",
         },
       ],
     });
@@ -100,8 +109,29 @@ describe("App", () => {
           kind: "document" as const,
           name: "Team Handbook.md",
           relativePath: "Team Handbook.md",
+          displayTitle: "Team Handbook",
         },
       ],
+    });
+    const readDocument = vi.fn()
+      .mockResolvedValueOnce({
+        relativePath: "docs/Architecture.md",
+        fileName: "Architecture.md",
+        displayTitle: "Architecture Overview",
+        markdown: "Current body.\n",
+      })
+      .mockResolvedValueOnce({
+        relativePath: "Team Handbook.md",
+        fileName: "Team Handbook.md",
+        displayTitle: "Team Handbook",
+        markdown: "Beta body.\n",
+      });
+    const saveDocument = vi.fn().mockResolvedValue({
+      relativePath: "docs/Architecture.md",
+      fileName: "Architecture.md",
+      displayTitle: "Architecture Overview",
+      markdown: "Current body.\n",
+      savedAt: "2026-03-21T00:00:00.000Z",
     });
 
     window.mohio = {
@@ -112,6 +142,8 @@ describe("App", () => {
       }),
       getCurrentWorkspace,
       openWorkspace,
+      readDocument,
+      saveDocument,
       onWorkspaceChanged: () => () => undefined,
     };
 
@@ -123,21 +155,22 @@ describe("App", () => {
     const docsFolderToggle = screen.getByRole("button", { name: "docs" });
     expect(screen.queryByText("/workspaces/alpha")).not.toBeInTheDocument();
     expect(docsFolderToggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("button", { name: "Architecture" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Architecture Overview" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "README" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ROADMAP" })).toBeInTheDocument();
-    expect(screen.getByTestId("document-state")).toHaveTextContent("Architecture");
+    expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture Overview");
+    expect(screen.getByTestId("save-state")).toHaveTextContent("Saved");
     expect(screen.queryByText("docs/Architecture.md")).not.toBeInTheDocument();
 
     fireEvent.click(docsFolderToggle);
 
     expect(docsFolderToggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("button", { name: "Architecture" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Architecture Overview" })).not.toBeInTheDocument();
 
     fireEvent.click(docsFolderToggle);
 
     expect(docsFolderToggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("button", { name: "Architecture" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Architecture Overview" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Switch workspace from alpha" }));
 
@@ -147,9 +180,11 @@ describe("App", () => {
     ).toHaveTextContent("beta");
     expect(screen.queryByText("/workspaces/beta")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Team Handbook" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByTestId("document-state")).toHaveTextContent("Team Handbook");
+    expect(await screen.findByLabelText("Document title")).toHaveValue("Team Handbook");
     expect(screen.queryByText("Team Handbook.md")).not.toBeInTheDocument();
-    expect(within(screen.getByTestId("top-bar")).getByRole("button", { name: "New note" })).toHaveClass("primary-button");
     expect(screen.getByRole("button", { name: "Heading 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Horizontal rule" })).toBeInTheDocument();
+    expect(saveDocument).not.toHaveBeenCalled();
   });
 });

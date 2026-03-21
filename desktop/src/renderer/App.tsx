@@ -1,32 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  WorkspaceDocument,
   WorkspaceDocumentNode,
   WorkspaceSummary,
   WorkspaceTreeNode,
 } from "@shared/mohio-types";
+import { RichTextEditor } from "./rich-text-editor";
 
-const headingTools = [
-  { label: "Heading 1", displayLabel: "H1" },
-  { label: "Heading 2", displayLabel: "H2" },
-  { label: "Heading 3", displayLabel: "H3" },
-] as const;
+type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
 
-const textStyleTools = [
-  { label: "Bold", icon: BoldIcon },
-  { label: "Underline", icon: UnderlineIcon },
-  { label: "Italic", icon: ItalicIcon },
-] as const;
-
-const listTools = [
-  { label: "Bulleted list", icon: BulletedListIcon },
-  { label: "Numbered list", icon: NumberedListIcon },
- ] as const;
-
-const insertTools = [
-  { label: "Link", icon: LinkIcon },
-  { label: "Table", icon: TableIcon },
-  { label: "Clear formatting", icon: ClearFormattingIcon },
-] as const;
+interface DocumentSnapshot {
+  markdown: string;
+  relativePath: string;
+  title: string;
+}
 
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
@@ -35,18 +22,37 @@ export function App() {
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
   const [isWorkspaceOpening, setIsWorkspaceOpening] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [document, setDocument] = useState<WorkspaceDocument | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftMarkdown, setDraftMarkdown] = useState("");
+  const [documentError, setDocumentError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const lastSavedSnapshotRef = useRef<DocumentSnapshot | null>(null);
+  const loadSequenceRef = useRef(0);
+  const saveSequenceRef = useRef(0);
+  const selectedDocumentIdRef = useRef<string | null>(null);
+
+  selectedDocumentIdRef.current = selectedDocumentId;
 
   useEffect(() => {
     let isMounted = true;
 
-    const applyWorkspace = (nextWorkspace: WorkspaceSummary | null) => {
+    const applyWorkspace = (
+      nextWorkspace: WorkspaceSummary | null,
+      preferredDocumentId?: string | null,
+    ) => {
       if (!isMounted) {
         return;
       }
 
       setWorkspace(nextWorkspace);
-      setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
       setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
+      setSelectedDocumentId(
+        getPreferredDocumentId(
+          nextWorkspace,
+          preferredDocumentId ?? selectedDocumentIdRef.current,
+        ),
+      );
       setWorkspaceError(null);
       setIsWorkspaceLoading(false);
     };
@@ -61,10 +67,7 @@ export function App() {
         }
 
         setWorkspaceError("Mohio could not load the current workspace.");
-      } finally {
-        if (isMounted) {
-          setIsWorkspaceLoading(false);
-        }
+        setIsWorkspaceLoading(false);
       }
     };
 
@@ -80,9 +83,164 @@ export function App() {
     };
   }, []);
 
-  const selectedDocument = workspace && selectedDocumentId
-    ? findDocumentById(workspace.documents, selectedDocumentId)
-    : null;
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      setDocument(null);
+      setDraftTitle("");
+      setDraftMarkdown("");
+      setDocumentError(null);
+      setSaveState("idle");
+      lastSavedSnapshotRef.current = null;
+      return;
+    }
+
+    const loadSequence = loadSequenceRef.current + 1;
+    loadSequenceRef.current = loadSequence;
+    setSaveState("loading");
+    setDocumentError(null);
+
+    void window.mohio.readDocument(selectedDocumentId).then(
+      (nextDocument) => {
+        if (loadSequence !== loadSequenceRef.current) {
+          return;
+        }
+
+        setDocument(nextDocument);
+        setDraftTitle(nextDocument.displayTitle);
+        setDraftMarkdown(nextDocument.markdown);
+        lastSavedSnapshotRef.current = {
+          relativePath: nextDocument.relativePath,
+          title: nextDocument.displayTitle,
+          markdown: nextDocument.markdown,
+        };
+        setSaveState("saved");
+      },
+      () => {
+        if (loadSequence !== loadSequenceRef.current) {
+          return;
+        }
+
+        setDocument(null);
+        setDocumentError("Mohio could not load that document.");
+        setSaveState("error");
+      },
+    );
+  }, [selectedDocumentId]);
+
+  const isDirty = useMemo(() => {
+    const lastSavedSnapshot = lastSavedSnapshotRef.current;
+
+    if (!document || !lastSavedSnapshot) {
+      return false;
+    }
+
+    return (
+      draftTitle !== lastSavedSnapshot.title ||
+      draftMarkdown !== lastSavedSnapshot.markdown ||
+      document.relativePath !== lastSavedSnapshot.relativePath
+    );
+  }, [document, draftMarkdown, draftTitle]);
+
+  useEffect(() => {
+    if (!document || !isDirty) {
+      if (document && saveState === "loading") {
+        return;
+      }
+
+      if (document && saveState !== "saved" && saveState !== "saving") {
+        setSaveState("saved");
+      }
+
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void saveCurrentDocument();
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [document, draftMarkdown, draftTitle, isDirty]);
+
+  const handleOpenWorkspace = async () => {
+    try {
+      setIsWorkspaceOpening(true);
+      const nextWorkspace = await window.mohio.openWorkspace();
+
+      setWorkspace(nextWorkspace);
+      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
+      setSelectedDocumentId(getPreferredDocumentId(nextWorkspace));
+      setWorkspaceError(null);
+    } catch {
+      setWorkspaceError("Mohio could not open that folder as a workspace.");
+    } finally {
+      setIsWorkspaceLoading(false);
+      setIsWorkspaceOpening(false);
+    }
+  };
+
+  const saveCurrentDocument = async () => {
+    if (!document) {
+      return;
+    }
+
+    const lastSavedSnapshot = lastSavedSnapshotRef.current;
+    const snapshot = {
+      relativePath: document.relativePath,
+      title: draftTitle,
+      markdown: draftMarkdown,
+    };
+
+    if (
+      lastSavedSnapshot &&
+      snapshot.relativePath === lastSavedSnapshot.relativePath &&
+      snapshot.title === lastSavedSnapshot.title &&
+      snapshot.markdown === lastSavedSnapshot.markdown
+    ) {
+      return;
+    }
+
+    const saveSequence = saveSequenceRef.current + 1;
+    saveSequenceRef.current = saveSequence;
+    setSaveState("saving");
+    setDocumentError(null);
+
+    try {
+      const result = await window.mohio.saveDocument(snapshot);
+      const refreshedWorkspace = await window.mohio.getCurrentWorkspace();
+
+      if (saveSequence !== saveSequenceRef.current) {
+        return;
+      }
+
+      if (refreshedWorkspace) {
+        setWorkspace(refreshedWorkspace);
+        setExpandedDirectoryIds(getExpandedDirectoryIds(refreshedWorkspace));
+      }
+
+      setSelectedDocumentId(result.relativePath);
+      setDocument({
+        relativePath: result.relativePath,
+        fileName: result.fileName,
+        displayTitle: result.displayTitle,
+        markdown: result.markdown,
+      });
+      lastSavedSnapshotRef.current = {
+        relativePath: result.relativePath,
+        title: snapshot.title,
+        markdown: snapshot.markdown,
+      };
+      setSaveState("saved");
+    } catch {
+      if (saveSequence !== saveSequenceRef.current) {
+        return;
+      }
+
+      setDocumentError("Mohio could not save that document.");
+      setSaveState("error");
+    }
+  };
 
   const toggleDirectory = (directoryId: string) => {
     setExpandedDirectoryIds((currentExpandedDirectoryIds) => {
@@ -96,24 +254,6 @@ export function App() {
 
       return nextExpandedDirectoryIds;
     });
-  };
-
-  const handleOpenWorkspace = async () => {
-    try {
-      setIsWorkspaceOpening(true);
-
-      const nextWorkspace = await window.mohio.openWorkspace();
-
-      setWorkspace(nextWorkspace);
-      setSelectedDocumentId(getInitialDocumentId(nextWorkspace));
-      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
-      setWorkspaceError(null);
-    } catch {
-      setWorkspaceError("Mohio could not open that folder as a workspace.");
-    } finally {
-      setIsWorkspaceLoading(false);
-      setIsWorkspaceOpening(false);
-    }
   };
 
   return (
@@ -130,7 +270,7 @@ export function App() {
             type="button"
           >
             <span className="workspace-label__name">
-              {workspace?.name ?? "No workspace opened"}
+              {workspace?.name ?? "Open a workspace"}
             </span>
             <span className="workspace-label__chevron" aria-hidden="true">
               <ChevronDownIcon />
@@ -148,13 +288,7 @@ export function App() {
           />
         </div>
 
-        <div className="top-bar__actions">
-          {workspace ? (
-            <button className="primary-button" type="button">
-              New note
-            </button>
-          ) : null}
-        </div>
+        <div className="top-bar__actions" />
       </header>
 
       <div className="workspace-shell">
@@ -167,9 +301,7 @@ export function App() {
             ) : workspace ? (
               <>
                 {workspace.documentCount === 0 ? (
-                  <p className="workspace-panel__copy">
-                    No Markdown documents found.
-                  </p>
+                  <p className="workspace-panel__copy">No Markdown documents found.</p>
                 ) : (
                   <ul className="workspace-tree" role="tree">
                     {workspace.documents.map((node) =>
@@ -186,7 +318,7 @@ export function App() {
                 )}
               </>
             ) : (
-              <p className="workspace-panel__copy">You have not yet opened a workspace.</p>
+              <p className="workspace-panel__copy">No workspace is open.</p>
             )}
 
             {workspaceError ? (
@@ -199,104 +331,20 @@ export function App() {
 
         <main className="editor-panel">
           <div className="editor-panel__inner">
-            {workspace ? (
-              <div className="editor-toolbar">
-                <div className="toolbar-actions">
-                  <div className="toolbar-group">
-                    {headingTools.map((tool) => (
-                      <button
-                        aria-label={tool.label}
-                        className="toolbar-button toolbar-button--text"
-                        key={tool.label}
-                        type="button"
-                      >
-                        <span className="toolbar-button__text">{tool.displayLabel}</span>
-                      </button>
-                    ))}
-                    <button
-                      aria-label="Heading styles"
-                      className="toolbar-button toolbar-button--selector-only"
-                      type="button"
-                    >
-                      <span className="toolbar-button__chevron" aria-hidden="true">
-                        <ChevronDownIcon />
-                      </span>
-                    </button>
-                  </div>
-                  <span className="toolbar-separator" aria-hidden="true" />
-
-                  <div className="toolbar-group">
-                    {textStyleTools.map((tool) => (
-                      <button
-                        aria-label={tool.label}
-                        className="toolbar-button toolbar-button--icon"
-                        key={tool.label}
-                        type="button"
-                      >
-                        <tool.icon />
-                      </button>
-                    ))}
-                    <button
-                      aria-label="Text styles"
-                      className="toolbar-button toolbar-button--selector-only"
-                      type="button"
-                    >
-                      <span className="toolbar-button__chevron" aria-hidden="true">
-                        <ChevronDownIcon />
-                      </span>
-                    </button>
-                  </div>
-                  <span className="toolbar-separator" aria-hidden="true" />
-
-                  <div className="toolbar-group">
-                    {listTools.map((tool) => (
-                      <button
-                        aria-label={tool.label}
-                        className="toolbar-button toolbar-button--icon"
-                        key={tool.label}
-                        type="button"
-                      >
-                        <tool.icon />
-                      </button>
-                    ))}
-                    <button
-                      aria-label="Text alignment"
-                      className="toolbar-button toolbar-button--icon"
-                      type="button"
-                    >
-                      <AlignLeftIcon />
-                    </button>
-                    <button
-                      aria-label="Alignment options"
-                      className="toolbar-button toolbar-button--selector-only"
-                      type="button"
-                    >
-                      <span className="toolbar-button__chevron" aria-hidden="true">
-                        <ChevronDownIcon />
-                      </span>
-                    </button>
-                  </div>
-                  <span className="toolbar-separator" aria-hidden="true" />
-
-                  <div className="toolbar-group">
-                    {insertTools.map((tool) => (
-                      <button
-                        aria-label={tool.label}
-                        className="toolbar-button toolbar-button--icon"
-                        key={tool.label}
-                        type="button"
-                      >
-                        <tool.icon />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {workspace && selectedDocument ? (
-              <section className="hello-state" data-testid="document-state">
-                <h1>{getDocumentTitle(selectedDocument.name)}</h1>
+            {workspace && document ? (
+              <section className="document-editor" data-testid="document-state">
+                <RichTextEditor
+                  markdown={draftMarkdown}
+                  onChange={(nextMarkdown) => {
+                    setDraftMarkdown(nextMarkdown);
+                  }}
+                  onTitleChange={(nextTitle) => {
+                    setDraftTitle(nextTitle);
+                  }}
+                  saveStateLabel={getSaveStateLabel(saveState, isDirty)}
+                  saveStateTone={saveState}
+                  title={draftTitle}
+                />
               </section>
             ) : workspace ? (
               <section className="hello-state" data-testid="document-state">
@@ -306,7 +354,7 @@ export function App() {
             ) : (
               <section className="empty-workspace-state" data-testid="document-state">
                 <p className="empty-workspace-state__copy">
-                  Choose a folder to open as a workspace.
+                  Choose a folder to open your Mohio workspace.
                 </p>
                 <button
                   className="primary-button empty-workspace-state__button"
@@ -316,10 +364,16 @@ export function App() {
                   }}
                   type="button"
                 >
-                  {isWorkspaceOpening ? "Opening Workspace ..." : "Open Workspace"}
+                  {isWorkspaceOpening ? "Opening Workspace ..." : "Choose folder"}
                 </button>
               </section>
             )}
+
+            {documentError ? (
+              <p className="workspace-panel__error editor-panel__error" role="status">
+                {documentError}
+              </p>
+            ) : null}
           </div>
         </main>
 
@@ -417,34 +471,10 @@ function renderWorkspaceNode({
         style={rowStyle}
         type="button"
       >
-        <span className="tree-node__label">{getDocumentTitle(node.name)}</span>
+        <span className="tree-node__label">{node.displayTitle}</span>
       </button>
     </li>
   );
-}
-
-function getInitialDocumentId(workspace: WorkspaceSummary | null): string | null {
-  if (!workspace) {
-    return null;
-  }
-
-  return findFirstDocumentId(workspace.documents);
-}
-
-function findFirstDocumentId(nodes: WorkspaceTreeNode[]): string | null {
-  for (const node of nodes) {
-    if (node.kind === "document") {
-      return node.id;
-    }
-
-    const firstChildDocumentId = findFirstDocumentId(node.children);
-
-    if (firstChildDocumentId) {
-      return firstChildDocumentId;
-    }
-  }
-
-  return null;
 }
 
 function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string> {
@@ -465,6 +495,37 @@ function collectDirectoryIds(nodes: WorkspaceTreeNode[]): string[] {
   }
 
   return directoryIds;
+}
+
+function getPreferredDocumentId(
+  workspace: WorkspaceSummary | null,
+  preferredDocumentId?: string | null,
+): string | null {
+  if (!workspace) {
+    return null;
+  }
+
+  if (preferredDocumentId && findDocumentById(workspace.documents, preferredDocumentId)) {
+    return preferredDocumentId;
+  }
+
+  return findFirstDocumentId(workspace.documents);
+}
+
+function findFirstDocumentId(nodes: WorkspaceTreeNode[]): string | null {
+  for (const node of nodes) {
+    if (node.kind === "document") {
+      return node.id;
+    }
+
+    const firstChildDocumentId = findFirstDocumentId(node.children);
+
+    if (firstChildDocumentId) {
+      return firstChildDocumentId;
+    }
+  }
+
+  return null;
 }
 
 function findDocumentById(
@@ -488,56 +549,29 @@ function findDocumentById(
   return null;
 }
 
-function getDocumentTitle(fileName: string): string {
-  return fileName.replace(/\.(md|markdown|mdx)$/iu, "");
-}
+function getSaveStateLabel(saveState: SaveState, isDirty: boolean): string {
+  if (saveState === "loading") {
+    return "Loading";
+  }
 
-function BoldIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M5 3.5h3.3a2.2 2.2 0 1 1 0 4.4H5zm0 4.4h3.8a2.3 2.3 0 1 1 0 4.6H5z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
+  if (saveState === "saving") {
+    return "Saving...";
+  }
 
-function UnderlineIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M5.2 3.6v3.6a2.8 2.8 0 0 0 5.6 0V3.6M4 12.4h8"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
+  if (saveState === "error") {
+    return "Save failed";
+  }
+
+  if (isDirty) {
+    return "Unsaved changes";
+  }
+
+  return "Saved";
 }
 
 function ChevronDownIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      className="toolbar-chevron-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
+    <svg aria-hidden="true" className="toolbar-chevron-icon" fill="none" viewBox="0 0 16 16">
       <path
         d="M4.5 6.5 8 10l3.5-3.5"
         stroke="currentColor"
@@ -549,163 +583,9 @@ function ChevronDownIcon() {
   );
 }
 
-function ItalicIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M9.8 3.5H6.9m2.2 0L6.8 12.5m2.3 0H6.2"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
-
-function BulletedListIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M6 4h6M6 8h6M6 12h6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.4"
-      />
-      <circle cx="3.25" cy="4" fill="currentColor" r="0.85" />
-      <circle cx="3.25" cy="8" fill="currentColor" r="0.85" />
-      <circle cx="3.25" cy="12" fill="currentColor" r="0.85" />
-    </svg>
-  );
-}
-
-function NumberedListIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M6 4h6M6 8h6M6 12h6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.4"
-      />
-      <path
-        d="M2.5 4h1.4v2M2.2 8h1.6c.4 0 .7.3.7.7 0 .2-.1.4-.3.6l-1.6 1.4h2M2.3 12h1.5c.5 0 .8.3.8.7s-.3.7-.8.7H2.4"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.1"
-      />
-    </svg>
-  );
-}
-
-function AlignLeftIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M3.5 4h8M3.5 7h6.2M3.5 10h8M3.5 13h5.4"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M6.4 9.6 9.6 6.4m-4.8.9L3.7 8.4a2.2 2.2 0 0 0 3.1 3.1l1.1-1.1m1.3-4.9 1.1-1.1a2.2 2.2 0 0 1 3.1 3.1l-1.1 1.1"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
-
-function TableIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M3.2 4.2h9.6v7.6H3.2zm0 2.5h9.6M6.4 4.2v7.6M9.6 4.2v7.6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
-
-function ClearFormattingIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="formatting-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <text
-        fill="currentColor"
-        fontFamily="Georgia, 'Times New Roman', serif"
-        fontSize="12.5"
-        fontWeight="700"
-        x="3"
-        y="12.3"
-      >
-        T
-      </text>
-      <path
-        d="M11.3 7.3 4.2 8.9"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeWidth="1.1"
-      />
-    </svg>
-  );
-}
-
 function TreeChevronIcon({ isExpanded }: { isExpanded: boolean }) {
   return (
-    <svg
-      aria-hidden="true"
-      className="tree-chevron-icon"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
+    <svg aria-hidden="true" className="tree-chevron-icon" fill="none" viewBox="0 0 16 16">
       <path
         d={isExpanded ? "M4.75 6.5 8 9.75 11.25 6.5" : "M6.5 4.75 9.75 8 6.5 11.25"}
         stroke="currentColor"

@@ -10,6 +10,8 @@ const mohioApi = createMohioApi({
   },
   getCurrentWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.getCurrentWorkspace),
   openWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.openWorkspace),
+  readDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.readDocument, relativePath),
+  saveDocument: (input) => ipcRenderer.invoke(MOHIO_CHANNELS.saveDocument, input),
   onWorkspaceChanged: (listener) => {
     const handleWorkspaceChanged = (
       _event: Electron.IpcRendererEvent,

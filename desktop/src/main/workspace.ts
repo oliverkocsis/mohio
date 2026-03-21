@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { parseMarkdownDocument } from "@shared/document-format";
 import type { WorkspaceSummary, WorkspaceTreeNode } from "@shared/mohio-types";
 
 const MARKDOWN_EXTENSIONS = new Set([".md", ".markdown", ".mdx"]);
@@ -57,11 +58,15 @@ async function readWorkspaceNodes(
       continue;
     }
 
+    const markdown = await fs.readFile(absolutePath, "utf8");
+    const parsedDocument = parseMarkdownDocument(markdown, entry.name);
+
     nodes.push({
       id: relativePath,
       kind: "document",
       name: entry.name,
       relativePath,
+      displayTitle: parsedDocument.displayTitle,
     });
   }
 
