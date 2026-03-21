@@ -20,6 +20,7 @@ Mohio needed to move beyond a placeholder editor shell and deliver the first rea
 - Updated the workspace tree to show parsed document titles instead of only filename stems when frontmatter or H1 titles are available.
 - Added active file watching for the selected document so the editor reloads on-disk file changes and stays in sync when the file is overridden outside Mohio.
 - Added preservation handling for unsupported task-list and table Markdown blocks so they remain intact through editing and saving.
+- Added MIT licensing metadata to the repository with a root `LICENSE` file, a `README` license section, and an explicit `license` field on the desktop package.
 - Expanded main-process, shared API, and renderer test coverage for document loading, saving, renaming, autosave, and the updated editor UI.
 
 ## Impact
