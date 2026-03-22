@@ -5,7 +5,7 @@ import type {
   WorkspaceSummary,
   WorkspaceTreeNode,
 } from "@shared/mohio-types";
-import { RichTextEditor } from "./rich-text-editor";
+import { RichTextEditor } from "./markdown-editor";
 
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
 

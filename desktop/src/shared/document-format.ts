@@ -50,7 +50,7 @@ export function buildMarkdownDocument({
   bodyMarkdown: string;
   existingMarkdown: string;
   title: string;
-}): { frontmatterTitle?: string; markdown: string } {
+}): { bodyMarkdown: string; frontmatterTitle?: string; markdown: string } {
   const parsedFrontmatter = parseFrontmatter(existingMarkdown);
   const nextMetadata = { ...parsedFrontmatter.metadata };
   const normalizedTitle = normalizeTitle(title);
@@ -63,14 +63,29 @@ export function buildMarkdownDocument({
   }
 
   const header = `# ${normalizedTitle}`;
-  const trimmedBody = bodyMarkdown.replace(/^\s+/u, "").trimEnd();
+  const trimmedBody = normalizeBodyMarkdown(bodyMarkdown);
   const nextBody = trimmedBody ? `${header}\n\n${trimmedBody}` : header;
   const nextFrontmatter = serializeFrontmatter(nextMetadata);
 
   return {
+    bodyMarkdown: trimmedBody ? `${trimmedBody}\n` : "",
     frontmatterTitle: typeof nextMetadata.title === "string" ? nextMetadata.title : undefined,
     markdown: nextFrontmatter ? `${nextFrontmatter}\n${nextBody}\n` : `${nextBody}\n`,
   };
+}
+
+export function normalizeBodyMarkdown(bodyMarkdown: string): string {
+  const normalized = bodyMarkdown.replace(/\r\n?/gu, "\n");
+  const trimmed = normalized.replace(/^\n+/u, "").replace(/\n+$/u, "");
+
+  if (trimmed === "") {
+    return "";
+  }
+
+  return trimmed
+    .split("\n")
+    .map((line) => (line.trim().length === 0 ? "" : line.trimEnd()))
+    .join("\n");
 }
 
 export function getDisplayTitle({
@@ -136,6 +151,11 @@ function normalizeTitle(title: string): string {
   const trimmedTitle = title.trim();
   return trimmedTitle || "Untitled";
 }
+
+function isFenceLine(line: string): boolean {
+  return /^```/u.test(line);
+}
+
 
 function parseFrontmatter(markdown: string): ParsedFrontmatter {
   const frontmatterMatch = markdown.match(FRONTMATTER_PATTERN);

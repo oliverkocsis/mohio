@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
+import { EditorSelection, EditorState, RangeSetBuilder } from "@codemirror/state";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { markdown as markdownLanguage } from "@codemirror/lang-markdown";
+import {
+  Decoration,
+  EditorView,
+  keymap,
+  placeholder,
+  type DecorationSet,
+  ViewPlugin,
+  type ViewUpdate,
+  WidgetType,
+} from "@codemirror/view";
 import {
   Bold,
   Code2,
@@ -14,10 +27,47 @@ import {
   SquareCode,
   Strikethrough,
 } from "lucide-react";
-import Quill from "quill";
-import { editorHtmlToMarkdown, markdownToEditorHtml } from "./editor-markdown";
 
-let quillFormatsRegistered = false;
+interface MarkdownEditResult {
+  selectionEnd: number;
+  selectionStart: number;
+  text: string;
+}
+
+const hiddenSyntax = Decoration.replace({});
+const strongMark = Decoration.mark({ class: "cm-md-strong" });
+const emphasisMark = Decoration.mark({ class: "cm-md-emphasis" });
+const strikethroughMark = Decoration.mark({ class: "cm-md-strikethrough" });
+const inlineCodeMark = Decoration.mark({ class: "cm-md-inline-code" });
+const linkMark = Decoration.mark({ class: "cm-md-link" });
+const imageAltMark = Decoration.mark({ class: "cm-md-image-alt" });
+
+const markdownPresentation = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+
+  constructor(view: EditorView) {
+    this.decorations = buildMarkdownDecorations(view);
+  }
+
+  update(update: ViewUpdate) {
+    if (!update.docChanged && !update.viewportChanged) {
+      return;
+    }
+
+    this.decorations = buildMarkdownDecorations(update.view);
+  }
+}, {
+  decorations: (value) => value.decorations,
+  provide: (plugin) => EditorView.atomicRanges.of((view) => view.plugin(plugin)?.decorations ?? Decoration.none),
+});
+
+class HorizontalRuleWidget extends WidgetType {
+  toDOM() {
+    const element = document.createElement("div");
+    element.className = "cm-md-horizontal-rule";
+    return element;
+  }
+}
 
 export function RichTextEditor({
   dataTestId,
@@ -33,62 +83,77 @@ export function RichTextEditor({
   title: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const quillRef = useRef<Quill | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
   const titleInputRef = useRef<HTMLTextAreaElement | null>(null);
   const latestMarkdownRef = useRef(markdown);
+  const isApplyingExternalUpdateRef = useRef(false);
   const onChangeRef = useRef(onChange);
 
   onChangeRef.current = onChange;
 
   useEffect(() => {
-    if (!containerRef.current || quillRef.current) {
+    if (!containerRef.current || viewRef.current) {
       return;
     }
 
-    registerCustomFormats();
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: markdown,
+        extensions: [
+          history(),
+          keymap.of([
+            indentWithTab,
+            ...defaultKeymap,
+            ...historyKeymap,
+          ]),
+          markdownLanguage(),
+          EditorView.lineWrapping,
+          markdownPresentation,
+          EditorView.contentAttributes.of({
+            "aria-label": "Document body",
+            "data-testid": "rich-text-editor",
+          }),
+          placeholder("Start writing your note"),
+          EditorView.updateListener.of((update) => {
+            if (!update.docChanged || isApplyingExternalUpdateRef.current) {
+              return;
+            }
 
-    const quill = new Quill(containerRef.current, {
-      modules: {
-        toolbar: false,
-      },
-      placeholder: "Start writing your note",
-      theme: "snow",
+            const nextMarkdown = update.state.doc.toString();
+            latestMarkdownRef.current = nextMarkdown;
+            onChangeRef.current(nextMarkdown);
+          }),
+        ],
+      }),
+      parent: containerRef.current,
     });
 
-    const handleTextChange = (_delta: unknown, _oldDelta: unknown, source: string) => {
-      if (source !== "user") {
-        return;
-      }
-
-      const nextMarkdown = editorHtmlToMarkdown(quill.root.innerHTML);
-      latestMarkdownRef.current = nextMarkdown;
-      onChangeRef.current(nextMarkdown);
-    };
-
-    quill.on("text-change", handleTextChange);
-
-    quillRef.current = quill;
-    syncEditorContents(quill, markdown);
+    viewRef.current = view;
     latestMarkdownRef.current = markdown;
 
     return () => {
-      quill.off("text-change", handleTextChange);
-      quillRef.current = null;
-
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
-      }
+      view.destroy();
+      viewRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    const quill = quillRef.current;
+    const view = viewRef.current;
 
-    if (!quill || latestMarkdownRef.current === markdown) {
+    if (!view || latestMarkdownRef.current === markdown) {
       return;
     }
 
-    syncEditorContents(quill, markdown);
+    isApplyingExternalUpdateRef.current = true;
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: markdown,
+      },
+      selection: EditorSelection.cursor(Math.min(markdown.length, view.state.selection.main.head)),
+    });
+    isApplyingExternalUpdateRef.current = false;
     latestMarkdownRef.current = markdown;
   }, [markdown]);
 
@@ -96,18 +161,31 @@ export function RichTextEditor({
     resizeTitleInput(titleInputRef.current);
   }, [title]);
 
+  const runToolbarAction = (transform: (text: string, from: number, to: number) => MarkdownEditResult) => {
+    const view = viewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    const { from, to } = view.state.selection.main;
+    const nextState = transform(view.state.doc.toString(), from, to);
+
+    applyMarkdownEdit(view, nextState);
+  };
+
   return (
     <section className="editor-surface" data-testid={dataTestId}>
       <div className="editor-toolbar">
         <div className="toolbar-actions">
           <div className="toolbar-group">
-            <ToolbarButton label="Heading 1" onClick={() => toggleLineFormat(quillRef.current, "header", 1)}>
+            <ToolbarButton label="Heading 1" onClick={() => runToolbarAction((value, from, to) => applyHeading(value, from, to, 1))}>
               H1
             </ToolbarButton>
-            <ToolbarButton label="Heading 2" onClick={() => toggleLineFormat(quillRef.current, "header", 2)}>
+            <ToolbarButton label="Heading 2" onClick={() => runToolbarAction((value, from, to) => applyHeading(value, from, to, 2))}>
               H2
             </ToolbarButton>
-            <ToolbarButton label="Heading 3" onClick={() => toggleLineFormat(quillRef.current, "header", 3)}>
+            <ToolbarButton label="Heading 3" onClick={() => runToolbarAction((value, from, to) => applyHeading(value, from, to, 3))}>
               H3
             </ToolbarButton>
           </div>
@@ -115,16 +193,16 @@ export function RichTextEditor({
           <span className="toolbar-separator" aria-hidden="true" />
 
           <div className="toolbar-group">
-            <IconToolbarButton label="Bold" onClick={() => toggleInlineFormat(quillRef.current, "bold")}>
+            <IconToolbarButton label="Bold" onClick={() => runToolbarAction((value, from, to) => applyInlineWrap(value, from, to, "**"))}>
               <Bold aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Italic" onClick={() => toggleInlineFormat(quillRef.current, "italic")}>
+            <IconToolbarButton label="Italic" onClick={() => runToolbarAction((value, from, to) => applyInlineWrap(value, from, to, "*"))}>
               <Italic aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Strikethrough" onClick={() => toggleInlineFormat(quillRef.current, "strike")}>
+            <IconToolbarButton label="Strikethrough" onClick={() => runToolbarAction((value, from, to) => applyInlineWrap(value, from, to, "~~"))}>
               <Strikethrough aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Inline code" onClick={() => toggleInlineFormat(quillRef.current, "code")}>
+            <IconToolbarButton label="Inline code" onClick={() => runToolbarAction((value, from, to) => applyInlineWrap(value, from, to, "`"))}>
               <Code2 aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
           </div>
@@ -132,16 +210,16 @@ export function RichTextEditor({
           <span className="toolbar-separator" aria-hidden="true" />
 
           <div className="toolbar-group">
-            <IconToolbarButton label="Block quote" onClick={() => toggleLineFormat(quillRef.current, "blockquote", true)}>
+            <IconToolbarButton label="Block quote" onClick={() => runToolbarAction(applyBlockQuote)}>
               <Quote aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Bulleted list" onClick={() => toggleLineFormat(quillRef.current, "list", "bullet")}>
+            <IconToolbarButton label="Bulleted list" onClick={() => runToolbarAction(applyBulletList)}>
               <List aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Numbered list" onClick={() => toggleLineFormat(quillRef.current, "list", "ordered")}>
+            <IconToolbarButton label="Numbered list" onClick={() => runToolbarAction(applyOrderedList)}>
               <ListOrdered aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Code block" onClick={() => toggleLineFormat(quillRef.current, "code-block", true)}>
+            <IconToolbarButton label="Code block" onClick={() => runToolbarAction(applyCodeBlock)}>
               <SquareCode aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
           </div>
@@ -149,16 +227,38 @@ export function RichTextEditor({
           <span className="toolbar-separator" aria-hidden="true" />
 
           <div className="toolbar-group">
-            <IconToolbarButton label="Link" onClick={() => insertLink(quillRef.current)}>
+            <IconToolbarButton
+              label="Link"
+              onClick={() => {
+                const url = window.prompt("Enter a URL");
+
+                if (!url) {
+                  return;
+                }
+
+                runToolbarAction((value, from, to) => applyLink(value, from, to, url));
+              }}
+            >
               <Link2 aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Image" onClick={() => insertImage(quillRef.current)}>
+            <IconToolbarButton
+              label="Image"
+              onClick={() => {
+                const url = window.prompt("Enter an image URL");
+
+                if (!url) {
+                  return;
+                }
+
+                runToolbarAction((value, from, to) => applyImage(value, from, to, url));
+              }}
+            >
               <Image aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Horizontal rule" onClick={() => insertDivider(quillRef.current)}>
+            <IconToolbarButton label="Horizontal rule" onClick={() => runToolbarAction(applyHorizontalRule)}>
               <Minus aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
-            <IconToolbarButton label="Clear formatting" onClick={() => clearFormatting(quillRef.current)}>
+            <IconToolbarButton label="Clear formatting" onClick={() => runToolbarAction(applyClearFormatting)}>
               <RemoveFormatting aria-hidden="true" className="toolbar-button__icon" />
             </IconToolbarButton>
           </div>
@@ -181,8 +281,8 @@ export function RichTextEditor({
         />
       </div>
 
-      <div className="quill-editor-frame">
-        <div className="quill-editor" data-testid="rich-text-editor" ref={containerRef} />
+      <div className="markdown-editor-frame">
+        <div className="markdown-editor" ref={containerRef} />
       </div>
     </section>
   );
@@ -197,150 +297,460 @@ function resizeTitleInput(element: HTMLTextAreaElement | null) {
   element.style.height = `${element.scrollHeight}px`;
 }
 
-function syncEditorContents(quill: Quill, markdown: string) {
-  const html = markdownToEditorHtml(markdown);
-  const delta = quill.clipboard.convert({ html });
-  quill.setContents(delta, "silent");
+function applyMarkdownEdit(view: EditorView, nextState: MarkdownEditResult) {
+  view.dispatch({
+    changes: {
+      from: 0,
+      to: view.state.doc.length,
+      insert: nextState.text,
+    },
+    selection: EditorSelection.range(
+      clampSelection(nextState.selectionStart, nextState.text.length),
+      clampSelection(nextState.selectionEnd, nextState.text.length),
+    ),
+  });
+  view.focus();
 }
 
-function registerCustomFormats() {
-  if (quillFormatsRegistered) {
-    return;
-  }
+function clampSelection(value: number, textLength: number) {
+  return Math.max(0, Math.min(value, textLength));
+}
 
-  const BlockEmbed = Quill.import("blots/block/embed") as any;
+function buildMarkdownDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const document = view.state.doc;
+  let inCodeBlock = false;
+  let firstCodeLine = 0;
 
-  class DividerBlot extends BlockEmbed {
-    static blotName = "divider";
-    static tagName = "hr";
-  }
+  for (let lineNumber = 1; lineNumber <= document.lines; lineNumber += 1) {
+    const line = document.line(lineNumber);
+    const nextLine = lineNumber < document.lines ? document.line(lineNumber + 1) : null;
+    const fenceMatch = line.text.match(/^\s*```/u);
 
-  class PreservedBlockBlot extends BlockEmbed {
-    static blotName = "preserved-block";
-    static className = "mohio-preserved-block";
-    static tagName = "div";
+    if (fenceMatch) {
+      builder.add(line.from, line.from, Decoration.line({ class: "cm-md-code-fence" }));
 
-    static create(value: { markdown: string; type: string }) {
-      const node = super.create() as HTMLDivElement;
-      const label = document.createElement("div");
-      const preview = document.createElement("pre");
+      if (line.from !== line.to) {
+        builder.add(line.from, line.to, hiddenSyntax);
+      }
 
-      node.dataset.preservedMarkdown = encodeURIComponent(value.markdown);
-      node.dataset.preservedBlockType = value.type;
-      node.setAttribute("contenteditable", "false");
-
-      label.className = "mohio-preserved-block__label";
-      label.textContent = value.type === "table" ? "Preserved table block" : "Preserved task list block";
-
-      preview.className = "mohio-preserved-block__preview";
-      preview.textContent = value.markdown;
-
-      node.append(label, preview);
-
-      return node;
+      inCodeBlock = !inCodeBlock;
+      firstCodeLine = inCodeBlock ? lineNumber + 1 : 0;
+      continue;
     }
+
+    if (inCodeBlock) {
+      const nextLineText = lineNumber < document.lines ? document.line(lineNumber + 1).text : "";
+      const classes = ["cm-md-code-line"];
+
+      if (lineNumber === firstCodeLine) {
+        classes.push("cm-md-code-line-start");
+      }
+
+      if (/^\s*```/u.test(nextLineText) || lineNumber === document.lines) {
+        classes.push("cm-md-code-line-end");
+      }
+
+      builder.add(line.from, line.from, Decoration.line({ class: classes.join(" ") }));
+      continue;
+    }
+
+    if (line.text.trim().length === 0) {
+      continue;
+    }
+
+    const nextSetextMatch = nextLine !== null && getMarkdownLineKind(line.text) === "paragraph"
+      ? nextLine.text.match(/^\s{0,3}(=+|-+)\s*$/u)
+      : null;
+
+    if (nextSetextMatch) {
+      builder.add(
+        line.from,
+        line.from,
+        Decoration.line({
+          class: `cm-md-heading cm-md-heading-${nextSetextMatch[1][0] === "=" ? 1 : 2}`,
+        }),
+      );
+    }
+
+    const setextMatch = line.text.match(/^\s{0,3}(=+|-+)\s*$/u);
+
+    if (setextMatch && lineNumber > 1) {
+      const previousLine = document.line(lineNumber - 1);
+
+      if (getMarkdownLineKind(previousLine.text) === "paragraph") {
+        builder.add(line.from, line.from, Decoration.line({ class: "cm-md-setext-underline" }));
+
+        if (line.from !== line.to) {
+          builder.add(line.from, line.to, hiddenSyntax);
+        }
+
+        continue;
+      }
+    }
+
+    addLineDecorations(
+      builder,
+      line.from,
+      line.text,
+      lineNumber < document.lines ? document.line(lineNumber + 1).text : null,
+    );
+    addInlineDecorations(builder, line.from, line.text);
   }
 
-  Quill.register(DividerBlot, true);
-  Quill.register(PreservedBlockBlot, true);
-  quillFormatsRegistered = true;
+  return builder.finish();
 }
 
-function toggleInlineFormat(quill: Quill | null, format: string) {
-  if (!quill) {
-    return;
+type MarkdownLineKind = "blank" | "code" | "heading" | "list" | "paragraph" | "quote" | "rule" | "table";
+
+function getMarkdownLineKind(lineText: string): MarkdownLineKind {
+  const trimmedLine = lineText.trim();
+
+  if (trimmedLine.length === 0) {
+    return "blank";
   }
 
-  const range = quill.getSelection(true);
-
-  if (!range) {
-    return;
+  if (isFenceLine(trimmedLine)) {
+    return "code";
   }
 
-  const currentFormats = quill.getFormat(range);
-  quill.format(format, !currentFormats[format]);
+  if (/^\s{0,3}#{1,6}\s+/u.test(lineText) || /^\s{0,3}(=+|-+)\s*$/u.test(lineText)) {
+    return "heading";
+  }
+
+  if (/^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/u.test(lineText)) {
+    return "rule";
+  }
+
+  if (/^>+\s*/u.test(trimmedLine)) {
+    return "quote";
+  }
+
+  if (/^(?:[-*+]\s+|\d+\.\s+|[-*+]\s+\[(?: |x|X)\]\s+)/u.test(trimmedLine)) {
+    return "list";
+  }
+
+  if (/^\|.*\|$/u.test(trimmedLine)) {
+    return "table";
+  }
+
+  return "paragraph";
 }
 
-function toggleLineFormat(quill: Quill | null, format: string, value: unknown) {
-  if (!quill) {
-    return;
-  }
-
-  const range = quill.getSelection(true);
-
-  if (!range) {
-    return;
-  }
-
-  const currentFormats = quill.getFormat(range);
-  quill.formatLine(range.index, range.length, format, currentFormats[format] === value ? false : value);
+function isFenceLine(line: string): boolean {
+  return /^```/u.test(line);
 }
 
-function clearFormatting(quill: Quill | null) {
-  if (!quill) {
+function addLineDecorations(
+  builder: RangeSetBuilder<Decoration>,
+  lineFrom: number,
+  lineText: string,
+  nextLineText: string | null,
+) {
+  const nextLineIsList = nextLineText !== null && getMarkdownLineKind(nextLineText) === "list";
+  const headingMatch = lineText.match(/^(\s{0,3})(#{1,6})\s+/u);
+
+  if (headingMatch) {
+    const prefixStart = lineFrom + headingMatch[1].length;
+    const prefixEnd = prefixStart + headingMatch[2].length + 1;
+
+    builder.add(lineFrom, lineFrom, Decoration.line({ class: `cm-md-heading cm-md-heading-${headingMatch[2].length}` }));
+    builder.add(prefixStart, prefixEnd, hiddenSyntax);
+  }
+
+  const horizontalRuleMatch = lineText.match(/^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/u);
+
+  if (horizontalRuleMatch) {
+    builder.add(
+      lineFrom,
+      lineFrom + lineText.length,
+      Decoration.replace({
+        widget: new HorizontalRuleWidget(),
+        block: true,
+      }),
+    );
     return;
   }
 
-  const range = quill.getSelection(true);
+  const taskListMatch = lineText.match(/^([-*+])\s+\[( |x|X)\]\s+/u);
 
-  if (!range) {
+  if (taskListMatch) {
+    builder.add(
+      lineFrom,
+      lineFrom,
+      Decoration.line({
+        attributes: {
+          class: nextLineIsList ? "cm-md-task-item cm-md-list-item--continued" : "cm-md-task-item",
+          "data-task-state": taskListMatch[2].trim() ? "checked" : "unchecked",
+        },
+      }),
+    );
+    builder.add(lineFrom, lineFrom + taskListMatch[0].length, hiddenSyntax);
     return;
   }
 
-  quill.removeFormat(range.index, range.length);
+  const orderedListMatch = lineText.match(/^(\d+)\.\s+/u);
+
+  if (orderedListMatch) {
+    builder.add(
+      lineFrom,
+      lineFrom,
+      Decoration.line({
+        attributes: {
+          class: nextLineIsList ? "cm-md-ordered-item cm-md-list-item--continued" : "cm-md-ordered-item",
+          "data-list-marker": orderedListMatch[1],
+        },
+      }),
+    );
+    builder.add(lineFrom, lineFrom + orderedListMatch[0].length, hiddenSyntax);
+  }
+
+  const bulletListMatch = lineText.match(/^[-*+]\s+/u);
+
+  if (bulletListMatch) {
+    builder.add(
+      lineFrom,
+      lineFrom,
+      Decoration.line({ class: nextLineIsList ? "cm-md-bullet-item cm-md-list-item--continued" : "cm-md-bullet-item" }),
+    );
+    builder.add(lineFrom, lineFrom + bulletListMatch[0].length, hiddenSyntax);
+  }
+
+  const blockQuoteMatch = lineText.match(/^>+\s+/u);
+
+  if (blockQuoteMatch) {
+    builder.add(lineFrom, lineFrom, Decoration.line({ class: "cm-md-blockquote" }));
+    builder.add(lineFrom, lineFrom + blockQuoteMatch[0].length, hiddenSyntax);
+  }
 }
 
-function insertDivider(quill: Quill | null) {
-  if (!quill) {
-    return;
-  }
-
-  const range = quill.getSelection(true);
-  const index = range?.index ?? quill.getLength();
-
-  quill.insertEmbed(index, "divider", true, "user");
-  quill.insertText(index + 1, "\n", "user");
-  quill.setSelection(index + 2, 0, "silent");
+function addInlineDecorations(
+  builder: RangeSetBuilder<Decoration>,
+  lineFrom: number,
+  lineText: string,
+) {
+  addWrappedRanges(builder, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark);
+  addWrappedRanges(builder, lineFrom, lineText, /\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
+  addWrappedRanges(builder, lineFrom, lineText, /`([^`\n]+)`/gu, 1, inlineCodeMark);
+  addWrappedRanges(builder, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark);
+  addWrappedRanges(builder, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark);
+  addWrappedRanges(builder, lineFrom, lineText, /__([^_\n]+)__/gu, 2, strongMark);
+  addWrappedRanges(builder, lineFrom, lineText, /(?<!\*)\*([^*\n]+)\*(?!\*)/gu, 1, emphasisMark);
+  addWrappedRanges(builder, lineFrom, lineText, /(?<!_)_([^_\n]+)_(?!_)/gu, 1, emphasisMark);
 }
 
-function insertLink(quill: Quill | null) {
-  if (!quill) {
-    return;
+function addWrappedRanges(
+  builder: RangeSetBuilder<Decoration>,
+  lineFrom: number,
+  lineText: string,
+  pattern: RegExp,
+  delimiterLength: number,
+  mark: Decoration,
+) {
+  for (const match of lineText.matchAll(pattern)) {
+    const fullMatch = match[0];
+    const content = match[1] ?? "";
+    const start = lineFrom + (match.index ?? 0);
+    const contentStart = start + delimiterLength;
+    const contentEnd = contentStart + content.length;
+    const end = start + fullMatch.length;
+
+    builder.add(start, contentStart, hiddenSyntax);
+    builder.add(contentStart, contentEnd, mark);
+    builder.add(contentEnd, end, hiddenSyntax);
   }
-
-  const url = window.prompt("Enter a URL");
-
-  if (!url) {
-    return;
-  }
-
-  const range = quill.getSelection(true);
-
-  if (!range || range.length === 0) {
-    quill.insertText(range?.index ?? quill.getLength(), url, { link: url }, "user");
-    return;
-  }
-
-  quill.format("link", url);
 }
 
-function insertImage(quill: Quill | null) {
-  if (!quill) {
-    return;
+export function applyInlineWrap(text: string, from: number, to: number, marker: string): MarkdownEditResult {
+  if (
+    from !== to &&
+    from >= marker.length &&
+    text.slice(from - marker.length, from) === marker &&
+    text.slice(to, to + marker.length) === marker
+  ) {
+    return replaceRange(
+      text,
+      from - marker.length,
+      to + marker.length,
+      text.slice(from, to),
+      from - marker.length,
+      to - marker.length,
+    );
   }
 
-  const url = window.prompt("Enter an image URL");
-
-  if (!url) {
-    return;
+  if (from === to) {
+    return replaceRange(text, from, to, `${marker}${marker}`, from + marker.length, from + marker.length);
   }
 
-  const range = quill.getSelection(true);
-  const index = range?.index ?? quill.getLength();
+  return replaceRange(
+    text,
+    from,
+    to,
+    `${marker}${text.slice(from, to)}${marker}`,
+    from + marker.length,
+    to + marker.length,
+  );
+}
 
-  quill.insertEmbed(index, "image", url, "user");
-  quill.insertText(index + 1, "\n", "user");
-  quill.setSelection(index + 2, 0, "silent");
+export function applyHeading(text: string, from: number, to: number, level: 1 | 2 | 3): MarkdownEditResult {
+  const marker = `${"#".repeat(level)} `;
+  const { blockFrom, blockTo, lines } = getLineSelection(text, from, to);
+  const nextLines = lines.every((line) => line.startsWith(marker))
+    ? lines.map((line) => line.slice(marker.length))
+    : lines.map((line) => `${marker}${line.replace(/^\s{0,3}#{1,6}\s+/u, "")}`);
+
+  return replaceRange(text, blockFrom, blockTo, nextLines.join("\n"), blockFrom, blockFrom + nextLines.join("\n").length);
+}
+
+export function applyBlockQuote(text: string, from: number, to: number): MarkdownEditResult {
+  const { blockFrom, blockTo, lines } = getLineSelection(text, from, to);
+  const nextLines = lines.every((line) => line.startsWith("> "))
+    ? lines.map((line) => line.replace(/^> /u, ""))
+    : lines.map((line) => `> ${line}`);
+
+  return replaceRange(text, blockFrom, blockTo, nextLines.join("\n"), blockFrom, blockFrom + nextLines.join("\n").length);
+}
+
+export function applyBulletList(text: string, from: number, to: number): MarkdownEditResult {
+  const { blockFrom, blockTo, lines } = getLineSelection(text, from, to);
+  const nextLines = lines.every((line) => line.startsWith("- "))
+    ? lines.map((line) => line.replace(/^- /u, ""))
+    : lines.map((line) => `- ${stripListMarker(line)}`);
+
+  return replaceRange(text, blockFrom, blockTo, nextLines.join("\n"), blockFrom, blockFrom + nextLines.join("\n").length);
+}
+
+export function applyOrderedList(text: string, from: number, to: number): MarkdownEditResult {
+  const { blockFrom, blockTo, lines } = getLineSelection(text, from, to);
+  const alreadyOrdered = lines.every((line, index) => line.startsWith(`${index + 1}. `));
+  const nextLines = alreadyOrdered
+    ? lines.map((line) => line.replace(/^\d+\. /u, ""))
+    : lines.map((line, index) => `${index + 1}. ${stripListMarker(line)}`);
+
+  return replaceRange(text, blockFrom, blockTo, nextLines.join("\n"), blockFrom, blockFrom + nextLines.join("\n").length);
+}
+
+export function applyCodeBlock(text: string, from: number, to: number): MarkdownEditResult {
+  if (from === to) {
+    return replaceRange(text, from, to, "```\n\n```", from + 4, from + 4);
+  }
+
+  const selection = text.slice(from, to);
+  const fencedMatch = selection.match(/^```[^\n]*\n([\s\S]*?)\n```$/u);
+
+  if (fencedMatch) {
+    return replaceRange(text, from, to, fencedMatch[1], from, from + fencedMatch[1].length);
+  }
+
+  return replaceRange(text, from, to, `\`\`\`\n${selection}\n\`\`\``, from + 4, from + 4 + selection.length);
+}
+
+export function applyLink(text: string, from: number, to: number, url: string): MarkdownEditResult {
+  const selectedText = text.slice(from, to);
+  const label = selectedText || url;
+  const nextValue = `[${label}](${url})`;
+
+  return replaceRange(text, from, to, nextValue, from + nextValue.length, from + nextValue.length);
+}
+
+export function applyImage(text: string, from: number, to: number, url: string): MarkdownEditResult {
+  const selectedText = text.slice(from, to);
+  const altText = selectedText || "image";
+  const nextValue = `![${altText}](${url})`;
+
+  return replaceRange(text, from, to, nextValue, from + nextValue.length, from + nextValue.length);
+}
+
+export function applyHorizontalRule(text: string, from: number, to: number): MarkdownEditResult {
+  const prefix = getLeadingSpacing(text, from);
+  const suffix = getTrailingSpacing(text, to);
+  const nextValue = `${prefix}---${suffix}`;
+  const nextCursor = from + nextValue.length;
+
+  return replaceRange(text, from, to, nextValue, nextCursor, nextCursor);
+}
+
+export function applyClearFormatting(text: string, from: number, to: number): MarkdownEditResult {
+  const target = from === to ? getLineSelection(text, from, to) : { blockFrom: from, blockTo: to, lines: [] };
+  const selection = text.slice(target.blockFrom, target.blockTo);
+  const nextValue = selection
+    .replace(/^```[^\n]*\n?/gmu, "")
+    .replace(/\n```$/gmu, "")
+    .replace(/^(?:\s{0,3}#{1,6}\s+|> ?|[-*+]\s+|\d+\.\s+)/gmu, "")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/gu, "$1")
+    .replace(/`([^`]+)`/gu, "$1")
+    .replace(/\*\*([^*]+)\*\*/gu, "$1")
+    .replace(/__([^_]+)__/gu, "$1")
+    .replace(/\*([^*\n]+)\*/gu, "$1")
+    .replace(/_([^_\n]+)_/gu, "$1")
+    .replace(/~~([^~]+)~~/gu, "$1");
+
+  return replaceRange(
+    text,
+    target.blockFrom,
+    target.blockTo,
+    nextValue,
+    target.blockFrom,
+    target.blockFrom + nextValue.length,
+  );
+}
+
+function getLineSelection(text: string, from: number, to: number) {
+  const safeEnd = to > from ? to - 1 : to;
+  const blockFrom = text.lastIndexOf("\n", Math.max(0, from - 1)) + 1;
+  const nextNewline = text.indexOf("\n", safeEnd);
+  const blockTo = nextNewline === -1 ? text.length : nextNewline;
+  const lines = text.slice(blockFrom, blockTo).split("\n");
+
+  return {
+    blockFrom,
+    blockTo,
+    lines,
+  };
+}
+
+function replaceRange(
+  text: string,
+  from: number,
+  to: number,
+  nextValue: string,
+  selectionStart: number,
+  selectionEnd: number,
+): MarkdownEditResult {
+  return {
+    text: `${text.slice(0, from)}${nextValue}${text.slice(to)}`,
+    selectionStart,
+    selectionEnd,
+  };
+}
+
+function stripListMarker(line: string) {
+  return line.replace(/^(?:[-*+]\s+|\d+\.\s+)/u, "");
+}
+
+function getLeadingSpacing(text: string, from: number) {
+  if (from === 0) {
+    return "";
+  }
+
+  if (text.slice(0, from).endsWith("\n\n")) {
+    return "";
+  }
+
+  return text[from - 1] === "\n" ? "\n" : "\n\n";
+}
+
+function getTrailingSpacing(text: string, to: number) {
+  if (to === text.length) {
+    return "";
+  }
+
+  if (text.slice(to).startsWith("\n\n")) {
+    return "";
+  }
+
+  return text[to] === "\n" ? "\n" : "\n\n";
 }
 
 function ToolbarButton({
@@ -357,6 +767,9 @@ function ToolbarButton({
       aria-label={label}
       className="toolbar-button toolbar-button--text"
       onClick={onClick}
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
       type="button"
     >
       <span className="toolbar-button__text">{children}</span>
@@ -378,6 +791,9 @@ function IconToolbarButton({
       aria-label={label}
       className="toolbar-button toolbar-button--icon"
       onClick={onClick}
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
       type="button"
     >
       {children}

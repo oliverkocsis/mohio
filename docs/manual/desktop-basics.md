@@ -29,7 +29,7 @@ After you choose a folder, Mohio shows its Markdown documents in the left sideba
 
 - Select a document from the left sidebar.
 - Edit the title at the top of the page.
-- Edit the body in the main editor.
+- Edit the body in the main editor, which displays Markdown as formatted text while still saving Markdown source underneath.
 - Use the toolbar for headings, lists, quotes, links, images, code, and other basic formatting.
 
 ## How Saving Works
@@ -49,4 +49,4 @@ After you choose a folder, Mohio shows its Markdown documents in the left sideba
 - You cannot rename or delete notes from a dedicated sidebar action yet.
 - Search is not active yet.
 - The assistant panel is present, but it is not connected to a live workflow yet.
-- Tables and task lists are preserved, but they are not fully editable in rich-text mode yet.
+- There is no rendered preview or split view for Markdown yet.

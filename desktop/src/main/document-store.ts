@@ -35,7 +35,7 @@ export async function saveDocument(
 ): Promise<SaveDocumentResult> {
   const currentAbsolutePath = resolveWorkspacePath(workspacePath, input.relativePath);
   const existingMarkdown = await fs.readFile(currentAbsolutePath, "utf8");
-  const { markdown } = buildMarkdownDocument({
+  const { bodyMarkdown, markdown } = buildMarkdownDocument({
     bodyMarkdown: input.markdown,
     existingMarkdown,
     title: input.title,
@@ -64,7 +64,7 @@ export async function saveDocument(
     relativePath: nextRelativePath,
     fileName: path.basename(nextRelativePath),
     displayTitle: input.title.trim() || "Untitled",
-    markdown: input.markdown,
+    markdown: bodyMarkdown,
     savedAt: new Date().toISOString(),
   };
 }
