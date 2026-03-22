@@ -25,6 +25,92 @@ Planned focus areas:
 - explicit publish flow for shared updates
 - contextual navigation between related pages
 
+### 1. Workspace Management
+
+- Open a local folder as a Mohio workspace.
+- Treat Markdown files in that folder as workspace documents.
+- Show the current workspace name and context clearly.
+- Keep the default experience local-first without requiring a hosted backend.
+
+### 2. Editing Experience
+
+- Default to a polished document editing experience for non-technical users.
+- Use `Quill` as the WYSIWYG editor for standard writing workflows.
+- Show a clear document title field as part of the editing surface.
+- Provide a lightweight formatting toolbar for common writing actions.
+- Preserve Markdown as the durable source format.
+- Support default Markdown formatting options including paragraphs, headings, ordered and unordered lists, task lists, block quotes, links, images, bold, italic, strikethrough, inline code, code blocks, tables, and horizontal rules.
+- Save edits continuously without a manual save workflow.
+- Keep the document editor as the visual center of the product.
+
+### 3. AI Assistance
+
+- Provide an embedded AI panel inside the workspace for connected assistants such as Codex and Claude Code.
+- Let connected assistants summarize, rewrite, organizeUse, expand, and update the current note.
+- Allow the assistant to propose creating new notes when useful.
+- Surface suggested assistant actions where they help the current document workflow.
+- Keep assistant actions explicit and reviewable.
+- Show what the assistant changed instead of hiding modifications.
+- Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
+
+### 5. Note and Document Management
+
+- Create a new note from inside the app.
+- Open a newly created note immediately.
+- Rename notes from inside the app.
+- Delete notes from inside the app.
+- Show a browsable list or tree of workspace documents.
+- Support recent or pinned notes for fast return paths.
+- Keep the active note clearly highlighted in the workspace browser.
+
+### 4. Navigation and Discovery
+
+- Switch between notes quickly from the workspace browser.
+- Search by file name.
+- Search by note content.
+- Recognize internal Markdown links between documents.
+- Open linked notes directly from the editor.
+- Support contextual navigation between related pages over time.
+
+### 6. Review, History, and Checkpoints
+
+- Create checkpoints automatically in the background instead of asking users to manage them manually.
+- Create a checkpoint before any AI-generated change is applied.
+- Create a checkpoint after a meaningful local editing burst followed by a pause, rather than on a fixed short timer.
+- Use a safer heuristic than a simple 60-second idle rule:
+  create a checkpoint only when there has been material document change and the user has been idle for around 90 seconds.
+- Optionally create checkpoints before other high-risk transitions such as publish or destructive note actions.
+- Keep checkpoints primarily as a recovery and safety mechanism rather than a visible workflow step.
+- Preserve visible page-level history over time.
+- Support reviewable diffs before important shared changes are accepted.
+
+### 7. Publishing and Shared Knowledge
+
+- Separate ongoing editing from deliberate publishing.
+- Let users publish the current note when it is ready to share.
+- Make published state or last published status visible.
+- Keep publishing an explicit action rather than an automatic side effect of editing.
+
+### 8. Collaboration and Change Awareness
+
+These are planned feature areas beyond the earliest core workspace milestone:
+
+- Page comments and lightweight review flows.
+- Mentions and basic notifications.
+- Better visibility into recent changes on relevant pages.
+- Guided conflict resolution in product language.
+- Clearer signals for draft, published, and incoming changes.
+
+### 9. Mobile and Companion Workflows
+
+These are planned after the desktop-first core workflow is stable:
+
+- Mobile capture for new notes and ideas.
+- Mobile reading for shared team documentation.
+- Lightweight proposal review on smaller screens.
+- Faster discovery of related knowledge away from the main workspace.
+
+
 ## Phase 2: Collaboration and Change Awareness
 
 Once the core workflow is stable, the next priority is improving team coordination.
