@@ -4,11 +4,11 @@
 
 2026-03-21
 
-## Why
+## Context
 
-Mohio needed to move beyond a placeholder editor shell and deliver the first real document editing workflow on top of the new workspace file-system foundation. The goal for this feature was to let users open existing Markdown documents, edit them through a polished WYSIWYG surface, and keep Markdown as the durable source format without introducing a manual save workflow.
+Mohio had a desktop shell and workspace browsing flow, but it still lacked a real document editing workflow. Users could open workspaces and browse Markdown files, yet they could not load an existing document, edit it in the app, and save it back to disk through a production-facing editor surface.
 
-## What Changed
+## Change
 
 - Added a new document read and save contract to the shared Mohio API, preload bridge, and Electron main process.
 - Implemented safe document loading and saving inside the active workspace, including path validation to block access outside the workspace root.
@@ -22,6 +22,10 @@ Mohio needed to move beyond a placeholder editor shell and deliver the first rea
 - Added preservation handling for unsupported task-list and table Markdown blocks so they remain intact through editing and saving.
 - Added MIT licensing metadata to the repository with a root `LICENSE` file, a `README` license section, and an explicit `license` field on the desktop package.
 - Expanded main-process, shared API, and renderer test coverage for document loading, saving, renaming, autosave, and the updated editor UI.
+
+## Decision
+
+Chose a `Quill`-based WYSIWYG editor with autosave instead of waiting for a fuller Markdown-source workflow so the product could deliver a usable editing experience earlier. Preserved unsupported task-list and table blocks rather than forcing lossy conversion, prioritizing Markdown safety over broader editing coverage in this milestone.
 
 ## Impact
 
