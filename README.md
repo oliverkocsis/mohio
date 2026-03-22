@@ -81,9 +81,9 @@ All development work must happen on a feature branch using this exact format:
 
 - `feature-yyyymmdd-descriptive-feature-name`
 
-Codex users can start this workflow with the repo-local `new-feature` skill. Ask Codex to use `new-feature`, answer the clarification questions, and it will update `main` and create the branch in the required format.
+Codex users can start this workflow with the repo-local `start-feature` skill. Ask Codex to use `start-feature`, answer the clarification questions, and it will update `main` and create the branch in the required format.
 
-Codex users can finish this workflow with the repo-local `finalize-feature` skill. Ask Codex to use `finalize-feature` to run final cleanup, prepare or respond to code review, and sync `main` after merge.
+Codex users can finish this workflow with the repo-local `finish-feature` skill. Ask Codex to use `finish-feature` to run final cleanup, prepare or respond to code review, and sync `main` after merge.
 
 Rules:
 

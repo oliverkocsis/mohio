@@ -1,0 +1,4 @@
+interface:
+  display_name: "Finish Feature"
+  short_description: "Finish a Mohio feature branch safely"
+  default_prompt: "Use $finish-feature to prepare this Mohio feature branch for review, address review feedback, and complete safe merge cleanup."

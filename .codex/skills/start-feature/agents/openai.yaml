@@ -1,0 +1,4 @@
+interface:
+  display_name: "Start Feature"
+  short_description: "Start a new Mohio feature branch"
+  default_prompt: "Use $start-feature to ask the required clarification questions, update main, and create a branch in the Mohio feature naming format."
