@@ -82,6 +82,7 @@ On save, Mohio rebuilds the file with:
 - Toolbar actions rewrite the current selection or line range into Markdown instead of converting through HTML.
 - The editor presentation hides Markdown control characters for headings, emphasis, lists, links, rules, and fenced code so the body reads as formatted text while preserving the original source underneath.
 - Hidden Markdown control ranges are treated as atomic in the editor so list continuation and cursor movement do not temporarily reveal raw syntax or break the WYSIWYG presentation.
+- Empty continued list items such as `- ` and `1. ` are still classified as list rows so adjacent list spacing stays stable before the user types content.
 - Tables, task lists, and other Markdown structures stay editable because Mohio no longer maps the document into a separate rich-text model.
 
 ## Autosave

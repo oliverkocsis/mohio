@@ -414,10 +414,6 @@ function getMarkdownLineKind(lineText: string): MarkdownLineKind {
     return "code";
   }
 
-  if (/^\s{0,3}#{1,6}\s+/u.test(lineText) || /^\s{0,3}(=+|-+)\s*$/u.test(lineText)) {
-    return "heading";
-  }
-
   if (/^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/u.test(lineText)) {
     return "rule";
   }
@@ -426,8 +422,12 @@ function getMarkdownLineKind(lineText: string): MarkdownLineKind {
     return "quote";
   }
 
-  if (/^(?:[-*+]\s+|\d+\.\s+|[-*+]\s+\[(?: |x|X)\]\s+)/u.test(trimmedLine)) {
+  if (isMarkdownListLine(lineText)) {
     return "list";
+  }
+
+  if (/^\s{0,3}#{1,6}\s+/u.test(lineText) || /^\s{0,3}(=+|-+)\s*$/u.test(lineText)) {
+    return "heading";
   }
 
   if (/^\|.*\|$/u.test(trimmedLine)) {
@@ -439,6 +439,10 @@ function getMarkdownLineKind(lineText: string): MarkdownLineKind {
 
 function isFenceLine(line: string): boolean {
   return /^```/u.test(line);
+}
+
+function isMarkdownListLine(lineText: string): boolean {
+  return /^\s{0,3}(?:[-*+](?:\s+|$)|\d+\.(?:\s+|$)|[-*+]\s+\[(?: |x|X)\](?:\s+|$))/u.test(lineText);
 }
 
 function addLineDecorations(

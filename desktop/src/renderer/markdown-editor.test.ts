@@ -66,6 +66,9 @@ describe("markdown editor toolbar transforms", () => {
     expect(insertNewlineContinueMarkup(view!)).toBe(true);
     expect(view!.state.doc.toString()).toBe("- First item\n- ");
     expect(handleChange).toHaveBeenLastCalledWith("- First item\n- ");
-    expect(container.querySelectorAll(".cm-md-bullet-item")).toHaveLength(2);
+    const bulletItems = Array.from(container.querySelectorAll(".cm-md-bullet-item"));
+
+    expect(bulletItems).toHaveLength(2);
+    expect(bulletItems[0]?.classList.contains("cm-md-list-item--continued")).toBe(true);
   });
 });
