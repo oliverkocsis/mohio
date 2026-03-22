@@ -604,6 +604,7 @@ button {
 .markdown-editor .cm-md-blockquote {
   border-left: 3px solid var(--muted-surface-strong);
   margin: 0 0 1em;
+  padding-bottom: 0.08em;
   padding-left: 16px;
   color: var(--text-secondary);
 }
