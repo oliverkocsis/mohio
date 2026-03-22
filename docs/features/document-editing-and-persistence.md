@@ -6,7 +6,7 @@ This document covers how Mohio currently reads, edits, saves, renames, and re-sy
 
 - Markdown parsing
 - document title handling
-- rich-text editing
+- Markdown-source editing
 - Markdown serialization
 - autosave
 - filename normalization
@@ -56,7 +56,7 @@ On save, Mohio rebuilds the file with:
 
 ## Editor Surface
 
-- Editor implementation: `Quill`
+- Editor implementation: `CodeMirror`
 - Title field: auto-resizing textarea
 - Toolbar actions currently implemented:
   - H1
@@ -75,21 +75,16 @@ On save, Mohio rebuilds the file with:
   - horizontal rule
   - clear formatting
 
-## Markdown Conversion
+## Markdown Editing Model
 
-- `marked` converts Markdown into editor HTML.
-- `turndown` converts editor HTML back into Markdown.
-- Output normalizes to fenced code blocks, ATX headings, `-` list markers, and trimmed spacing.
-
-## Preserved Blocks
-
-Task lists and tables are not fully editable in rich-text mode yet.
-
-Current behavior:
-
-- Mohio detects those blocks in Markdown before rendering.
-- They are inserted into the editor as protected preserved blocks.
-- Their original Markdown is stored in dataset attributes and round-tripped back to the saved file.
+- The body editor works directly on the saved Markdown source.
+- `CodeMirror` owns the editing surface, selection state, syntax highlighting, and keyboard interaction.
+- Toolbar actions rewrite the current selection or line range into Markdown instead of converting through HTML.
+- The editor presentation hides Markdown control characters for headings, emphasis, lists, links, rules, and fenced code so the body reads as formatted text while preserving the original source underneath.
+- Hidden Markdown control ranges are treated as atomic in the editor so list continuation and cursor movement do not temporarily reveal raw syntax or break the WYSIWYG presentation.
+- Empty continued list items such as `- ` and `1. ` are still classified as list rows so adjacent list spacing stays stable before the user types content.
+- Save-time body normalization only standardizes line endings and otherwise preserves Markdown whitespace such as hard line breaks, fenced code indentation, and intentional blank lines in the body source.
+- Tables, task lists, and other Markdown structures stay editable because Mohio no longer maps the document into a separate rich-text model.
 
 ## Autosave
 
@@ -107,7 +102,7 @@ Current behavior:
 ## Current Limitations
 
 - No explicit save history or checkpoint UI yet
-- No source-mode editor yet
+- No rendered preview or split-view editor yet
 - No create-note flow yet
 - No in-app rename action outside editing the title of an existing file
 - No publish workflow
@@ -118,5 +113,4 @@ Current behavior:
 - Main process document reads and saves: `desktop/src/main/document-store.ts`
 - Shared document formats: `desktop/src/shared/document-format.ts`
 - Renderer editor shell: `desktop/src/renderer/App.tsx`
-- Rich-text editor implementation: `desktop/src/renderer/rich-text-editor.tsx`
-- Markdown conversion helpers: `desktop/src/renderer/editor-markdown.ts`
+- Markdown editor implementation: `desktop/src/renderer/markdown-editor.tsx`

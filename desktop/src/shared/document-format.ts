@@ -50,7 +50,7 @@ export function buildMarkdownDocument({
   bodyMarkdown: string;
   existingMarkdown: string;
   title: string;
-}): { frontmatterTitle?: string; markdown: string } {
+}): { bodyMarkdown: string; frontmatterTitle?: string; markdown: string } {
   const parsedFrontmatter = parseFrontmatter(existingMarkdown);
   const nextMetadata = { ...parsedFrontmatter.metadata };
   const normalizedTitle = normalizeTitle(title);
@@ -63,14 +63,19 @@ export function buildMarkdownDocument({
   }
 
   const header = `# ${normalizedTitle}`;
-  const trimmedBody = bodyMarkdown.replace(/^\s+/u, "").trimEnd();
-  const nextBody = trimmedBody ? `${header}\n\n${trimmedBody}` : header;
+  const normalizedBody = normalizeBodyMarkdown(bodyMarkdown);
+  const nextBody = normalizedBody ? `${header}\n\n${normalizedBody}` : header;
   const nextFrontmatter = serializeFrontmatter(nextMetadata);
 
   return {
+    bodyMarkdown: normalizedBody,
     frontmatterTitle: typeof nextMetadata.title === "string" ? nextMetadata.title : undefined,
     markdown: nextFrontmatter ? `${nextFrontmatter}\n${nextBody}\n` : `${nextBody}\n`,
   };
+}
+
+export function normalizeBodyMarkdown(bodyMarkdown: string): string {
+  return bodyMarkdown.replace(/\r\n?/gu, "\n");
 }
 
 export function getDisplayTitle({

@@ -11,35 +11,55 @@ Read [.codex/skills/software-engineer/SKILL.md](.codex/skills/software-engineer/
 
 ## Workflow
 
-1. Ask clarifying questions before changing code or running Git commands.
-2. Call `update_plan` after the answers so the session starts with a short visible plan.
-3. Confirm the current feature branch, the target branch, and the current stage:
-   - pre-PR
-   - in review
-   - after review, before merge
-   - already merged, only cleanup remaining
+1. Start with the default assumptions below instead of asking routine questions up front.
+2. Detect the current branch with `git branch --show-current` and treat it as the feature branch.
+3. Assume the merge target is `main`.
 4. Check the worktree and branch state with `git status --short --branch`.
-5. Stop and ask the user how to proceed if the worktree contains unrelated or risky changes.
-6. Perform local cleanup and final polishing.
-7. Prepare or refine the PR or MR.
-8. Review peer feedback, ask clarification questions about ambiguous review comments, and separate required changes from optional suggestions.
-9. Implement review fixes, update documentation if needed, and repeat local cleanup and final polishing.
-10. Merge only after approvals, green checks, and documentation are complete.
-11. Clean up the merged branch only when it is safe to do so.
-12. Switch to `main`, fetch, and pull the latest version after merge cleanup.
+5. Detect whether the default assumptions are false. Ask targeted clarification questions only if they are false or ambiguous.
+6. Detect the project verification commands from the repo setup before running checks.
+7. Check whether a PR or MR exists for the current branch. If not, create one when tooling and permissions allow; otherwise prepare the PR content and stop at the handoff.
+8. Call `update_plan` after the automatic detection work and any needed follow-up questions so the session starts with a short visible plan.
+9. Perform local cleanup and final polishing.
+10. Run a code review on the final diff before merge, even if no human review has happened yet.
+11. Implement code review fixes, update documentation if needed, and repeat local cleanup and final polishing.
+12. Merge as part of this skill when approvals, checks, and documentation are complete.
+13. Clean up the merged branch only when it is safe to do so.
+14. Switch to `main`, fetch, and pull the latest version after merge cleanup.
 
-## Clarifications
+## Default Assumptions
 
-Ask at least these questions every time:
+Assume all of the following unless the repository state proves otherwise:
 
-- What branch should be finalized right now?
-- What is the target branch for merge, usually `main`?
-- Has a PR or MR already been opened?
-- Has peer review already happened, and if so, what feedback is still unresolved?
-- Which commands should be treated as the source of truth for tests, linting, formatting, build, or other verification in this repo?
-- Has the feature already been merged, or should this skill prepare for merge but stop before it?
+- the branch to finalize is the current branch
+- the merge target is `main`
+- the feature has not already been merged yet
+- the skill should handle merge completion as part of the workflow
+- a PR should exist for the current branch, so check for one and open it if it does not exist
+- a code review must happen even if no human reviewer has commented yet
+- verification commands should be inferred from the current project setup rather than asked from the user
 
-If the user explicitly asks to "switch to Plan mode", explain briefly that a repo skill cannot change Codex collaboration mode. Still emulate the behavior by asking clarifying questions first and then calling `update_plan`.
+For the current Mohio desktop app setup, default verification from `desktop/` is:
+
+- `npm test`
+- `npm run typecheck`
+- `npm run build`
+
+Do not invent lint or format commands. Only run them if matching scripts actually exist in the active project files.
+
+## Targeted Clarifications Only
+
+Do not ask the user the routine questions above unless detection shows the assumptions are false or unclear.
+
+Ask targeted clarification questions only in cases like these:
+
+- the current branch is empty, detached, `main`, or does not look like a feature branch
+- the worktree contains unrelated or risky local changes
+- the feature appears to be already merged
+- multiple subprojects were changed and verification commands are not obvious from the touched files
+- PR creation or lookup cannot be completed because remote tooling or permissions are unavailable
+- merge strategy or branch cleanup would be risky
+
+If the user explicitly asks to "switch to Plan mode", explain briefly that a repo skill cannot change Codex collaboration mode. Still emulate the behavior by doing the automatic detection first, asking only the needed clarifications, and then calling `update_plan`.
 
 ## Local Cleanup and Final Polishing
 
@@ -49,7 +69,7 @@ Always include these checks before review or merge:
 - consolidate the final changelog into `docs/changelog/feature-yyyymmdd-descriptive-feature-name.md` when the feature is ready for merge
 - review the diff and remove dead code, debug code, stray logs, and temporary comments
 - run the relevant test suite
-- run linting and formatting if the project defines them
+- run linting and formatting only if the project actually defines them
 - run any relevant build or packaging checks when the feature affects shipped surfaces
 - rebase onto or merge the latest `main` into the feature branch and resolve conflicts early
 - rerun verification after conflict resolution
@@ -63,12 +83,15 @@ Also check these items before merge:
 
 ## Pull Request or Merge Request
 
+Always check whether a PR or MR already exists for the current branch.
+
 When the PR or MR does not exist yet:
 
 - prepare a concise summary of the feature
 - list the verification performed
 - list the documentation updated
 - list any follow-up work or known limitations
+- open the PR or MR if the environment supports it
 
 When the PR or MR already exists:
 
@@ -77,10 +100,12 @@ When the PR or MR already exists:
 
 If the environment does not allow remote Git hosting operations, prepare the PR content and stop at the point where the user must open or merge it manually.
 
-## Peer Code Review
+## Code Review
 
-Treat review as a real gate, not a formality.
+Treat code review as a real gate, not a formality.
 
+- always perform a code review on the final diff, even before external reviewer feedback exists
+- use a code-review mindset: prioritize bugs, regressions, missing tests, documentation gaps, and merge risks first
 - collect all review comments and group them into bugs, regressions, documentation gaps, style requests, and open questions
 - ask clarification questions when a reviewer comment is ambiguous, conflicts with another comment, or appears to misunderstand the implementation
 - do not merge while required review feedback is still unresolved

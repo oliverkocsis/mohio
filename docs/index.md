@@ -10,7 +10,7 @@ Mohio is a local-first knowledge workspace for small teams. It keeps documents i
 
 - Problem: small teams need shared documentation without heavy wiki tooling or opaque storage.
 - User: small teams that want a document-first workspace and local ownership of their files.
-- Stack: `Electron`, `React`, `TypeScript`, `Vite`, `Quill`, Markdown files in a Git-backed workspace.
+- Stack: `Electron`, `React`, `TypeScript`, `Vite`, `CodeMirror`, Markdown files in a Git-backed workspace.
 
 ## Documentation Architecture
 

@@ -73,8 +73,7 @@ flowchart LR
 
 - `Electron` for desktop shell, menu, windowing, preload bridge, and IPC
 - `React` for renderer composition
-- `Quill` for rich-text editing
-- `marked` and `turndown` for Markdown-to-editor conversion and editor-to-Markdown conversion
+- `CodeMirror` for Markdown-source editing
 - `yaml` for frontmatter parsing and serialization
 - `lucide-react` for editor toolbar icons
 
@@ -83,8 +82,7 @@ flowchart LR
 - The app is single-window and desktop-only today.
 - Search UI exists as a placeholder input only; it is not wired to workspace querying.
 - The assistant sidebar is present as layout scaffolding only.
-- Note creation, rename UI, delete UI, publish flow, checkpoints, and source mode are not implemented yet in the renderer.
-- Task lists and tables are preserved in rich-text mode but are not fully editable yet.
+- Note creation, rename UI, delete UI, publish flow, checkpoints, and rendered preview are not implemented yet in the renderer.
 
 ## When To Update This Document
 

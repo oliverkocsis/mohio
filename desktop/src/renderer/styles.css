@@ -476,127 +476,228 @@ button {
   color: var(--text-subtle);
 }
 
-.quill-editor-frame {
+.markdown-editor-frame {
   overflow: visible;
 }
 
-.quill-editor {
+.markdown-editor {
   min-height: 0;
 }
 
-.quill-editor .ql-toolbar.ql-snow {
-  display: none;
-}
-
-.quill-editor .ql-container.ql-snow {
-  border: none;
-  font-family: inherit;
-  height: auto;
+.markdown-editor .cm-editor {
   min-height: 420px;
-  overflow: visible;
-}
-
-.quill-editor-frame:focus-within,
-.quill-editor .ql-container.ql-snow:focus-within,
-.quill-editor .ql-editor:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.quill-editor .ql-editor {
-  height: auto;
-  min-height: 420px;
-  overflow-y: visible;
-  padding: 0 32px 32px 32px;
+  background: transparent;
   font-size: 16px;
   line-height: 1.7;
   color: var(--text-primary);
 }
 
-.quill-editor .ql-editor.ql-blank::before {
-  left: 32px;
-  right: 32px;
+.markdown-editor .cm-focused {
+  outline: none;
+}
+
+.markdown-editor .cm-scroller {
+  overflow: visible;
+  font-family: inherit;
+}
+
+.markdown-editor .cm-content {
+  min-height: 420px;
+  padding: 0 32px 32px 32px;
+  caret-color: var(--text-primary);
+}
+
+.markdown-editor .cm-line {
+  padding: 0;
+  padding-bottom: 0.5em;
+  color: inherit;
+}
+
+.markdown-editor .cm-placeholder {
   color: var(--text-subtle);
-  font-style: normal;
 }
 
-.quill-editor .ql-editor h1,
-.quill-editor .ql-editor h2,
-.quill-editor .ql-editor h3 {
-  margin: 0 0 0.75em;
+.markdown-editor .cm-cursor,
+.markdown-editor .cm-dropCursor {
+  border-left-color: var(--text-primary);
+}
+
+.markdown-editor .cm-selectionBackground,
+.markdown-editor .cm-focused .cm-selectionBackground,
+.markdown-editor ::selection {
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.markdown-editor .cm-md-heading {
+  padding-top: 0.5em;
+  padding-bottom: 0.25em;
   color: var(--text-primary);
+  text-decoration: none;
 }
 
-.quill-editor .ql-editor h1 {
+.markdown-editor .cm-content > .cm-md-heading:first-child {
+  padding-top: 0;
+}
+
+.markdown-editor .tok-heading {
+  text-decoration: none;
+}
+
+.markdown-editor .cm-md-heading-1 {
   font-size: 30px;
+  font-weight: 600;
   line-height: 1.2;
 }
 
-.quill-editor .ql-editor h2 {
+.markdown-editor .cm-md-heading-2 {
   font-size: 24px;
+  font-weight: 600;
   line-height: 1.3;
 }
 
-.quill-editor .ql-editor h3 {
+.markdown-editor .cm-md-heading-3 {
   font-size: 20px;
+  font-weight: 600;
   line-height: 1.35;
 }
 
-.quill-editor .ql-editor p,
-.quill-editor .ql-editor ul,
-.quill-editor .ql-editor ol,
-.quill-editor .ql-editor blockquote,
-.quill-editor .ql-editor pre {
-  margin: 0 0 1em;
+.markdown-editor .cm-md-heading-4,
+.markdown-editor .cm-md-heading-5,
+.markdown-editor .cm-md-heading-6 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-.quill-editor .ql-editor blockquote {
+.markdown-editor .cm-md-strong {
+  font-weight: 700;
+}
+
+.markdown-editor .cm-md-emphasis {
+  font-style: italic;
+}
+
+.markdown-editor .cm-md-strikethrough {
+  text-decoration: line-through;
+}
+
+.markdown-editor .cm-md-inline-code {
+  border-radius: 4px;
+  background: var(--muted-surface);
+  padding: 0.12em 0.35em;
+  font-family: ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
+.markdown-editor .cm-md-link {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
+
+.markdown-editor .cm-md-image-alt {
+  border-radius: 999px;
+  background: var(--muted-surface);
+  padding: 0.08em 0.5em;
+  color: var(--text-secondary);
+}
+
+.markdown-editor .cm-md-blockquote {
   border-left: 3px solid var(--muted-surface-strong);
-  margin-left: 0;
+  margin: 0 0 1em;
+  padding-bottom: 0.08em;
   padding-left: 16px;
   color: var(--text-secondary);
 }
 
-.quill-editor .ql-editor code {
-  border-radius: 4px;
-  background: var(--muted-surface);
-  padding: 0.12em 0.35em;
-  font-size: 0.92em;
+.markdown-editor .cm-md-bullet-item,
+.markdown-editor .cm-md-ordered-item,
+.markdown-editor .cm-md-task-item {
+  position: relative;
+  padding-left: 24px;
 }
 
-.quill-editor .ql-editor pre {
-  border-radius: 8px;
-  background: #111827;
-  padding: 16px;
-  color: #f9fafb;
+.markdown-editor .cm-md-list-item--continued {
+  padding-bottom: 0;
 }
 
-.quill-editor .ql-editor a {
-  color: var(--accent-blue);
+.markdown-editor .cm-md-bullet-item::before,
+.markdown-editor .cm-md-ordered-item::before,
+.markdown-editor .cm-md-task-item::before {
+  position: absolute;
+  left: 0;
+  top: 0.08em;
+  line-height: 1;
+  color: var(--text-secondary);
 }
 
-.mohio-preserved-block {
-  border: 1px dashed rgba(17, 24, 39, 0.15);
-  border-radius: 8px;
-  background: var(--muted-surface);
-  padding: 14px 16px;
+.markdown-editor .cm-md-bullet-item::before {
+  content: "•";
 }
 
-.mohio-preserved-block__label {
-  margin-bottom: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+.markdown-editor .cm-md-ordered-item::before {
+  content: attr(data-list-marker) ".";
 }
 
-.mohio-preserved-block__preview {
+.markdown-editor .cm-md-task-item::before {
+  content: "☐";
+}
+
+.markdown-editor .cm-md-task-item[data-task-state="checked"]::before {
+  content: "☑";
+}
+
+.markdown-editor .cm-md-code-fence {
+  font-size: 0;
+  line-height: 0;
+  height: 0;
+  padding: 0;
+}
+
+.markdown-editor .cm-md-setext-underline {
+  font-size: 0;
+  line-height: 0;
+  height: 0;
   margin: 0;
+  padding: 0;
+}
+
+.markdown-editor .cm-md-code-line {
+  margin: 0;
+  padding: 0 16px;
+  background: var(--sidebar-surface);
+  box-shadow:
+    inset 1px 0 0 var(--muted-surface-strong),
+    inset -1px 0 0 var(--muted-surface-strong);
+  color: var(--text-primary);
   font-family: ui-monospace, monospace;
-  font-size: 13px;
-  line-height: 1.45;
-  white-space: pre-wrap;
+}
+
+.markdown-editor .cm-md-code-line-start {
+  margin-top: 0.25em;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  box-shadow:
+    inset 1px 0 0 var(--muted-surface-strong),
+    inset -1px 0 0 var(--muted-surface-strong),
+    inset 0 1px 0 var(--muted-surface-strong);
+  padding-top: 12px;
+}
+
+.markdown-editor .cm-md-code-line-end {
+  margin-bottom: 1em;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  box-shadow:
+    inset 1px 0 0 var(--muted-surface-strong),
+    inset -1px 0 0 var(--muted-surface-strong),
+    inset 0 -1px 0 var(--muted-surface-strong);
+  padding-bottom: 12px;
+}
+
+.markdown-editor .cm-md-horizontal-rule {
+  height: 1px;
+  margin: 0.75em 0;
+  background: var(--border);
 }
 
 .editor-panel__error {
