@@ -664,8 +664,11 @@ button {
 .markdown-editor .cm-md-code-line {
   margin: 0;
   padding: 0 16px;
-  background: #111827;
-  color: #f9fafb;
+  background: var(--sidebar-surface);
+  box-shadow:
+    inset 1px 0 0 var(--muted-surface-strong),
+    inset -1px 0 0 var(--muted-surface-strong);
+  color: var(--text-primary);
   font-family: ui-monospace, monospace;
 }
 
@@ -673,6 +676,10 @@ button {
   margin-top: 0.25em;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
+  box-shadow:
+    inset 1px 0 0 var(--muted-surface-strong),
+    inset -1px 0 0 var(--muted-surface-strong),
+    inset 0 1px 0 var(--muted-surface-strong);
   padding-top: 12px;
 }
 
@@ -680,6 +687,10 @@ button {
   margin-bottom: 1em;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
+  box-shadow:
+    inset 1px 0 0 var(--muted-surface-strong),
+    inset -1px 0 0 var(--muted-surface-strong),
+    inset 0 -1px 0 var(--muted-surface-strong);
   padding-bottom: 12px;
 }
 
