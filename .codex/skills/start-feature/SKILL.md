@@ -13,7 +13,7 @@ Read [.codex/skills/software-engineer/SKILL.md](.codex/skills/software-engineer/
 
 1. Ask clarifying questions before touching Git.
 2. Call `update_plan` after the answers so the session starts with a short visible plan.
-3. Confirm the branch description that should become the slug after `feature-yyyymmdd-`.
+3. Name the branch using the format `feature-YYYYMMDD-short-description-of-the-feature`.
 4. Check whether the worktree is clean with `git status --short`.
 5. If the worktree is dirty, stop and ask the user how to proceed. Do not stash, reset, or discard changes on your own.
 6. Run `python3 .codex/skills/start-feature/scripts/start_feature.py "<feature description>"` from the repository root.
