@@ -534,7 +534,7 @@ function addInlineDecorations(
   lineText: string,
 ) {
   addWrappedRanges(builder, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark);
-  addWrappedRanges(builder, lineFrom, lineText, /\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
+  addWrappedRanges(builder, lineFrom, lineText, /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
   addWrappedRanges(builder, lineFrom, lineText, /`([^`\n]+)`/gu, 1, inlineCodeMark);
   addWrappedRanges(builder, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark);
   addWrappedRanges(builder, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark);
@@ -680,7 +680,8 @@ export function applyClearFormatting(text: string, from: number, to: number): Ma
   const nextValue = selection
     .replace(/^```[^\n]*\n?/gmu, "")
     .replace(/\n```$/gmu, "")
-    .replace(/^(?:\s{0,3}#{1,6}\s+|> ?|[-*+]\s+|\d+\.\s+)/gmu, "")
+    .replace(/^(?:\s{0,3}#{1,6}\s+|> ?|[-*+]\s+\[(?: |x|X)\]\s+|[-*+]\s+|\d+\.\s+)/gmu, "")
+    .replace(/^\s{0,3}(?:=+|-{2,})\s*$/gmu, "")
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, "$1")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/gu, "$1")
     .replace(/`([^`]+)`/gu, "$1")

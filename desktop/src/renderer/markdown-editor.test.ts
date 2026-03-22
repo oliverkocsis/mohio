@@ -40,6 +40,8 @@ describe("markdown editor toolbar transforms", () => {
 
   it("removes line and inline markdown formatting", () => {
     expect(applyClearFormatting("## **Alpha**", 0, 12).text).toBe("Alpha");
+    expect(applyClearFormatting("- [ ] Alpha", 0, 11).text).toBe("Alpha");
+    expect(applyClearFormatting("Title\n-----", 0, 11).text).toBe("Title\n");
   });
 
   it("keeps list formatting active after continuing a bullet list with Enter", () => {
@@ -70,5 +72,16 @@ describe("markdown editor toolbar transforms", () => {
 
     expect(bulletItems).toHaveLength(2);
     expect(bulletItems[0]?.classList.contains("cm-md-list-item--continued")).toBe(true);
+  });
+
+  it("renders image markdown without crashing the presentation layer", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "![Alt text](https://example.com/image.png)",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-md-image-alt")).toHaveLength(1);
   });
 });

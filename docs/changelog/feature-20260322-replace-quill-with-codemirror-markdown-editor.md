@@ -15,6 +15,8 @@ Mohio's first desktop editing milestone used `Quill` to present Markdown through
 - Reworked toolbar actions so they transform the current Markdown selection or line range directly for headings, emphasis, lists, links, images, code blocks, horizontal rules, and clear formatting.
 - Added a presentation layer that hides Markdown syntax characters in the editor and styles the visible text as headings, emphasis, quotes, lists, rules, links, and fenced code.
 - Fixed a list-editing crash where pressing `Enter` in a bullet list could invalidate the decoration builder and make the editor fall back to visible raw Markdown.
+- Fixed overlapping inline decoration handling so Markdown images do not collide with link styling and break the editor presentation layer.
+- Preserved Markdown body whitespace on save instead of trimming trailing spaces or code-block indentation out of the source.
 - Kept the existing title field, autosave behavior, workspace syncing, and document persistence contract unchanged.
 - Added focused renderer tests for the new markdown toolbar transformations.
 - Updated the architecture, feature, manual, and changelog documentation to describe the new source-editing model.
