@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  AssistantThread,
   WorkspaceDocument,
   WorkspaceDocumentNode,
   WorkspaceSummary,
@@ -8,6 +9,12 @@ import type {
 import { RichTextEditor } from "./markdown-editor";
 
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
+
+const ASSISTANT_QUICK_ACTIONS = [
+  "Summarize this note",
+  "Organize this note",
+  "Suggest related notes from this workspace",
+] as const;
 
 interface DocumentSnapshot {
   markdown: string;
@@ -27,6 +34,10 @@ export function App() {
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [assistantThread, setAssistantThread] = useState<AssistantThread | null>(null);
+  const [assistantComposerValue, setAssistantComposerValue] = useState("");
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
   const lastSavedSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const pendingSaveSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const loadSequenceRef = useRef(0);
@@ -35,11 +46,14 @@ export function App() {
   const saveStateRef = useRef<SaveState>("idle");
   const draftTitleRef = useRef("");
   const draftMarkdownRef = useRef("");
+  const workspacePathRef = useRef<string | null>(null);
+  const assistantBodyRef = useRef<HTMLDivElement | null>(null);
 
   selectedDocumentIdRef.current = selectedDocumentId;
   saveStateRef.current = saveState;
   draftTitleRef.current = draftTitle;
   draftMarkdownRef.current = draftMarkdown;
+  workspacePathRef.current = workspace?.path ?? null;
 
   useEffect(() => {
     let isMounted = true;
@@ -212,6 +226,73 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!workspace || !selectedDocumentId) {
+      setAssistantThread(null);
+      setAssistantError(null);
+      setIsAssistantLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAssistantLoading(true);
+    setAssistantError(null);
+
+    void window.mohio.getAssistantThread(selectedDocumentId).then(
+      (thread) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAssistantThread(thread);
+        setAssistantError(thread.errorMessage);
+        setIsAssistantLoading(false);
+      },
+      () => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAssistantThread(getEmptyAssistantThread(selectedDocumentId));
+        setAssistantError("Mohio could not load the assistant conversation.");
+        setIsAssistantLoading(false);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDocumentId, workspace]);
+
+  useEffect(() => {
+    const disposeAssistantListener = window.mohio.onAssistantEvent((event) => {
+      if (
+        event.workspacePath !== workspacePathRef.current ||
+        event.noteRelativePath !== selectedDocumentIdRef.current
+      ) {
+        return;
+      }
+
+      setAssistantThread(event.thread);
+      setAssistantError(event.thread.errorMessage);
+      setIsAssistantLoading(false);
+    });
+
+    return () => {
+      disposeAssistantListener();
+    };
+  }, []);
+
+  useEffect(() => {
+    const assistantBody = assistantBodyRef.current;
+
+    if (!assistantBody) {
+      return;
+    }
+
+    assistantBody.scrollTop = assistantBody.scrollHeight;
+  }, [assistantThread?.messages, assistantThread?.status, isAssistantLoading]);
+
   const isDirty = useMemo(() => {
     const lastSavedSnapshot = lastSavedSnapshotRef.current;
 
@@ -343,6 +424,49 @@ export function App() {
     });
   };
 
+  const handleSendAssistantMessage = async (message: string) => {
+    const trimmedMessage = message.trim();
+
+    if (!workspace || !selectedDocumentId || !document || trimmedMessage.length === 0) {
+      return;
+    }
+
+    setAssistantComposerValue("");
+    setAssistantError(null);
+
+    try {
+      const nextThread = await window.mohio.sendAssistantMessage({
+        noteRelativePath: selectedDocumentId,
+        content: trimmedMessage,
+        documentTitle: draftTitle,
+        documentMarkdown: draftMarkdown,
+      });
+
+      setAssistantThread(nextThread);
+    } catch {
+      setAssistantError("Mohio could not start Codex for this workspace.");
+    }
+  };
+
+  const handleCancelAssistantRun = async () => {
+    if (!selectedDocumentId) {
+      return;
+    }
+
+    try {
+      await window.mohio.cancelAssistantRun(selectedDocumentId);
+    } catch {
+      setAssistantError("Mohio could not stop the current Codex run.");
+    }
+  };
+
+  const assistantHasContext = Boolean(workspace && selectedDocumentId && document);
+  const assistantIsBusy = assistantThread?.status === "running";
+  const canSendAssistantMessage =
+    assistantHasContext &&
+    !assistantIsBusy &&
+    assistantComposerValue.trim().length > 0;
+
   return (
     <div className="app-shell">
       <header className="top-bar" data-testid="top-bar">
@@ -464,22 +588,111 @@ export function App() {
         <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
           <section className="sidebar__section assistant-panel-header">
             <p className="assistant-panel__label">Assistant</p>
+            {!workspace || !selectedDocumentId ? (
+              <p className="workspace-panel__copy">Open a workspace note to chat with Codex</p>
+            ) : null}
           </section>
 
-          <div className="assistant-panel__body" />
+          <div
+            ref={assistantBodyRef}
+            className="assistant-panel__body"
+            data-testid="assistant-transcript"
+          >
+            {!workspace ? null : !selectedDocumentId || !document ? (
+              <p className="assistant-panel__copy">
+                Select a note to open a note-specific assistant thread.
+              </p>
+            ) : isAssistantLoading ? (
+              <p className="assistant-panel__copy">Loading the conversation for this note...</p>
+            ) : assistantThread && assistantThread.messages.length > 0 ? (
+              <ol className="assistant-message-list" aria-live="polite">
+                {assistantThread.messages.map((message) => (
+                  <li
+                    className={`assistant-message assistant-message--${message.role}`}
+                    key={message.id}
+                  >
+                    <p className="assistant-message__role">
+                      {message.role === "assistant" ? "Codex" : "You"}
+                    </p>
+                    <p className="assistant-message__content">
+                      {message.content || (message.role === "assistant" && assistantIsBusy ? "Thinking..." : "")}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+          </div>
 
           <div className="assistant-panel__footer">
             <section className="sidebar__section">
               <ul className="action-list">
-                <li>Summarize note</li>
-                <li>Discover related notes</li>
-                <li>Resolve conflicting notes</li>
+                {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                  <li key={action}>
+                    <button
+                      className="assistant-action-chip"
+                      disabled={!assistantHasContext || assistantIsBusy}
+                      onClick={() => {
+                        void handleSendAssistantMessage(action);
+                      }}
+                      type="button"
+                    >
+                      {action}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </section>
 
-            <div className="chat-composer" aria-label="Assistant composer">
-              Ask Mohio for help
-            </div>
+            {assistantError ? (
+              <p className="workspace-panel__error" role="status">
+                {assistantError}
+              </p>
+            ) : null}
+
+            <form
+              className="assistant-composer"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSendAssistantMessage(assistantComposerValue);
+              }}
+            >
+              <input
+                aria-label="Assistant composer"
+                className="chat-composer"
+                data-testid="assistant-composer-input"
+                disabled={!assistantHasContext || assistantIsBusy}
+                onChange={(event) => {
+                  setAssistantComposerValue(event.target.value);
+                }}
+                placeholder={
+                  assistantHasContext
+                    ? "Ask Codex about this note or workspace"
+                    : "Select a note to chat with Codex"
+                }
+                type="text"
+                value={assistantComposerValue}
+              />
+
+              <div className="assistant-composer__actions">
+                <button
+                  className="ghost-button"
+                  disabled={!assistantIsBusy}
+                  onClick={() => {
+                    void handleCancelAssistantRun();
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  disabled={!canSendAssistantMessage}
+                  type="submit"
+                >
+                  Send
+                </button>
+              </div>
+            </form>
           </div>
         </aside>
       </div>
@@ -668,6 +881,15 @@ function snapshotsMatch(
     left.title === right.title &&
     left.markdown === right.markdown
   );
+}
+
+function getEmptyAssistantThread(noteRelativePath: string): AssistantThread {
+  return {
+    noteRelativePath,
+    messages: [],
+    status: "idle",
+    errorMessage: null,
+  };
 }
 
 function ChevronDownIcon() {

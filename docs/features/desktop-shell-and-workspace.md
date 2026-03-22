@@ -20,7 +20,7 @@ This document covers the current shell and workspace flow in `desktop/`.
   - center editor panel
   - right assistant sidebar
 - The renderer is implemented in `React` and `TypeScript`.
-- The right sidebar is layout scaffolding only.
+- The right sidebar hosts the live Codex assistant panel.
 
 ## Menu and Native Entry Points
 
@@ -40,8 +40,12 @@ Current API surface:
 - `readDocument(relativePath)`
 - `saveDocument(input)`
 - `watchDocument(relativePath | null)`
+- `getAssistantThread(noteRelativePath)`
+- `sendAssistantMessage(input)`
+- `cancelAssistantRun(noteRelativePath)`
 - `onWorkspaceChanged(listener)`
 - `onDocumentChanged(listener)`
+- `onAssistantEvent(listener)`
 
 ## Workspace Enumeration
 
@@ -84,6 +88,7 @@ Current API surface:
 
 - The selected document loads into the editor panel.
 - The active row is highlighted in the workspace tree.
+- The assistant sidebar shows a note-scoped Codex conversation for the selected note.
 
 ## Security Boundary
 
@@ -98,6 +103,7 @@ Current API surface:
 - No delete-note UI
 - No search implementation behind the search field
 - No recent-note or pinned-note behavior yet
+- Assistant history is not persisted across restarts
 
 ## Code Anchors
 

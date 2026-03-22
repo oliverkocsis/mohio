@@ -32,8 +32,29 @@ describe("createMohioApi", () => {
       savedAt: "2026-03-21T00:00:00.000Z",
     });
     const watchDocument = vi.fn().mockResolvedValue(undefined);
+    const getAssistantThread = vi.fn().mockResolvedValue({
+      noteRelativePath: "README.md",
+      messages: [],
+      status: "idle" as const,
+      errorMessage: null,
+    });
+    const sendAssistantMessage = vi.fn().mockResolvedValue({
+      noteRelativePath: "README.md",
+      messages: [
+        {
+          id: "message-1",
+          role: "user" as const,
+          content: "Summarize this note",
+          createdAt: "2026-03-21T00:00:00.000Z",
+        },
+      ],
+      status: "running" as const,
+      errorMessage: null,
+    });
+    const cancelAssistantRun = vi.fn().mockResolvedValue(undefined);
     const onDocumentChanged = vi.fn().mockReturnValue(() => undefined);
     const onWorkspaceChanged = vi.fn().mockReturnValue(() => undefined);
+    const onAssistantEvent = vi.fn().mockReturnValue(() => undefined);
 
     const api = createMohioApi({
       appInfo: {
@@ -46,8 +67,12 @@ describe("createMohioApi", () => {
       readDocument,
       saveDocument,
       watchDocument,
+      getAssistantThread,
+      sendAssistantMessage,
+      cancelAssistantRun,
       onDocumentChanged,
       onWorkspaceChanged,
+      onAssistantEvent,
     });
 
     expect(api.getAppInfo()).toEqual({
@@ -67,8 +92,34 @@ describe("createMohioApi", () => {
       savedAt: "2026-03-21T00:00:00.000Z",
     });
     await expect(api.watchDocument("README.md")).resolves.toBeUndefined();
+    await expect(api.getAssistantThread("README.md")).resolves.toEqual({
+      noteRelativePath: "README.md",
+      messages: [],
+      status: "idle",
+      errorMessage: null,
+    });
+    await expect(api.sendAssistantMessage({
+      noteRelativePath: "README.md",
+      content: "Summarize this note",
+      documentTitle: "README",
+      documentMarkdown: "Body",
+    })).resolves.toEqual({
+      noteRelativePath: "README.md",
+      messages: [
+        {
+          id: "message-1",
+          role: "user",
+          content: "Summarize this note",
+          createdAt: "2026-03-21T00:00:00.000Z",
+        },
+      ],
+      status: "running",
+      errorMessage: null,
+    });
+    await expect(api.cancelAssistantRun("README.md")).resolves.toBeUndefined();
     expect(api.onWorkspaceChanged(() => undefined)).toEqual(expect.any(Function));
     expect(api.onDocumentChanged(() => undefined)).toEqual(expect.any(Function));
+    expect(api.onAssistantEvent(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
     expect(readDocument).toHaveBeenCalledWith("README.md");
@@ -78,7 +129,16 @@ describe("createMohioApi", () => {
       markdown: "Body",
     });
     expect(watchDocument).toHaveBeenCalledWith("README.md");
+    expect(getAssistantThread).toHaveBeenCalledWith("README.md");
+    expect(sendAssistantMessage).toHaveBeenCalledWith({
+      noteRelativePath: "README.md",
+      content: "Summarize this note",
+      documentTitle: "README",
+      documentMarkdown: "Body",
+    });
+    expect(cancelAssistantRun).toHaveBeenCalledWith("README.md");
     expect(onDocumentChanged).toHaveBeenCalledTimes(1);
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
+    expect(onAssistantEvent).toHaveBeenCalledTimes(1);
   });
 });

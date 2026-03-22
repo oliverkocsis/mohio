@@ -52,10 +52,12 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Right Sidebar
 
 - Width target: `384px`
-- Purpose: reserve space for assistant-driven workflows
+- Purpose: support assistant-driven note and workspace conversations
 - Rules:
-  - keep the panel quiet until real assistant actions exist
-  - show lightweight suggestion text instead of dense instructional UI
+  - keep the panel visually secondary to the editor
+  - use concise note and workspace context in the header
+  - show transcript bubbles instead of dense settings chrome
+  - use quick-action chips for common note workflows
   - composer stays anchored at the bottom
 
 ## Visual Tokens
@@ -132,13 +134,22 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Use one clear message
 - Use one clear next action
 
+### Assistant Panel
+
+- Keep message bubbles compact and readable
+- Use the same surface palette as the rest of the shell
+- Keep assistant errors local to the panel footer
+- Disable quick actions and the composer while a run is active
+
 ## Interaction Rules
 
 - Opening a workspace should update the shell immediately.
 - Selecting a document should feel instant and should not expose raw IPC or filesystem concepts.
 - Saving should be automatic and mostly invisible.
 - Error messages should be brief and local to the affected panel.
-- Assistant UI should remain secondary to the document until real workflows are implemented.
+- Assistant UI should remain secondary to the document even when live.
+- Switching notes should switch the visible assistant thread with the note.
+- Assistant runs should stream text into the panel instead of waiting for a full-page transition.
 
 ## Responsive Guidance
 

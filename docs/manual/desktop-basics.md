@@ -43,10 +43,23 @@ After you choose a folder, Mohio shows its Markdown documents in the left sideba
 - Mohio watches the document that is currently open.
 - If that file changes on disk, Mohio reloads it when it can do so safely.
 
+## Use the Assistant Panel
+
+- Open a workspace and select a note.
+- Use the right sidebar to chat with Codex about the current note.
+- You can type your own request or use the quick actions:
+  - summarize the note
+  - organize the note
+  - suggest related notes from the current workspace
+- Mohio sends the current note content along with the wider workspace context for that run.
+- The conversation stays attached to the selected note while the app is open.
+- Use `Cancel` if you want to stop the current assistant response.
+
 ## Current Limits
 
 - You cannot create a new note from the UI yet.
 - You cannot rename or delete notes from a dedicated sidebar action yet.
 - Search is not active yet.
-- The assistant panel is present, but it is not connected to a live workflow yet.
+- Assistant history is not saved across app restarts yet.
+- The assistant can chat about your workspace, but it cannot apply note edits through Mohio yet.
 - There is no rendered preview or split view for Markdown yet.

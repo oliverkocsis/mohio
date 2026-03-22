@@ -9,7 +9,7 @@ This document defines Mohio's current system boundary and data flow.
 - No backend service
 - No user account system
 - No external authentication flow
-- No live assistant integration yet
+- Codex-backed assistant integration through the locally installed `codex` CLI
 
 ## System Diagram
 
@@ -20,15 +20,17 @@ flowchart LR
   Preload --> Main["Electron Main Process"]
   Main --> Dialog["Native Open Dialog"]
   Main --> FS["Workspace File System\nMarkdown files"]
+  Main --> Codex["Installed Codex CLI\ncodex exec"]
   FS --> Main
+  Codex --> Main
   Main --> Renderer
 ```
 
 ## Runtime Areas
 
-- `Electron main`: window, menu, folder picker, filesystem access, file watching
+- `Electron main`: window, menu, folder picker, filesystem access, file watching, assistant process management
 - `Preload`: typed `window.mohio` bridge
-- `Renderer`: React UI for workspace tree and editor
+- `Renderer`: React UI for workspace tree, editor, and assistant transcript
 - `Workspace`: local folder with `.md`, `.markdown`, and `.mdx` files
 
 ## Data Flow
@@ -62,12 +64,22 @@ flowchart LR
 3. If the file changes on disk, main re-reads the workspace and document.
 4. Renderer updates the open editor unless that would overwrite unsaved local edits.
 
+### Assistant Conversation
+
+1. Renderer loads the current note thread through the preload API after note selection.
+2. Renderer sends the user message, current note title, and current note Markdown to main.
+3. Main starts `codex exec` in the active workspace root with read-only sandboxing and JSON output.
+4. Main includes workspace path, workspace name, note path, note body, and note-thread history in the prompt.
+5. Main streams JSONL assistant deltas back to renderer through assistant events.
+6. Renderer updates the right sidebar transcript while the run is active.
+
 ## Security and Trust Boundaries
 
 - The renderer runs with `contextIsolation: true`.
 - `nodeIntegration` is disabled in the renderer.
 - Native capabilities are only available through the preload API.
 - Document reads and writes are restricted to the active workspace root through path resolution checks.
+- Assistant runs execute from the workspace root, but Mohio starts Codex in read-only mode for this v1 integration.
 
 ## Third-Party Integrations
 
@@ -76,12 +88,14 @@ flowchart LR
 - `CodeMirror` for Markdown-source editing
 - `yaml` for frontmatter parsing and serialization
 - `lucide-react` for editor toolbar icons
+- `codex` CLI for assistant conversations
 
 ## Current Architectural Constraints
 
 - The app is single-window and desktop-only today.
 - Search UI exists as a placeholder input only; it is not wired to workspace querying.
-- The assistant sidebar is present as layout scaffolding only.
+- Assistant history is in-memory only and scoped to the current app session.
+- The assistant can chat about the workspace, but it cannot apply edits through Mohio yet.
 - Note creation, rename UI, delete UI, publish flow, checkpoints, and rendered preview are not implemented yet in the renderer.
 
 ## When To Update This Document

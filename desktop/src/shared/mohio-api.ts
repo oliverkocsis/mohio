@@ -1,7 +1,10 @@
 import type {
+  AssistantEvent,
+  AssistantThread,
   AppInfo,
   DocumentChangedEvent,
   MohioApi,
+  SendAssistantMessageInput,
   SaveDocumentInput,
   SaveDocumentResult,
   WorkspaceDocument,
@@ -14,8 +17,12 @@ export const MOHIO_CHANNELS = {
   readDocument: "mohio:document:read",
   saveDocument: "mohio:document:save",
   watchDocument: "mohio:document:watch",
+  getAssistantThread: "mohio:assistant:get-thread",
+  sendAssistantMessage: "mohio:assistant:send-message",
+  cancelAssistantRun: "mohio:assistant:cancel-run",
   documentChanged: "mohio:document:changed",
   workspaceChanged: "mohio:workspace:changed",
+  assistantEvent: "mohio:assistant:event",
 } as const;
 
 interface CreateMohioApiOptions {
@@ -25,11 +32,17 @@ interface CreateMohioApiOptions {
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
   watchDocument: (relativePath: string | null) => Promise<void>;
+  getAssistantThread: (noteRelativePath: string) => Promise<AssistantThread>;
+  sendAssistantMessage: (input: SendAssistantMessageInput) => Promise<AssistantThread>;
+  cancelAssistantRun: (noteRelativePath: string) => Promise<void>;
   onDocumentChanged: (
     listener: (event: DocumentChangedEvent) => void,
   ) => () => void;
   onWorkspaceChanged: (
     listener: (workspace: WorkspaceSummary | null) => void,
+  ) => () => void;
+  onAssistantEvent: (
+    listener: (event: AssistantEvent) => void,
   ) => () => void;
 }
 
@@ -40,8 +53,12 @@ export function createMohioApi({
   readDocument,
   saveDocument,
   watchDocument,
+  getAssistantThread,
+  sendAssistantMessage,
+  cancelAssistantRun,
   onDocumentChanged,
   onWorkspaceChanged,
+  onAssistantEvent,
 }: CreateMohioApiOptions): MohioApi {
   return {
     getAppInfo: () => appInfo,
@@ -50,7 +67,11 @@ export function createMohioApi({
     readDocument,
     saveDocument,
     watchDocument,
+    getAssistantThread,
+    sendAssistantMessage,
+    cancelAssistantRun,
     onDocumentChanged,
     onWorkspaceChanged,
+    onAssistantEvent,
   };
 }
