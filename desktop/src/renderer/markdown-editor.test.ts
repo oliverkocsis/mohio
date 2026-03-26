@@ -84,4 +84,17 @@ describe("markdown editor toolbar transforms", () => {
 
     expect(container.querySelectorAll(".cm-md-image-alt")).toHaveLength(1);
   });
+
+  it("decorates heading and inline code markdown syntax in the editor surface", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "# Heading\n\nUse `inline` code.",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-md-heading-1")).toHaveLength(1);
+    expect(container.querySelectorAll(".cm-md-inline-code")).toHaveLength(1);
+  });
+
 });

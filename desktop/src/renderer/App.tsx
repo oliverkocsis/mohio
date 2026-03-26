@@ -6,6 +6,7 @@ import {
   Ellipsis,
   MessageSquarePlus,
   SquarePen,
+  Trash2,
 } from "lucide-react";
 import type {
   AssistantThread,
@@ -33,6 +34,12 @@ interface DocumentSnapshot {
   title: string;
 }
 
+interface DocumentContextMenuState {
+  documentId: string;
+  x: number;
+  y: number;
+}
+
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -45,6 +52,7 @@ export function App() {
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [documentContextMenu, setDocumentContextMenu] = useState<DocumentContextMenuState | null>(null);
   const [assistantThreads, setAssistantThreads] = useState<AssistantThreadSummary[]>([]);
   const [assistantView, setAssistantView] = useState<AssistantView>("list");
   const [activeAssistantThreadId, setActiveAssistantThreadId] = useState<string | null>(null);
@@ -67,6 +75,7 @@ export function App() {
   const draftTitleRef = useRef("");
   const draftMarkdownRef = useRef("");
   const workspacePathRef = useRef<string | null>(null);
+  const documentContextMenuRef = useRef<HTMLDivElement | null>(null);
   const assistantBodyRef = useRef<HTMLDivElement | null>(null);
   const assistantThinkingTimerRef = useRef<number | null>(null);
   const lastAssistantStreamSignatureRef = useRef<string | null>(null);
@@ -174,6 +183,39 @@ export function App() {
       },
     );
   }, [selectedDocumentId]);
+
+  useEffect(() => {
+    if (!documentContextMenu) {
+      return;
+    }
+
+    const handleWindowPointerDown = (event: MouseEvent) => {
+      const menuElement = documentContextMenuRef.current;
+
+      if (!menuElement || menuElement.contains(event.target as Node)) {
+        return;
+      }
+
+      setDocumentContextMenu(null);
+    };
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDocumentContextMenu(null);
+      }
+    };
+
+    window.addEventListener("mousedown", handleWindowPointerDown, true);
+    window.addEventListener("keydown", handleWindowKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handleWindowPointerDown, true);
+      window.removeEventListener("keydown", handleWindowKeyDown);
+    };
+  }, [documentContextMenu]);
+
+  useEffect(() => {
+    setDocumentContextMenu(null);
+  }, [selectedDocumentId, workspace?.path]);
 
   useEffect(() => {
     void window.mohio.watchDocument(selectedDocumentId);
@@ -496,6 +538,77 @@ export function App() {
     }
   };
 
+  const handleCreateDocument = async () => {
+    if (!workspace) {
+      return;
+    }
+
+    const directoryRelativePath = getDocumentDirectoryRelativePath(selectedDocumentIdRef.current);
+    setWorkspaceError(null);
+    setDocumentError(null);
+    setDocumentContextMenu(null);
+
+    try {
+      const nextDocument = await window.mohio.createDocument({
+        directoryRelativePath,
+      });
+      const refreshedWorkspace = await window.mohio.getCurrentWorkspace();
+
+      if (refreshedWorkspace) {
+        setWorkspace(refreshedWorkspace);
+        setExpandedDirectoryIds(getExpandedDirectoryIds(refreshedWorkspace));
+      }
+
+      setSelectedDocumentId(nextDocument.relativePath);
+      setDocument(nextDocument);
+      setDraftTitle(nextDocument.displayTitle);
+      setDraftMarkdown(nextDocument.markdown);
+      lastSavedSnapshotRef.current = {
+        relativePath: nextDocument.relativePath,
+        title: nextDocument.displayTitle,
+        markdown: nextDocument.markdown,
+      };
+      pendingSaveSnapshotRef.current = null;
+      setSaveState("saved");
+    } catch {
+      setWorkspaceError("Mohio could not create a new note.");
+    }
+  };
+
+  const handleDeleteDocument = async (relativePath: string) => {
+    if (!workspace) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this note from the workspace?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setWorkspaceError(null);
+    setDocumentError(null);
+    setDocumentContextMenu(null);
+
+    try {
+      await window.mohio.deleteDocument(relativePath);
+      const refreshedWorkspace = await window.mohio.getCurrentWorkspace();
+
+      setWorkspace(refreshedWorkspace);
+      setExpandedDirectoryIds(getExpandedDirectoryIds(refreshedWorkspace));
+      setSelectedDocumentId(
+        getPreferredDocumentId(
+          refreshedWorkspace,
+          relativePath === selectedDocumentIdRef.current
+            ? null
+            : selectedDocumentIdRef.current,
+        ),
+      );
+    } catch {
+      setWorkspaceError("Mohio could not delete that note.");
+    }
+  };
+
   const saveCurrentDocument = async () => {
     if (!document) {
       return;
@@ -506,6 +619,7 @@ export function App() {
       relativePath: document.relativePath,
       title: draftTitle,
       markdown: draftMarkdown,
+      titleMode: document.titleMode,
     };
 
     if (
@@ -542,6 +656,7 @@ export function App() {
         fileName: result.fileName,
         displayTitle: result.displayTitle,
         markdown: result.markdown,
+        titleMode: result.titleMode,
       });
       lastSavedSnapshotRef.current = {
         relativePath: result.relativePath,
@@ -785,7 +900,10 @@ export function App() {
               <button
                 aria-label="New Note"
                 className="assistant-panel__text-icon-button workspace-panel__new-note"
-                disabled
+                disabled={!workspace}
+                onClick={() => {
+                  void handleCreateDocument();
+                }}
                 type="button"
               >
                 <SquarePen aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
@@ -807,6 +925,9 @@ export function App() {
                         expandedDirectoryIds,
                         depth: 0,
                         onSelect: setSelectedDocumentId,
+                        onOpenDocumentContextMenu: (input) => {
+                          setDocumentContextMenu(input);
+                        },
                         onToggleDirectory: toggleDirectory,
                       }),
                     )}
@@ -821,6 +942,30 @@ export function App() {
               <p className="workspace-panel__error" role="status">
                 {workspaceError}
               </p>
+            ) : null}
+
+            {documentContextMenu ? (
+              <div
+                ref={documentContextMenuRef}
+                className="workspace-document-menu"
+                role="menu"
+                style={{
+                  left: `${Math.max(8, documentContextMenu.x)}px`,
+                  top: `${Math.max(8, documentContextMenu.y)}px`,
+                }}
+              >
+                <button
+                  className="workspace-document-menu__item workspace-document-menu__item--danger"
+                  onClick={() => {
+                    void handleDeleteDocument(documentContextMenu.documentId);
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" className="workspace-document-menu__icon" />
+                  <span>Delete Note</span>
+                </button>
+              </div>
             ) : null}
           </section>
         </aside>
@@ -1116,6 +1261,7 @@ function renderWorkspaceNode({
   expandedDirectoryIds,
   depth,
   onSelect,
+  onOpenDocumentContextMenu,
   onToggleDirectory,
 }: {
   node: WorkspaceTreeNode;
@@ -1123,6 +1269,7 @@ function renderWorkspaceNode({
   expandedDirectoryIds: Set<string>;
   depth: number;
   onSelect: (documentId: string) => void;
+  onOpenDocumentContextMenu: (input: DocumentContextMenuState) => void;
   onToggleDirectory: (directoryId: string) => void;
 }) {
   const rowStyle = {
@@ -1162,6 +1309,7 @@ function renderWorkspaceNode({
                 expandedDirectoryIds,
                 depth: depth + 1,
                 onSelect,
+                onOpenDocumentContextMenu,
                 onToggleDirectory,
               }),
             )}
@@ -1178,6 +1326,14 @@ function renderWorkspaceNode({
       <button
         aria-current={isActive ? "page" : undefined}
         className={`tree-node__button${isActive ? " tree-node__button--active" : ""}`}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onOpenDocumentContextMenu({
+            documentId: node.id,
+            x: event.clientX,
+            y: event.clientY,
+          });
+        }}
         onClick={() => {
           onSelect(node.id);
         }}
@@ -1196,6 +1352,21 @@ function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string
   }
 
   return new Set(collectDirectoryIds(workspace.documents));
+}
+
+function getDocumentDirectoryRelativePath(documentId: string | null): string | null {
+  if (!documentId) {
+    return null;
+  }
+
+  const normalizedDocumentPath = documentId.replace(/\\/gu, "/");
+  const lastSeparatorIndex = normalizedDocumentPath.lastIndexOf("/");
+
+  if (lastSeparatorIndex <= 0) {
+    return null;
+  }
+
+  return normalizedDocumentPath.slice(0, lastSeparatorIndex);
 }
 
 function collectDirectoryIds(nodes: WorkspaceTreeNode[]): string[] {

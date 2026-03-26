@@ -52,6 +52,12 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     readDocument: async () => {
       throw new Error("No document");
     },
+    createDocument: async () => {
+      throw new Error("No document");
+    },
+    deleteDocument: async () => {
+      throw new Error("No document");
+    },
     saveDocument: async () => {
       throw new Error("No document");
     },
@@ -170,12 +176,14 @@ describe("App", () => {
         fileName: "Architecture.md",
         displayTitle: "Architecture Overview",
         markdown: "Current body.\n",
+        titleMode: "h1-linked" as const,
       })
       .mockResolvedValueOnce({
         relativePath: "Team Handbook.md",
         fileName: "Team Handbook.md",
         displayTitle: "Team Handbook",
         markdown: "Beta body.\n",
+        titleMode: "h1-linked" as const,
       });
     const listAssistantThreads = vi.fn()
       .mockResolvedValueOnce([
@@ -248,7 +256,7 @@ describe("App", () => {
     expect(docsFolderToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Architecture Overview" })).toHaveAttribute("aria-current", "page");
     expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture Overview");
-    expect(screen.getByRole("button", { name: "New Note" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "New Note" })).toBeEnabled();
     expect(screen.queryByText("alpha · docs/Architecture.md")).not.toBeInTheDocument();
     expect(listAssistantThreads).toHaveBeenCalledTimes(1);
     expect(getAssistantThread).not.toHaveBeenCalled();
@@ -283,6 +291,7 @@ describe("App", () => {
           fileName: "Team Handbook.md",
           displayTitle: "Team Handbook Updated",
           markdown: "Externally changed body.\n",
+          titleMode: "h1-linked",
         },
         workspace: {
           name: "beta",
@@ -333,6 +342,294 @@ describe("App", () => {
     expect(screen.getByText("Updated assistant context.")).toBeInTheDocument();
   });
 
+  it("creates a new note in the selected note folder and opens it immediately", async () => {
+    const getCurrentWorkspace = vi.fn()
+      .mockResolvedValueOnce({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 1,
+        documents: [
+          {
+            id: "docs",
+            kind: "directory" as const,
+            name: "docs",
+            relativePath: "docs",
+            children: [
+              {
+                id: "docs/Architecture.md",
+                kind: "document" as const,
+                name: "Architecture.md",
+                relativePath: "docs/Architecture.md",
+                displayTitle: "Architecture",
+              },
+            ],
+          },
+        ],
+      } satisfies WorkspaceSummary)
+      .mockResolvedValue({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 2,
+        documents: [
+          {
+            id: "docs",
+            kind: "directory" as const,
+            name: "docs",
+            relativePath: "docs",
+            children: [
+              {
+                id: "docs/Architecture.md",
+                kind: "document" as const,
+                name: "Architecture.md",
+                relativePath: "docs/Architecture.md",
+                displayTitle: "Architecture",
+              },
+              {
+                id: "docs/Untitled.md",
+                kind: "document" as const,
+                name: "Untitled.md",
+                relativePath: "docs/Untitled.md",
+                displayTitle: "Untitled",
+              },
+            ],
+          },
+        ],
+      } satisfies WorkspaceSummary);
+    const createDocument = vi.fn().mockResolvedValue({
+      relativePath: "docs/Untitled.md",
+      fileName: "Untitled.md",
+      displayTitle: "Untitled",
+      markdown: "",
+      titleMode: "h1-linked" as const,
+    });
+    const readDocument = vi.fn()
+      .mockResolvedValueOnce({
+        relativePath: "docs/Architecture.md",
+        fileName: "Architecture.md",
+        displayTitle: "Architecture",
+        markdown: "Existing note.\n",
+        titleMode: "h1-linked" as const,
+      })
+      .mockResolvedValue({
+        relativePath: "docs/Untitled.md",
+        fileName: "Untitled.md",
+        displayTitle: "Untitled",
+        markdown: "",
+        titleMode: "h1-linked" as const,
+      });
+
+    window.mohio = createMohioMock({
+      getCurrentWorkspace,
+      createDocument,
+      readDocument,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "New Note" }));
+    });
+
+    expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: "docs" });
+    expect(await screen.findByLabelText("Document title")).toHaveValue("Untitled");
+    expect(screen.getByRole("button", { name: "Untitled" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("creates a new note in the workspace root when no note is selected", async () => {
+    const getCurrentWorkspace = vi.fn()
+      .mockResolvedValueOnce({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 0,
+        documents: [],
+      } satisfies WorkspaceSummary)
+      .mockResolvedValue({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 1,
+        documents: [
+          {
+            id: "Untitled.md",
+            kind: "document" as const,
+            name: "Untitled.md",
+            relativePath: "Untitled.md",
+            displayTitle: "Untitled",
+          },
+        ],
+      } satisfies WorkspaceSummary);
+    const createDocument = vi.fn().mockResolvedValue({
+      relativePath: "Untitled.md",
+      fileName: "Untitled.md",
+      displayTitle: "Untitled",
+      markdown: "",
+      titleMode: "h1-linked" as const,
+    });
+    const readDocument = vi.fn().mockResolvedValue({
+      relativePath: "Untitled.md",
+      fileName: "Untitled.md",
+      displayTitle: "Untitled",
+      markdown: "",
+      titleMode: "h1-linked" as const,
+    });
+
+    window.mohio = createMohioMock({
+      getCurrentWorkspace,
+      createDocument,
+      readDocument,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "New Note" })).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "New Note" }));
+    });
+
+    expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
+    expect(await screen.findByLabelText("Document title")).toHaveValue("Untitled");
+    expect(screen.getByRole("button", { name: "Untitled" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("deletes notes from the workspace context menu and reselects the next available note", async () => {
+    const getCurrentWorkspace = vi.fn()
+      .mockResolvedValueOnce({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 2,
+        documents: [
+          {
+            id: "README.md",
+            kind: "document" as const,
+            name: "README.md",
+            relativePath: "README.md",
+            displayTitle: "README",
+          },
+          {
+            id: "Roadmap.md",
+            kind: "document" as const,
+            name: "Roadmap.md",
+            relativePath: "Roadmap.md",
+            displayTitle: "Roadmap",
+          },
+        ],
+      } satisfies WorkspaceSummary)
+      .mockResolvedValue({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 1,
+        documents: [
+          {
+            id: "Roadmap.md",
+            kind: "document" as const,
+            name: "Roadmap.md",
+            relativePath: "Roadmap.md",
+            displayTitle: "Roadmap",
+          },
+        ],
+      } satisfies WorkspaceSummary);
+    const readDocument = vi.fn()
+      .mockResolvedValueOnce({
+        relativePath: "README.md",
+        fileName: "README.md",
+        displayTitle: "README",
+        markdown: "Read me.\n",
+        titleMode: "h1-linked" as const,
+      })
+      .mockResolvedValue({
+        relativePath: "Roadmap.md",
+        fileName: "Roadmap.md",
+        displayTitle: "Roadmap",
+        markdown: "Roadmap body.\n",
+        titleMode: "h1-linked" as const,
+      });
+    const deleteDocument = vi.fn().mockResolvedValue(undefined);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      window.mohio = createMohioMock({
+        getCurrentWorkspace,
+        readDocument,
+        deleteDocument,
+      });
+
+      render(<App />);
+
+      expect(await screen.findByLabelText("Document title")).toHaveValue("README");
+
+      fireEvent.contextMenu(screen.getByRole("button", { name: "README" }));
+      expect(screen.getByRole("menuitem", { name: "Delete Note" })).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("menuitem", { name: "Delete Note" }));
+      });
+
+      expect(deleteDocument).toHaveBeenCalledWith("README.md");
+      expect(await screen.findByLabelText("Document title")).toHaveValue("Roadmap");
+      expect(screen.getByRole("button", { name: "Roadmap" })).toHaveAttribute("aria-current", "page");
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it("deleting the last note returns to the workspace empty-document state", async () => {
+    const getCurrentWorkspace = vi.fn()
+      .mockResolvedValueOnce({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 1,
+        documents: [
+          {
+            id: "README.md",
+            kind: "document" as const,
+            name: "README.md",
+            relativePath: "README.md",
+            displayTitle: "README",
+          },
+        ],
+      } satisfies WorkspaceSummary)
+      .mockResolvedValue({
+        name: "alpha",
+        path: "/workspaces/alpha",
+        documentCount: 0,
+        documents: [],
+      } satisfies WorkspaceSummary);
+    const readDocument = vi.fn().mockResolvedValue({
+      relativePath: "README.md",
+      fileName: "README.md",
+      displayTitle: "README",
+      markdown: "Read me.\n",
+      titleMode: "h1-linked" as const,
+    });
+    const deleteDocument = vi.fn().mockResolvedValue(undefined);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      window.mohio = createMohioMock({
+        getCurrentWorkspace,
+        readDocument,
+        deleteDocument,
+      });
+
+      render(<App />);
+
+      expect(await screen.findByLabelText("Document title")).toHaveValue("README");
+
+      fireEvent.contextMenu(screen.getByRole("button", { name: "README" }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("menuitem", { name: "Delete Note" }));
+      });
+
+      expect(deleteDocument).toHaveBeenCalledWith("README.md");
+      expect(await screen.findByTestId("document-state")).toHaveTextContent("No Markdown documents found.");
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
   it("keeps newer local edits when a file-watch event arrives for Mohio's own older save", async () => {
     try {
       let onDocumentChangedListener: ((event: DocumentChangedEvent) => void) | null = null;
@@ -341,6 +638,7 @@ describe("App", () => {
         fileName: string;
         displayTitle: string;
         markdown: string;
+        titleMode: "filename-linked" | "h1-linked";
         savedAt: string;
       }) => void) | null = null;
       const saveDocument = vi.fn().mockImplementation(
@@ -370,6 +668,7 @@ describe("App", () => {
           fileName: "Team Handbook.md",
           displayTitle: "Team Handbook",
           markdown: "Initial body.\n",
+          titleMode: "h1-linked" as const,
         }),
         saveDocument,
         onDocumentChanged: (listener) => {
@@ -397,6 +696,7 @@ describe("App", () => {
         relativePath: "Team Handbook.md",
         title: "Team Handbook A",
         markdown: "Initial body.\n",
+        titleMode: "h1-linked",
       });
 
       fireEvent.change(titleInput, { target: { value: "Team Handbook AB" } });
@@ -409,6 +709,7 @@ describe("App", () => {
             fileName: "Team Handbook.md",
             displayTitle: "Team Handbook A",
             markdown: "Initial body.\n",
+            titleMode: "h1-linked",
           },
           workspace: {
             name: "alpha",
@@ -435,6 +736,7 @@ describe("App", () => {
           fileName: "Team Handbook.md",
           displayTitle: "Team Handbook A",
           markdown: "Initial body.\n",
+          titleMode: "h1-linked",
           savedAt: "2026-03-21T00:00:00.000Z",
         });
       });
@@ -547,6 +849,7 @@ describe("App", () => {
         fileName: "Architecture.md",
         displayTitle: "Architecture Overview",
         markdown: "Current body.\n",
+        titleMode: "h1-linked" as const,
       }),
       listAssistantThreads,
       createAssistantThread: createAssistantThreadMock,
@@ -800,6 +1103,7 @@ describe("App", () => {
         fileName: "Architecture.md",
         displayTitle: "Architecture Overview",
         markdown: "Current body.\n",
+        titleMode: "h1-linked" as const,
       }),
       listAssistantThreads: vi.fn().mockResolvedValue([
         createAssistantThreadSummary("thread-history", {

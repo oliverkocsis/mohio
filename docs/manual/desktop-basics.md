@@ -19,7 +19,8 @@ You can open a workspace in either of these ways:
 After you choose a folder, Mohio shows its Markdown documents in the left sidebar.
 
 When no workspace is open, the main empty-state button is labeled `Open Workspace`.
-The workspace sidebar also shows a `New Note` icon button, but note creation from the UI is still not available yet.
+When a workspace is open, the workspace sidebar `New Note` button creates a new note in the currently selected note folder.
+If no note is selected yet, `New Note` creates the file at workspace root.
 
 ## Browse Documents
 
@@ -27,11 +28,14 @@ The workspace sidebar also shows a `New Note` icon button, but note creation fro
 - Click a folder row to expand or collapse it.
 - Click a document row to open it.
 - If a document has a visible title, Mohio shows that title in the sidebar.
+- Right-click a document row to open the context menu and choose `Delete Note`.
 
 ## Edit a Document
 
 - Select a document from the left sidebar.
 - Edit the title at the top of the page.
+  - If the note starts with a linked first H1 (`# ...`) that matches the filename, the title reflects that H1.
+  - If the first H1 is missing or mismatched, the title reflects the filename instead.
 - Edit the body in the main editor, which displays Markdown as formatted text while still saving Markdown source underneath.
 - Use the toolbar for headings, lists, quotes, links, images, code, and other basic formatting.
 
@@ -68,8 +72,7 @@ The workspace sidebar also shows a `New Note` icon button, but note creation fro
 
 ## Current Limits
 
-- You cannot create a new note from the UI yet.
-- You cannot rename or delete notes from a dedicated sidebar action yet.
+- You cannot rename notes from a dedicated sidebar action yet.
 - Search is not active yet.
 - Mohio only shows Codex chats whose working folder matches the open workspace.
 - The assistant can chat about your workspace, but it cannot apply note edits through Mohio yet.

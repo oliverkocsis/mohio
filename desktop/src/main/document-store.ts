@@ -5,8 +5,10 @@ import {
   getRenamedRelativePath,
   parseMarkdownDocument,
   sanitizeFileSystemTitle,
+  stripMarkdownExtension,
 } from "@shared/document-format";
 import type {
+  CreateDocumentInput,
   SaveDocumentInput,
   SaveDocumentResult,
   WorkspaceDocument,
@@ -25,6 +27,7 @@ export async function readDocument(
     fileName: path.basename(relativePath),
     displayTitle: parsedDocument.displayTitle,
     markdown: parsedDocument.bodyMarkdown,
+    titleMode: parsedDocument.titleMode,
     frontmatterTitle: parsedDocument.frontmatterTitle,
   };
 }
@@ -39,6 +42,7 @@ export async function saveDocument(
     bodyMarkdown: input.markdown,
     existingMarkdown,
     title: input.title,
+    titleMode: input.titleMode,
   });
   const extension = path.extname(input.relativePath) || ".md";
   const { sanitizedTitle } = sanitizeFileSystemTitle(input.title);
@@ -47,7 +51,7 @@ export async function saveDocument(
     relativePath: input.relativePath,
     sanitizedTitle,
   });
-  const nextRelativePath = await ensureAvailableRelativePath({
+  const nextRelativePath = await allocateUniqueRelativePath({
     currentRelativePath: input.relativePath,
     desiredRelativePath,
     workspacePath,
@@ -63,18 +67,63 @@ export async function saveDocument(
   return {
     relativePath: nextRelativePath,
     fileName: path.basename(nextRelativePath),
-    displayTitle: input.title.trim() || "Untitled",
+    displayTitle: input.titleMode === "h1-linked"
+      ? input.title.trim() || "Untitled"
+      : stripMarkdownExtension(path.basename(nextRelativePath)) || "Untitled",
     markdown: bodyMarkdown,
+    titleMode: input.titleMode,
     savedAt: new Date().toISOString(),
   };
 }
 
-async function ensureAvailableRelativePath({
+export async function createDocument(
+  workspacePath: string,
+  input: CreateDocumentInput,
+): Promise<WorkspaceDocument> {
+  const absoluteDirectoryPath = resolveWorkspacePath(
+    workspacePath,
+    input.directoryRelativePath ?? ".",
+  );
+  const directoryStats = await fs.stat(absoluteDirectoryPath);
+
+  if (!directoryStats.isDirectory()) {
+    throw new Error("Mohio could not create a note in that location.");
+  }
+
+  const desiredRelativePath = path.join(input.directoryRelativePath ?? "", "Untitled.md");
+  const nextRelativePath = await allocateUniqueRelativePath({
+    currentRelativePath: null,
+    desiredRelativePath,
+    workspacePath,
+  });
+  const nextAbsolutePath = resolveWorkspacePath(workspacePath, nextRelativePath);
+  const markdown = "# Untitled\n";
+
+  await fs.writeFile(nextAbsolutePath, markdown, "utf8");
+
+  return readDocument(workspacePath, nextRelativePath);
+}
+
+export async function deleteDocument(
+  workspacePath: string,
+  relativePath: string,
+): Promise<void> {
+  const absolutePath = resolveWorkspacePath(workspacePath, relativePath);
+  const documentStats = await fs.stat(absolutePath);
+
+  if (!documentStats.isFile()) {
+    throw new Error("Mohio can only delete files.");
+  }
+
+  await fs.rm(absolutePath);
+}
+
+async function allocateUniqueRelativePath({
   currentRelativePath,
   desiredRelativePath,
   workspacePath,
 }: {
-  currentRelativePath: string;
+  currentRelativePath: string | null;
   desiredRelativePath: string;
   workspacePath: string;
 }): Promise<string> {

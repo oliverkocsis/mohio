@@ -34,13 +34,21 @@ export interface WorkspaceDocument {
   fileName: string;
   displayTitle: string;
   markdown: string;
+  titleMode: DocumentTitleMode;
   frontmatterTitle?: string;
 }
+
+export type DocumentTitleMode = "filename-linked" | "h1-linked";
 
 export interface SaveDocumentInput {
   relativePath: string;
   title: string;
   markdown: string;
+  titleMode: DocumentTitleMode;
+}
+
+export interface CreateDocumentInput {
+  directoryRelativePath: string | null;
 }
 
 export interface SaveDocumentResult {
@@ -48,6 +56,7 @@ export interface SaveDocumentResult {
   fileName: string;
   displayTitle: string;
   markdown: string;
+  titleMode: DocumentTitleMode;
   savedAt: string;
 }
 
@@ -116,6 +125,8 @@ export interface MohioApi {
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
+  createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
+  deleteDocument: (relativePath: string) => Promise<void>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
   watchDocument: (relativePath: string | null) => Promise<void>;
   listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
