@@ -186,27 +186,37 @@ function registerMohioHandlers() {
       throw new Error("Open a workspace before saving documents.");
     }
 
-    const result = await saveDocument(currentWorkspacePath, input);
-
-    assistantRuntime.migrateThread({
-      workspacePath: currentWorkspacePath,
-      fromRelativePath: input.relativePath,
-      toRelativePath: result.relativePath,
-    });
-
-    return result;
+    return saveDocument(currentWorkspacePath, input);
   });
   ipcMain.handle(MOHIO_CHANNELS.watchDocument, async (event, relativePath: string | null) => {
     watchDocumentForEventSender(event, relativePath);
   });
-  ipcMain.handle(MOHIO_CHANNELS.getAssistantThread, async (_event, noteRelativePath: string) => {
+  ipcMain.handle(MOHIO_CHANNELS.listAssistantThreads, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    return assistantRuntime.listThreads({
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.createAssistantThread, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    return assistantRuntime.createThread({
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getAssistantThread, async (_event, threadId: string) => {
     if (!currentWorkspacePath) {
       throw new Error("Open a workspace before starting an assistant conversation.");
     }
 
     return assistantRuntime.getThread({
+      threadId,
       workspacePath: currentWorkspacePath,
-      noteRelativePath,
     });
   });
   ipcMain.handle(MOHIO_CHANNELS.sendAssistantMessage, async (_event, input) => {
@@ -226,14 +236,35 @@ function registerMohioHandlers() {
       ...input,
     });
   });
-  ipcMain.handle(MOHIO_CHANNELS.cancelAssistantRun, async (_event, noteRelativePath: string) => {
+  ipcMain.handle(MOHIO_CHANNELS.cancelAssistantRun, async (_event, threadId: string) => {
     if (!currentWorkspacePath) {
       return;
     }
 
-    assistantRuntime.cancelRun({
+    await assistantRuntime.cancelRun({
+      threadId,
       workspacePath: currentWorkspacePath,
-      noteRelativePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.renameAssistantThread, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before renaming an assistant conversation.");
+    }
+
+    await assistantRuntime.renameThread({
+      threadId: input.threadId,
+      title: input.title,
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.deleteAssistantThread, async (_event, threadId: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before deleting an assistant conversation.");
+    }
+
+    await assistantRuntime.deleteThread({
+      threadId,
+      workspacePath: currentWorkspacePath,
     });
   });
 }
@@ -250,7 +281,7 @@ function registerApplicationMenu() {
 
 app.whenReady().then(() => {
   app.setName("Mohio");
-  assistantRuntime.onThreadChanged((event) => {
+  assistantRuntime.onEvent((event) => {
     broadcastAssistantEvent(event);
   });
   registerMohioHandlers();

@@ -9,7 +9,7 @@ This document defines Mohio's current system boundary and data flow.
 - No backend service
 - No user account system
 - No external authentication flow
-- Codex-backed assistant integration through the locally installed `codex` CLI
+- Codex-backed assistant integration through the locally installed `codex` CLI and Codex app-server session store
 
 ## System Diagram
 
@@ -20,7 +20,7 @@ flowchart LR
   Preload --> Main["Electron Main Process"]
   Main --> Dialog["Native Open Dialog"]
   Main --> FS["Workspace File System\nMarkdown files"]
-  Main --> Codex["Installed Codex CLI\ncodex exec"]
+  Main --> Codex["Installed Codex CLI\ncodex app-server"]
   FS --> Main
   Codex --> Main
   Main --> Renderer
@@ -28,9 +28,9 @@ flowchart LR
 
 ## Runtime Areas
 
-- `Electron main`: window, menu, folder picker, filesystem access, file watching, assistant process management
+- `Electron main`: window, menu, folder picker, filesystem access, file watching, Codex app-server client
 - `Preload`: typed `window.mohio` bridge
-- `Renderer`: React UI for workspace tree, editor, and assistant transcript
+- `Renderer`: React UI for workspace tree, editor, assistant history, and transcript
 - `Workspace`: local folder with `.md`, `.markdown`, and `.mdx` files
 
 ## Data Flow
@@ -66,12 +66,13 @@ flowchart LR
 
 ### Assistant Conversation
 
-1. Renderer loads the current note thread through the preload API after note selection.
-2. Renderer sends the user message, current note title, and current note Markdown to main.
-3. Main starts `codex exec` in the active workspace root with read-only sandboxing and JSON output.
-4. Main includes workspace path, workspace name, note path, note body, and note-thread history in the prompt.
-5. Main streams JSONL assistant deltas back to renderer through assistant events.
-6. Renderer updates the right sidebar transcript while the run is active.
+1. Renderer loads Codex chat history for the current workspace through the preload API.
+2. Renderer selects an existing Codex thread or creates a new one.
+3. Renderer sends the user message plus the current note title, note path, and current note Markdown to main.
+4. Main starts or resumes the Codex thread through `codex app-server`, always with the active workspace root as `cwd`.
+5. Main reuses Codex's existing config, auth state, and session storage instead of persisting assistant history itself.
+6. Main starts the turn, streams assistant deltas back to renderer through assistant events, and refreshes the workspace-filtered thread list when Codex thread state changes.
+7. Renderer updates the right sidebar transcript and history list while the run is active.
 
 ## Security and Trust Boundaries
 
@@ -80,6 +81,7 @@ flowchart LR
 - Native capabilities are only available through the preload API.
 - Document reads and writes are restricted to the active workspace root through path resolution checks.
 - Assistant runs execute from the workspace root, but Mohio starts Codex in read-only mode for this v1 integration.
+- Mohio reuses Codex's own session and auth storage rather than copying assistant history into a Mohio-owned store.
 
 ## Third-Party Integrations
 
@@ -87,14 +89,14 @@ flowchart LR
 - `React` for renderer composition
 - `CodeMirror` for Markdown-source editing
 - `yaml` for frontmatter parsing and serialization
-- `lucide-react` for editor toolbar icons
-- `codex` CLI for assistant conversations
+- `lucide-react` for shared shell, assistant, and editor toolbar icons
+- `codex` CLI and `codex app-server` for assistant conversations and session history
 
 ## Current Architectural Constraints
 
 - The app is single-window and desktop-only today.
 - Search UI exists as a placeholder input only; it is not wired to workspace querying.
-- Assistant history is in-memory only and scoped to the current app session.
+- Assistant history browsing is limited to Codex threads whose `cwd` exactly matches the open workspace path.
 - The assistant can chat about the workspace, but it cannot apply edits through Mohio yet.
 - Note creation, rename UI, delete UI, publish flow, checkpoints, and rendered preview are not implemented yet in the renderer.
 

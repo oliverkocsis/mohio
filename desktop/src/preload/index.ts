@@ -13,12 +13,20 @@ const mohioApi = createMohioApi({
   readDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.readDocument, relativePath),
   saveDocument: (input) => ipcRenderer.invoke(MOHIO_CHANNELS.saveDocument, input),
   watchDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.watchDocument, relativePath),
-  getAssistantThread: (noteRelativePath) =>
-    ipcRenderer.invoke(MOHIO_CHANNELS.getAssistantThread, noteRelativePath),
+  listAssistantThreads: () =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.listAssistantThreads),
+  createAssistantThread: () =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.createAssistantThread),
+  getAssistantThread: (threadId) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.getAssistantThread, threadId),
   sendAssistantMessage: (input) =>
     ipcRenderer.invoke(MOHIO_CHANNELS.sendAssistantMessage, input),
-  cancelAssistantRun: (noteRelativePath) =>
-    ipcRenderer.invoke(MOHIO_CHANNELS.cancelAssistantRun, noteRelativePath),
+  cancelAssistantRun: (threadId) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.cancelAssistantRun, threadId),
+  renameAssistantThread: (input) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.renameAssistantThread, input),
+  deleteAssistantThread: (threadId) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.deleteAssistantThread, threadId),
   onDocumentChanged: (listener) => {
     const handleDocumentChanged = (
       _event: Electron.IpcRendererEvent,

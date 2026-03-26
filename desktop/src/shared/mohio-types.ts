@@ -67,24 +67,48 @@ export interface AssistantMessage {
   createdAt: string;
 }
 
+export interface AssistantThreadSummary {
+  id: string;
+  title: string;
+  preview: string;
+  createdAt: string;
+  updatedAt: string;
+  status: AssistantRunStatus;
+}
+
 export interface AssistantThread {
-  noteRelativePath: string;
+  id: string;
+  workspacePath: string;
+  title: string;
+  preview: string;
   messages: AssistantMessage[];
   status: AssistantRunStatus;
   errorMessage: string | null;
 }
 
-export interface AssistantEvent {
-  workspacePath: string;
-  noteRelativePath: string;
-  thread: AssistantThread;
-}
+export type AssistantEvent =
+  | {
+    type: "thread";
+    workspacePath: string;
+    thread: AssistantThread;
+  }
+  | {
+    type: "thread-list";
+    workspacePath: string;
+    threads: AssistantThreadSummary[];
+  };
 
 export interface SendAssistantMessageInput {
+  threadId: string;
   noteRelativePath: string;
   content: string;
   documentTitle: string;
   documentMarkdown: string;
+}
+
+export interface RenameAssistantThreadInput {
+  threadId: string;
+  title: string;
 }
 
 export interface MohioApi {
@@ -94,9 +118,13 @@ export interface MohioApi {
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
   watchDocument: (relativePath: string | null) => Promise<void>;
-  getAssistantThread: (noteRelativePath: string) => Promise<AssistantThread>;
+  listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
+  createAssistantThread: () => Promise<AssistantThread>;
+  getAssistantThread: (threadId: string) => Promise<AssistantThread>;
   sendAssistantMessage: (input: SendAssistantMessageInput) => Promise<AssistantThread>;
-  cancelAssistantRun: (noteRelativePath: string) => Promise<void>;
+  cancelAssistantRun: (threadId: string) => Promise<void>;
+  renameAssistantThread: (input: RenameAssistantThreadInput) => Promise<void>;
+  deleteAssistantThread: (threadId: string) => Promise<void>;
   onDocumentChanged: (
     listener: (event: DocumentChangedEvent) => void,
   ) => () => void;

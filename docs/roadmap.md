@@ -53,7 +53,23 @@ Planned focus areas:
 - Show what the assistant changed instead of hiding modifications.
 - Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
 
-### 5. Note and Document Management
+### 4. Notes and Documents
+
+- Seperate notes and documents
+- Notes are used to capture quick thoughts, ideas.
+- Documents are used to capture structured knowledge that is shared with the team.
+- Notes are private to the user and are not shared with the team.
+- Documents are shared with the team and are visible to all members of the workspace.
+- Notes are order by last modified time and are not organized in a hierarchy.
+- Documents are organized in a hierarchy and are shared with the team.
+- Notes can be promoted to documents when they are ready to be shared with the team.
+- The left panel has 2 tabs: Notes and Documents. The Notes tab shows the user's private notes in a list with a timestamp prefix.
+- The notes can be order by modified time or created time. The user can switch between the two sorting options. (A-Z or Z-A)
+- The documents tab shows the shared documents in a folder hierarchical structure.
+- The documents can be ordered by name or modified time. The user can switch between the two sorting options. (A-Z or Z-A)
+- Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 My Note`).
+
+### 4. Note and Document Management
 
 - Create a new note from inside the app.
 - Open a newly created note immediately.

@@ -3,18 +3,23 @@ import { createInterface } from "node:readline";
 import type {
   AssistantEvent,
   AssistantMessage,
+  AssistantRunStatus,
   AssistantThread,
+  AssistantThreadSummary,
   SendAssistantMessageInput,
 } from "@shared/mohio-types";
 
 const DEFAULT_ASSISTANT_INSTRUCTIONS = [
   "You are Codex embedded inside Mohio, a local-first Markdown workspace for small teams.",
-  "Work as a chat-only workspace assistant.",
-  "The active note is the primary context, but you may inspect the rest of the workspace when useful.",
-  "Do not propose patches, diffs, or direct file edits in this environment.",
-  "Do not claim to have changed files.",
-  "Respond in concise, practical product language.",
+  "Work as a chat-first assistant for a Markdown knowledgebase.",
+  "Treat the active note as the primary context and the wider workspace as supporting context.",
+  "You may inspect the rest of the workspace when useful.",
+  "Do not make file edits, propose patches, or claim to have changed files in this environment.",
+  "Return concise, practical answers that fit a document-first workflow.",
 ].join("\n");
+
+const MOHIO_PROMPT_OPEN = "[MOHIO_USER_REQUEST]";
+const MOHIO_PROMPT_CLOSE = "[/MOHIO_USER_REQUEST]";
 
 type AssistantProcess = Pick<
   ChildProcessWithoutNullStreams,
@@ -27,16 +32,34 @@ type SpawnAssistantProcess = (
   options: SpawnOptionsWithoutStdio,
 ) => AssistantProcess;
 
+interface JsonRpcRequest {
+  id: number;
+  method: string;
+  params?: unknown;
+}
+
+interface JsonRpcResponse {
+  id?: number;
+  result?: unknown;
+  error?: {
+    code?: number;
+    message?: string;
+  };
+  method?: string;
+  params?: unknown;
+}
+
+interface AssistantThreadState {
+  assistantMessageId: string | null;
+  isTurnReady: boolean;
+  thread: AssistantThread;
+  turnId: string | null;
+}
+
 interface AssistantRuntimeOptions {
   createId?: () => string;
   now?: () => string;
   spawnProcess?: SpawnAssistantProcess;
-}
-
-interface AssistantRunState {
-  child: AssistantProcess | null;
-  lastErrorMessages: string[];
-  thread: AssistantThread;
 }
 
 interface SendAssistantRunInput extends SendAssistantMessageInput {
@@ -44,16 +67,22 @@ interface SendAssistantRunInput extends SendAssistantMessageInput {
   workspacePath: string;
 }
 
+interface AssistantServerConnection {
+  request: <T>(method: string, params?: unknown) => Promise<T>;
+}
+
+const TURN_START_MAX_ROLLOUT_RETRIES = 3;
+const TURN_START_ROLLOUT_RETRY_DELAY_MS = 120;
+
 export interface AssistantRuntime {
-  cancelRun: (input: { noteRelativePath: string; workspacePath: string }) => void;
-  getThread: (input: { noteRelativePath: string; workspacePath: string }) => AssistantThread;
-  migrateThread: (input: {
-    fromRelativePath: string;
-    toRelativePath: string;
-    workspacePath: string;
-  }) => void;
-  onThreadChanged: (listener: (event: AssistantEvent) => void) => () => void;
-  sendMessage: (input: SendAssistantRunInput) => AssistantThread;
+  cancelRun: (input: { threadId: string; workspacePath: string }) => Promise<void>;
+  createThread: (input: { workspacePath: string }) => Promise<AssistantThread>;
+  deleteThread: (input: { threadId: string; workspacePath: string }) => Promise<void>;
+  getThread: (input: { threadId: string; workspacePath: string }) => Promise<AssistantThread>;
+  listThreads: (input: { workspacePath: string }) => Promise<AssistantThreadSummary[]>;
+  onEvent: (listener: (event: AssistantEvent) => void) => () => void;
+  renameThread: (input: { threadId: string; title: string; workspacePath: string }) => Promise<void>;
+  sendMessage: (input: SendAssistantRunInput) => Promise<AssistantThread>;
 }
 
 export function createAssistantRuntime({
@@ -62,114 +91,247 @@ export function createAssistantRuntime({
   spawnProcess = spawn,
 }: AssistantRuntimeOptions = {}): AssistantRuntime {
   const listeners = new Set<(event: AssistantEvent) => void>();
-  const threadStates = new Map<string, AssistantRunState>();
+  const threadStates = new Map<string, AssistantThreadState>();
+  let connectionPromise: Promise<AssistantServerConnection> | null = null;
 
-  const emitThreadChanged = (workspacePath: string, noteRelativePath: string) => {
-    const thread = cloneThread(getOrCreateThreadState({ noteRelativePath, workspacePath }).thread);
-    const event: AssistantEvent = {
-      workspacePath,
-      noteRelativePath,
-      thread,
-    };
-
+  const emit = (event: AssistantEvent) => {
     for (const listener of listeners) {
       listener(event);
     }
   };
 
-  const finalizeRun = ({
-    child,
-    code,
-    noteRelativePath,
-    signal,
-    workspacePath,
-  }: {
-    child: AssistantProcess;
-    code: number | null;
-    noteRelativePath: string;
-    signal: NodeJS.Signals | null;
-    workspacePath: string;
-  }) => {
-    const state = getOrCreateThreadState({ noteRelativePath, workspacePath });
+  const emitThread = (threadId: string) => {
+    const threadState = threadStates.get(threadId);
 
-    if (state.child !== child) {
+    if (!threadState) {
       return;
     }
 
-    state.child = null;
+    emit({
+      type: "thread",
+      workspacePath: threadState.thread.workspacePath,
+      thread: cloneThread(threadState.thread),
+    });
+  };
 
-    if (code === 0) {
-      state.thread.status = "idle";
-      state.thread.errorMessage = null;
-    } else {
-      state.thread.status = "error";
-      state.thread.errorMessage = getRunErrorMessage({
-        noteRelativePath,
-        signal,
-        state,
+  const emitThreadList = async (workspacePath: string) => {
+    try {
+      const threads = await listThreads({ workspacePath });
+      emit({
+        type: "thread-list",
+        workspacePath,
+        threads,
+      });
+    } catch {
+      // Keep list refresh failures local to explicit API calls.
+    }
+  };
+
+  const getConnection = () => {
+    if (!connectionPromise) {
+      connectionPromise = createServerConnection({
+        onExit: (errorMessage) => {
+          for (const [threadId, threadState] of threadStates.entries()) {
+            if (threadState.thread.status !== "running") {
+              continue;
+            }
+
+            threadState.turnId = null;
+            threadState.assistantMessageId = null;
+            threadState.thread.status = "error";
+            threadState.thread.errorMessage = errorMessage;
+            emitThread(threadId);
+          }
+
+          connectionPromise = null;
+        },
+        onNotification: (notification) => {
+          handleServerNotification({
+            createId,
+            emitThread,
+            emitThreadList,
+            now,
+            notification,
+            threadStates,
+          });
+        },
+        spawnProcess,
       });
     }
 
-    emitThreadChanged(workspacePath, noteRelativePath);
+    return connectionPromise;
   };
 
-  const handleAssistantEvent = ({
-    event,
-    noteRelativePath,
+  const cacheThread = (
+    thread: AssistantThread,
+    options: {
+      isTurnReady?: boolean;
+    } = {},
+  ) => {
+    const existingState = threadStates.get(thread.id);
+    threadStates.set(thread.id, {
+      assistantMessageId: existingState?.assistantMessageId ?? null,
+      isTurnReady: options.isTurnReady ?? existingState?.isTurnReady ?? false,
+      thread,
+      turnId: existingState?.turnId ?? null,
+    });
+  };
+
+  const ensureLoadedThread = async ({
+    threadId,
     workspacePath,
   }: {
-    event: unknown;
-    noteRelativePath: string;
+    threadId: string;
     workspacePath: string;
   }) => {
-    const state = getOrCreateThreadState({ noteRelativePath, workspacePath });
-    const parsedEvent = isRecord(event) ? event : null;
+    const connection = await getConnection();
+    const threadState = threadStates.get(threadId);
 
-    if (!parsedEvent) {
-      return;
+    if (threadState?.thread.workspacePath === workspacePath && threadState.isTurnReady) {
+      return threadState.thread;
     }
 
-    if (parsedEvent.type === "error" && typeof parsedEvent.message === "string") {
-      state.lastErrorMessages.push(parsedEvent.message);
-      return;
-    }
+    const response = await connection.request<{ thread: CodexThread }>("thread/resume", {
+      approvalPolicy: "never",
+      cwd: workspacePath,
+      developerInstructions: DEFAULT_ASSISTANT_INSTRUCTIONS,
+      persistExtendedHistory: true,
+      sandbox: "read-only",
+      threadId,
+    });
+    const assistantThread = mapCodexThreadToAssistantThread({
+      thread: response.thread,
+      workspacePath,
+    });
 
-    const delta = extractAssistantText(parsedEvent);
+    cacheThread(assistantThread, {
+      isTurnReady: true,
+    });
 
-    if (!delta) {
-      return;
-    }
-
-    const assistantMessage = state.thread.messages[state.thread.messages.length - 1];
-
-    if (!assistantMessage || assistantMessage.role !== "assistant") {
-      return;
-    }
-
-    assistantMessage.content = delta.mode === "append"
-      ? `${assistantMessage.content}${delta.text}`
-      : delta.text;
-
-    emitThreadChanged(workspacePath, noteRelativePath);
+    return assistantThread;
   };
 
-  const sendMessage = ({
+  const listThreads = async ({
+    workspacePath,
+  }: {
+    workspacePath: string;
+  }): Promise<AssistantThreadSummary[]> => {
+    const connection = await getConnection();
+    let nextCursor: string | null = null;
+    const threads: AssistantThreadSummary[] = [];
+
+    do {
+      const response: { data: CodexThread[]; nextCursor: string | null } = await connection.request("thread/list", {
+        archived: false,
+        cursor: nextCursor,
+        cwd: workspacePath,
+        sortKey: "updated_at",
+      });
+
+      for (const thread of response.data) {
+        threads.push(mapCodexThreadToSummary(thread));
+      }
+
+      nextCursor = response.nextCursor;
+    } while (nextCursor);
+
+    return threads.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  };
+
+  const createThread = async ({
+    workspacePath,
+  }: {
+    workspacePath: string;
+  }): Promise<AssistantThread> => {
+    const connection = await getConnection();
+    const response = await connection.request<{ thread: CodexThread }>("thread/start", {
+      approvalPolicy: "never",
+      cwd: workspacePath,
+      developerInstructions: DEFAULT_ASSISTANT_INSTRUCTIONS,
+      ephemeral: false,
+      experimentalRawEvents: false,
+      persistExtendedHistory: true,
+      sandbox: "read-only",
+    });
+    const assistantThread = mapCodexThreadToAssistantThread({
+      thread: response.thread,
+      workspacePath,
+    });
+
+    cacheThread(assistantThread, {
+      isTurnReady: true,
+    });
+    void emitThreadList(workspacePath);
+    emitThread(assistantThread.id);
+
+    return cloneThread(assistantThread);
+  };
+
+  const getThread = async ({
+    threadId,
+    workspacePath,
+  }: {
+    threadId: string;
+    workspacePath: string;
+  }): Promise<AssistantThread> => {
+    const connection = await getConnection();
+    let response: { thread: CodexThread };
+
+    try {
+      response = await connection.request<{ thread: CodexThread }>("thread/read", {
+        includeTurns: true,
+        threadId,
+      });
+    } catch (error) {
+      if (!isUnmaterializedThreadReadError(error)) {
+        throw error;
+      }
+
+      response = await connection.request<{ thread: CodexThread }>("thread/read", {
+        includeTurns: false,
+        threadId,
+      });
+    }
+
+    const assistantThread = mapCodexThreadToAssistantThread({
+      thread: response.thread,
+      workspacePath,
+    });
+
+    cacheThread(assistantThread, {
+      isTurnReady: false,
+    });
+
+    return cloneThread(assistantThread);
+  };
+
+  const sendMessage = async ({
     content,
     documentMarkdown,
     documentTitle,
     noteRelativePath,
+    threadId,
     workspaceName,
     workspacePath,
-  }: SendAssistantRunInput): AssistantThread => {
+  }: SendAssistantRunInput): Promise<AssistantThread> => {
     const trimmedContent = content.trim();
 
     if (!trimmedContent) {
       throw new Error("Enter a message before asking Codex for help.");
     }
 
-    const state = getOrCreateThreadState({ noteRelativePath, workspacePath });
+    await ensureLoadedThread({
+      threadId,
+      workspacePath,
+    });
 
-    if (state.child) {
+    const threadState = threadStates.get(threadId);
+
+    if (!threadState) {
+      throw new Error("Mohio could not load the selected Codex conversation.");
+    }
+
+    if (threadState.turnId) {
       throw new Error("Wait for the current Codex run to finish.");
     }
 
@@ -185,396 +347,805 @@ export function createAssistantRuntime({
       content: "",
       createdAt: now(),
     };
-    const prompt = buildAssistantPrompt({
-      documentMarkdown,
-      documentTitle,
-      noteRelativePath,
-      userMessage,
-      workspaceName,
-      workspacePath,
-      historyMessages: [...state.thread.messages, userMessage],
-    });
 
-    state.lastErrorMessages = [];
-    state.thread.messages = [...state.thread.messages, userMessage, assistantMessage];
-    state.thread.status = "running";
-    state.thread.errorMessage = null;
-
-    let child: AssistantProcess;
+    threadState.assistantMessageId = assistantMessage.id;
+    threadState.thread.errorMessage = null;
+    threadState.thread.messages = [...threadState.thread.messages, userMessage, assistantMessage];
+    threadState.thread.preview = threadState.thread.preview || trimmedContent;
+    threadState.thread.status = "running";
+    emitThread(threadId);
+    void emitThreadList(workspacePath);
 
     try {
-      child = spawnProcess("codex", getCodexExecArgs(workspacePath), {
+      const connection = await getConnection();
+      const turnStartParams = {
         cwd: workspacePath,
-        env: process.env,
-        stdio: "pipe",
-      });
-    } catch {
-      state.thread.status = "error";
-      state.thread.errorMessage = "Mohio could not start the installed Codex CLI.";
-      emitThreadChanged(workspacePath, noteRelativePath);
-      return cloneThread(state.thread);
-    }
+        input: [
+          {
+            text: buildAssistantPrompt({
+              documentMarkdown,
+              documentTitle,
+              noteRelativePath,
+              userRequest: trimmedContent,
+              workspaceName,
+              workspacePath,
+            }),
+            text_elements: [],
+            type: "text" as const,
+          },
+        ],
+        threadId,
+      };
+      let response: { turn: { id: string } } | null = null;
+      let rolloutRetryCount = 0;
 
-    state.child = child;
-    emitThreadChanged(workspacePath, noteRelativePath);
+      while (!response) {
+        try {
+          response = await connection.request<{ turn: { id: string } }>("turn/start", turnStartParams);
+        } catch (error) {
+          if (
+            !isNoRolloutFoundError(error) ||
+            rolloutRetryCount >= TURN_START_MAX_ROLLOUT_RETRIES
+          ) {
+            throw error;
+          }
 
-    const stdoutReader = createInterface({ input: child.stdout });
-
-    stdoutReader.on("line", (line) => {
-      const parsedLine = parseJsonLine(line);
-
-      if (!parsedLine) {
-        return;
+          rolloutRetryCount += 1;
+          await resumeThread({
+            connection,
+            threadId,
+            threadState,
+            workspacePath,
+          });
+          await wait(TURN_START_ROLLOUT_RETRY_DELAY_MS);
+        }
       }
 
-      handleAssistantEvent({
-        event: parsedLine,
-        noteRelativePath,
-        workspacePath,
-      });
-    });
+      threadState.turnId = response.turn.id;
+    } catch (error) {
+      threadState.assistantMessageId = null;
+      threadState.thread.errorMessage = getErrorMessage(error);
+      threadState.thread.status = "error";
+      emitThread(threadId);
+      throw error;
+    }
 
-    const stderrReader = createInterface({ input: child.stderr });
-    stderrReader.on("line", (line) => {
-      if (line.trim().length > 0) {
-        state.lastErrorMessages.push(line.trim());
-      }
-    });
-
-    child.on("close", (code, signal) => {
-      stdoutReader.close();
-      stderrReader.close();
-      finalizeRun({
-        child,
-        code,
-        noteRelativePath,
-        signal,
-        workspacePath,
-      });
-    });
-
-    child.stdin.write(prompt);
-    child.stdin.end();
-
-    return cloneThread(state.thread);
+    return cloneThread(threadState.thread);
   };
 
-  const cancelRun = ({
-    noteRelativePath,
-    workspacePath,
+  const cancelRun = async ({
+    threadId,
   }: {
-    noteRelativePath: string;
+    threadId: string;
     workspacePath: string;
   }) => {
-    const state = getOrCreateThreadState({ noteRelativePath, workspacePath });
+    const threadState = threadStates.get(threadId);
 
-    if (!state.child) {
+    if (!threadState?.turnId) {
       return;
     }
 
-    const activeChild = state.child;
-    state.child = null;
-    state.lastErrorMessages = [];
-    state.thread.status = "idle";
-    state.thread.errorMessage = null;
-    emitThreadChanged(workspacePath, noteRelativePath);
+    const connection = await getConnection();
+    const turnId = threadState.turnId;
 
-    try {
-      activeChild.kill("SIGTERM");
-    } catch {
-      // Ignore best-effort shutdown failures.
-    }
+    threadState.turnId = null;
+    threadState.assistantMessageId = null;
+    threadState.thread.errorMessage = null;
+    threadState.thread.status = "idle";
+    emitThread(threadId);
+    void emitThreadList(threadState.thread.workspacePath);
+
+    await connection.request<Record<string, never>>("turn/interrupt", {
+      threadId,
+      turnId,
+    });
   };
 
-  const migrateThread = ({
-    fromRelativePath,
-    toRelativePath,
+  const renameThread = async ({
+    threadId,
+    title,
     workspacePath,
   }: {
-    fromRelativePath: string;
-    toRelativePath: string;
+    threadId: string;
+    title: string;
     workspacePath: string;
   }) => {
-    if (fromRelativePath === toRelativePath) {
-      return;
+    const nextTitle = title.trim();
+
+    if (!nextTitle) {
+      throw new Error("Enter a title before renaming this chat.");
     }
 
-    const previousKey = getThreadKey(workspacePath, fromRelativePath);
-    const nextKey = getThreadKey(workspacePath, toRelativePath);
-    const previousState = threadStates.get(previousKey);
+    const connection = await getConnection();
+    await connection.request<Record<string, never>>("thread/name/set", {
+      name: nextTitle,
+      threadId,
+    });
 
-    if (!previousState) {
-      return;
+    const threadState = threadStates.get(threadId);
+
+    if (threadState) {
+      threadState.thread.title = nextTitle;
+      emitThread(threadId);
     }
 
-    previousState.thread.noteRelativePath = toRelativePath;
-    threadStates.set(nextKey, previousState);
-    threadStates.delete(previousKey);
-    emitThreadChanged(workspacePath, toRelativePath);
+    void emitThreadList(workspacePath);
   };
 
-  const getThread = ({
-    noteRelativePath,
+  const deleteThread = async ({
+    threadId,
     workspacePath,
   }: {
-    noteRelativePath: string;
+    threadId: string;
     workspacePath: string;
-  }) => cloneThread(getOrCreateThreadState({ noteRelativePath, workspacePath }).thread);
+  }) => {
+    const connection = await getConnection();
+    await connection.request<Record<string, never>>("thread/archive", {
+      threadId,
+    });
 
-  const onThreadChanged = (listener: (event: AssistantEvent) => void) => {
-    listeners.add(listener);
-
-    return () => {
-      listeners.delete(listener);
-    };
-  };
-
-  const getOrCreateThreadState = ({
-    noteRelativePath,
-    workspacePath,
-  }: {
-    noteRelativePath: string;
-    workspacePath: string;
-  }): AssistantRunState => {
-    const key = getThreadKey(workspacePath, noteRelativePath);
-    const existingState = threadStates.get(key);
-
-    if (existingState) {
-      return existingState;
-    }
-
-    const nextState: AssistantRunState = {
-      child: null,
-      lastErrorMessages: [],
-      thread: {
-        noteRelativePath,
-        messages: [],
-        status: "idle",
-        errorMessage: null,
-      },
-    };
-
-    threadStates.set(key, nextState);
-    return nextState;
+    threadStates.delete(threadId);
+    void emitThreadList(workspacePath);
   };
 
   return {
     cancelRun,
+    createThread,
+    deleteThread,
     getThread,
-    migrateThread,
-    onThreadChanged,
+    listThreads,
+    onEvent: (listener) => {
+      listeners.add(listener);
+
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    renameThread,
     sendMessage,
   };
+}
+
+function createServerConnection({
+  onExit,
+  onNotification,
+  spawnProcess,
+}: {
+  onExit: (errorMessage: string) => void;
+  onNotification: (notification: JsonRpcResponse) => void;
+  spawnProcess: SpawnAssistantProcess;
+}): Promise<AssistantServerConnection> {
+  const child = spawnProcess("codex", ["app-server"], {
+    cwd: process.cwd(),
+    env: process.env,
+    stdio: "pipe",
+  });
+  const stdoutReader = createInterface({ input: child.stdout });
+  const stderrReader = createInterface({ input: child.stderr });
+  let nextRequestId = 1;
+  const pendingRequests = new Map<number, {
+    reject: (reason?: unknown) => void;
+    resolve: (value: unknown) => void;
+  }>();
+
+  const connection = {
+    request: <T>(method: string, params?: unknown) =>
+      new Promise<T>((resolve, reject) => {
+        const requestId = nextRequestId;
+        nextRequestId += 1;
+        pendingRequests.set(requestId, {
+          reject,
+          resolve: (value) => {
+            resolve(value as T);
+          },
+        });
+
+        const request: JsonRpcRequest = {
+          id: requestId,
+          method,
+          params,
+        };
+
+        child.stdin.write(`${JSON.stringify(request)}\n`);
+      }),
+  } satisfies AssistantServerConnection;
+
+  child.on("close", () => {
+    stdoutReader.close();
+    stderrReader.close();
+
+    for (const pendingRequest of pendingRequests.values()) {
+      pendingRequest.reject(new Error("Mohio lost its connection to Codex."));
+    }
+
+    pendingRequests.clear();
+    onExit("Mohio lost its connection to the installed Codex app server.");
+  });
+
+  stdoutReader.on("line", (line) => {
+    const parsedLine = parseJsonLine(line);
+
+    if (!parsedLine) {
+      return;
+    }
+
+    if (typeof parsedLine.id === "number") {
+      const pendingRequest = pendingRequests.get(parsedLine.id);
+
+      if (!pendingRequest) {
+        return;
+      }
+
+      pendingRequests.delete(parsedLine.id);
+
+      if (parsedLine.error) {
+        pendingRequest.reject(new Error(parsedLine.error.message ?? "Codex returned an unknown error."));
+        return;
+      }
+
+      pendingRequest.resolve(parsedLine.result);
+      return;
+    }
+
+    if (typeof parsedLine.method === "string") {
+      onNotification(parsedLine);
+    }
+  });
+
+  stderrReader.on("line", () => {
+    // app-server may emit diagnostics on stderr. The structured stream remains authoritative.
+  });
+
+  return connection.request<{ userAgent: string }>("initialize", {
+    capabilities: {
+      experimentalApi: true,
+      optOutNotificationMethods: null,
+    },
+    clientInfo: {
+      name: "mohio",
+      title: "Mohio",
+      version: "0.1.0",
+    },
+  }).then(() => connection);
+}
+
+function handleServerNotification({
+  createId,
+  emitThread,
+  emitThreadList,
+  now,
+  notification,
+  threadStates,
+}: {
+  createId: () => string;
+  emitThread: (threadId: string) => void;
+  emitThreadList: (workspacePath: string) => Promise<void>;
+  now: () => string;
+  notification: JsonRpcResponse;
+  threadStates: Map<string, AssistantThreadState>;
+}) {
+  const params = isRecord(notification.params) ? notification.params : null;
+
+  if (!params || typeof notification.method !== "string") {
+    return;
+  }
+
+  if (notification.method === "thread/started") {
+    const thread = parseCodexThread(params.thread);
+
+    if (!thread) {
+      return;
+    }
+
+    const existingState = threadStates.get(thread.id);
+    threadStates.set(thread.id, {
+      assistantMessageId: existingState?.assistantMessageId ?? null,
+      isTurnReady: true,
+      thread: mapCodexThreadToAssistantThread({
+        thread,
+        workspacePath: thread.cwd,
+      }),
+      turnId: existingState?.turnId ?? null,
+    });
+    emitThread(thread.id);
+    void emitThreadList(thread.cwd);
+    return;
+  }
+
+  if (notification.method === "thread/status/changed") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+
+    if (!threadState || !threadId) {
+      return;
+    }
+
+    threadState.thread.status = mapCodexStatusToAssistantStatus(params.status);
+    emitThread(threadId);
+    void emitThreadList(threadState.thread.workspacePath);
+    return;
+  }
+
+  if (notification.method === "thread/name/updated") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+
+    if (!threadState || !threadId) {
+      return;
+    }
+
+    threadState.thread.title = typeof params.threadName === "string" && params.threadName.trim()
+      ? params.threadName
+      : threadState.thread.preview || "New chat";
+    emitThread(threadId);
+    void emitThreadList(threadState.thread.workspacePath);
+    return;
+  }
+
+  if (notification.method === "thread/archived") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+
+    if (!threadState || !threadId) {
+      return;
+    }
+
+    threadStates.delete(threadId);
+    void emitThreadList(threadState.thread.workspacePath);
+    return;
+  }
+
+  if (notification.method === "turn/started") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const turn = isRecord(params.turn) ? params.turn : null;
+    const turnId = turn && typeof turn.id === "string" ? turn.id : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+
+    if (!threadState || !threadId || !turnId) {
+      return;
+    }
+
+    threadState.turnId = turnId;
+    threadState.thread.status = "running";
+    emitThread(threadId);
+    return;
+  }
+
+  if (notification.method === "turn/completed") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const turn = isRecord(params.turn) ? params.turn : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+
+    if (!threadState || !threadId || !turn) {
+      return;
+    }
+
+    threadState.turnId = null;
+    threadState.assistantMessageId = null;
+
+    if (turn.status === "failed") {
+      threadState.thread.errorMessage = getTurnErrorMessage(turn.error);
+      threadState.thread.status = "error";
+    } else {
+      threadState.thread.errorMessage = null;
+      threadState.thread.status = "idle";
+    }
+
+    emitThread(threadId);
+    void emitThreadList(threadState.thread.workspacePath);
+    return;
+  }
+
+  if (notification.method === "error") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+    const error = isRecord(params.error) ? params.error : null;
+
+    if (!threadState || !threadId) {
+      return;
+    }
+
+    threadState.thread.errorMessage = typeof error?.message === "string"
+      ? error.message
+      : "Codex could not complete that run.";
+
+    if (params.willRetry !== true) {
+      threadState.turnId = null;
+      threadState.assistantMessageId = null;
+      threadState.thread.status = "error";
+      emitThread(threadId);
+      void emitThreadList(threadState.thread.workspacePath);
+    }
+
+    return;
+  }
+
+  if (notification.method === "item/agentMessage/delta") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const delta = typeof params.delta === "string" ? params.delta : null;
+    const itemId = typeof params.itemId === "string" ? params.itemId : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+
+    if (!threadState || !threadId || !delta) {
+      return;
+    }
+
+    const assistantMessage = getOrCreateAssistantMessage({
+      createId,
+      itemId,
+      now,
+      threadState,
+    });
+
+    assistantMessage.content += delta;
+    threadState.thread.status = "running";
+    emitThread(threadId);
+    return;
+  }
+
+  if (notification.method === "item/completed") {
+    const threadId = typeof params.threadId === "string" ? params.threadId : null;
+    const threadState = threadId ? threadStates.get(threadId) : null;
+    const item = isRecord(params.item) ? params.item : null;
+
+    if (!threadState || !threadId || !isAgentMessageItem(item)) {
+      return;
+    }
+
+    const assistantMessage = getOrCreateAssistantMessage({
+      createId,
+      itemId: typeof item.id === "string" ? item.id : null,
+      now,
+      threadState,
+    });
+
+    if (item.text.trim().length > 0 || assistantMessage.content.length === 0) {
+      assistantMessage.content = item.text;
+    }
+
+    emitThread(threadId);
+  }
+}
+
+function getOrCreateAssistantMessage({
+  createId,
+  itemId,
+  now,
+  threadState,
+}: {
+  createId: () => string;
+  itemId: string | null;
+  now: () => string;
+  threadState: AssistantThreadState;
+}) {
+  const pendingAssistantMessageId = threadState.assistantMessageId;
+  let assistantMessageId = pendingAssistantMessageId;
+
+  if (itemId) {
+    assistantMessageId = itemId;
+    threadState.assistantMessageId = itemId;
+  }
+
+  let assistantMessage = assistantMessageId
+    ? threadState.thread.messages.find((message) => message.id === assistantMessageId)
+    : null;
+
+  if (!assistantMessage && pendingAssistantMessageId) {
+    assistantMessage = threadState.thread.messages.find((message) => message.id === pendingAssistantMessageId) ?? null;
+
+    if (assistantMessage && itemId) {
+      assistantMessage.id = itemId;
+    }
+  }
+
+  if (!assistantMessage) {
+    assistantMessage = {
+      id: assistantMessageId ?? createId(),
+      role: "assistant",
+      content: "",
+      createdAt: now(),
+    };
+    threadState.assistantMessageId = assistantMessage.id;
+    threadState.thread.messages = [...threadState.thread.messages, assistantMessage];
+  }
+
+  return assistantMessage;
 }
 
 function buildAssistantPrompt({
   documentMarkdown,
   documentTitle,
-  historyMessages,
   noteRelativePath,
-  userMessage,
+  userRequest,
   workspaceName,
   workspacePath,
 }: {
   documentMarkdown: string;
   documentTitle: string;
-  historyMessages: AssistantMessage[];
   noteRelativePath: string;
-  userMessage: AssistantMessage;
+  userRequest: string;
   workspaceName: string;
   workspacePath: string;
 }) {
-  const renderedHistory = historyMessages.length === 0
-    ? "No previous conversation in this note thread."
-    : historyMessages
-      .map((message) => `${message.role.toUpperCase()}:\n${message.content}`)
-      .join("\n\n");
-
   return [
-    DEFAULT_ASSISTANT_INSTRUCTIONS,
+    MOHIO_PROMPT_OPEN,
+    userRequest,
+    MOHIO_PROMPT_CLOSE,
     "",
-    "Workspace context:",
-    `- Name: ${workspaceName}`,
-    `- Path: ${workspacePath}`,
-    `- Active note path: ${noteRelativePath}`,
-    `- Active note title: ${documentTitle.trim() || "Untitled"}`,
-    "",
-    "Active note Markdown:",
-    "```md",
-    documentMarkdown,
+    "Treat the current note as primary context.",
+    `Workspace name: ${workspaceName}`,
+    `Workspace path: ${workspacePath}`,
+    `Current note title: ${documentTitle}`,
+    `Current note path: ${noteRelativePath}`,
+    "Current note body:",
+    "```markdown",
+    documentMarkdown.trimEnd(),
     "```",
-    "",
-    "Conversation history for this note:",
-    renderedHistory,
-    "",
-    "Latest user request:",
-    userMessage.content,
   ].join("\n");
 }
 
-function extractAssistantText(event: Record<string, unknown>) {
-  if (typeof event.delta === "string" && includesAssistantMessage(event.type)) {
-    return {
-      mode: "append" as const,
-      text: event.delta,
-    };
-  }
+async function resumeThread({
+  connection,
+  threadId,
+  threadState,
+  workspacePath,
+}: {
+  connection: AssistantServerConnection;
+  threadId: string;
+  threadState: AssistantThreadState;
+  workspacePath: string;
+}) {
+  const response = await connection.request<{ thread: CodexThread }>("thread/resume", {
+    approvalPolicy: "never",
+    cwd: workspacePath,
+    developerInstructions: DEFAULT_ASSISTANT_INSTRUCTIONS,
+    persistExtendedHistory: true,
+    sandbox: "read-only",
+    threadId,
+  });
+  const resumedThread = mapCodexThreadToAssistantThread({
+    thread: response.thread,
+    workspacePath,
+  });
 
-  const assistantPayload = getAssistantPayload(event);
-  const extractedText = extractTextValue(assistantPayload);
-
-  if (!extractedText) {
-    return null;
-  }
-
-  return {
-    mode: "replace" as const,
-    text: extractedText,
+  threadState.isTurnReady = true;
+  threadState.thread = {
+    ...resumedThread,
+    errorMessage: threadState.thread.errorMessage,
+    messages: threadState.thread.messages,
+    preview: threadState.thread.preview || resumedThread.preview,
+    status: threadState.thread.status,
   };
 }
 
-function getAssistantPayload(event: Record<string, unknown>) {
-  if (event.role === "assistant") {
-    return event.content ?? event.message ?? event.item;
-  }
-
-  if (isRecord(event.message) && event.message.role === "assistant") {
-    return event.message.content ?? event.message;
-  }
-
-  if (isRecord(event.item) && event.item.role === "assistant") {
-    return event.item.content ?? event.item;
-  }
-
-  if (isRecord(event.item) && isAssistantItemType(event.item.type)) {
-    return event.item;
-  }
-
-  if (typeof event.type === "string" && includesAssistantMessage(event.type)) {
-    return event.content ?? event.message ?? event.item;
-  }
-
-  return null;
+function mapCodexThreadToSummary(thread: CodexThread): AssistantThreadSummary {
+  return {
+    createdAt: toIsoTimestamp(thread.createdAt),
+    id: thread.id,
+    preview: getThreadPreview(thread.preview),
+    status: mapCodexStatusToAssistantStatus(thread.status),
+    title: getThreadTitle(thread),
+    updatedAt: toIsoTimestamp(thread.updatedAt),
+  };
 }
 
-function extractTextValue(value: unknown): string | null {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    const collectedParts = value
-      .map((entry) => extractTextValue(entry))
-      .filter((entry): entry is string => Boolean(entry));
-
-    return collectedParts.length > 0 ? collectedParts.join("") : null;
-  }
-
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  if (typeof value.text === "string") {
-    return value.text;
-  }
-
-  if (typeof value.content === "string") {
-    return value.content;
-  }
-
-  if (Array.isArray(value.content)) {
-    return extractTextValue(value.content);
-  }
-
-  if (isRecord(value.output_text) && typeof value.output_text.text === "string") {
-    return value.output_text.text;
-  }
-
-  return null;
-}
-
-function includesAssistantMessage(type: unknown) {
-  return typeof type === "string" && type.includes("message");
-}
-
-function isAssistantItemType(type: unknown) {
-  return type === "agent_message" || type === "assistant_message";
-}
-
-function getCodexExecArgs(workspacePath: string) {
-  return [
-    "--ask-for-approval",
-    "never",
-    "exec",
-    "--json",
-    "--ephemeral",
-    "--skip-git-repo-check",
-    "--sandbox",
-    "read-only",
-    "-C",
-    workspacePath,
-    "-",
-  ];
-}
-
-function getRunErrorMessage({
-  noteRelativePath,
-  signal,
-  state,
+function mapCodexThreadToAssistantThread({
+  thread,
+  workspacePath,
 }: {
-  noteRelativePath: string;
-  signal: NodeJS.Signals | null;
-  state: AssistantRunState;
-}) {
-  if (signal === "SIGTERM") {
-    return null;
-  }
+  thread: CodexThread;
+  workspacePath: string;
+}): AssistantThread {
+  return {
+    errorMessage: null,
+    id: thread.id,
+    messages: flattenThreadMessages(thread),
+    preview: getThreadPreview(thread.preview),
+    status: mapCodexStatusToAssistantStatus(thread.status),
+    title: getThreadTitle(thread),
+    workspacePath,
+  };
+}
 
-  let lastErrorMessage: string | null = null;
+function flattenThreadMessages(thread: CodexThread): AssistantMessage[] {
+  const messages: AssistantMessage[] = [];
+  const createdAt = toIsoTimestamp(thread.createdAt);
 
-  for (let index = state.lastErrorMessages.length - 1; index >= 0; index -= 1) {
-    const message = state.lastErrorMessages[index];
+  for (const turn of thread.turns) {
+    for (const item of turn.items) {
+      if (isUserMessageItem(item)) {
+        const content = getDisplayUserMessage(item.content);
 
-    if (message && message.length > 0) {
-      lastErrorMessage = message;
-      break;
+        if (!content) {
+          continue;
+        }
+
+        messages.push({
+          content,
+          createdAt,
+          id: item.id,
+          role: "user",
+        });
+      }
+
+      if (isAgentMessageItem(item)) {
+        messages.push({
+          content: item.text,
+          createdAt,
+          id: item.id,
+          role: "assistant",
+        });
+      }
     }
   }
 
-  if (lastErrorMessage) {
-    return lastErrorMessage;
-  }
-
-  return `Codex could not finish responding for ${noteRelativePath}.`;
+  return messages;
 }
 
-function cloneThread(thread: AssistantThread): AssistantThread {
-  return {
-    noteRelativePath: thread.noteRelativePath,
-    messages: thread.messages.map((message) => ({ ...message })),
-    status: thread.status,
-    errorMessage: thread.errorMessage,
-  };
+function getDisplayUserMessage(contentItems: CodexUserInput[]): string {
+  const rawText = contentItems
+    .map((item) => (isTextUserInput(item) ? item.text : ""))
+    .join("\n")
+    .trim();
+
+  return extractMohioUserRequest(rawText) ?? rawText;
 }
 
-function getThreadKey(workspacePath: string, noteRelativePath: string) {
-  return `${workspacePath}::${noteRelativePath}`;
-}
+function extractMohioUserRequest(text: string) {
+  const startIndex = text.indexOf(MOHIO_PROMPT_OPEN);
+  const endIndex = text.indexOf(MOHIO_PROMPT_CLOSE);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function parseJsonLine(line: string) {
-  const trimmedLine = line.trim();
-
-  if (!trimmedLine.startsWith("{")) {
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
     return null;
   }
 
+  return text
+    .slice(startIndex + MOHIO_PROMPT_OPEN.length, endIndex)
+    .trim();
+}
+
+function getThreadPreview(preview: string) {
+  return extractMohioUserRequest(preview) ?? preview.trim();
+}
+
+function getThreadTitle(thread: CodexThread) {
+  return thread.name?.trim() || getThreadPreview(thread.preview) || "New chat";
+}
+
+function mapCodexStatusToAssistantStatus(status: unknown): AssistantRunStatus {
+  if (!isRecord(status) || typeof status.type !== "string") {
+    return "idle";
+  }
+
+  if (status.type === "active") {
+    return "running";
+  }
+
+  if (status.type === "systemError") {
+    return "error";
+  }
+
+  return "idle";
+}
+
+function getTurnErrorMessage(turnError: unknown) {
+  if (!isRecord(turnError) || typeof turnError.message !== "string") {
+    return "Codex could not complete that run.";
+  }
+
+  if (typeof turnError.additionalDetails === "string" && turnError.additionalDetails.trim()) {
+    return `${turnError.message} ${turnError.additionalDetails}`.trim();
+  }
+
+  return turnError.message;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Mohio could not start the installed Codex app server.";
+}
+
+function isUnmaterializedThreadReadError(error: unknown) {
+  return error instanceof Error &&
+    error.message.includes("is not materialized yet") &&
+    error.message.includes("includeTurns");
+}
+
+function isNoRolloutFoundError(error: unknown) {
+  return error instanceof Error && error.message.includes("no rollout found for thread id");
+}
+
+function parseCodexThread(value: unknown): CodexThread | null {
+  if (!isRecord(value) || typeof value.id !== "string" || typeof value.cwd !== "string") {
+    return null;
+  }
+
+  return value as CodexThread;
+}
+
+function parseJsonLine(line: string): JsonRpcResponse | null {
   try {
-    return JSON.parse(trimmedLine) as unknown;
+    return JSON.parse(line) as JsonRpcResponse;
   } catch {
     return null;
   }
 }
+
+function toIsoTimestamp(unixTimestampSeconds: number) {
+  return new Date(unixTimestampSeconds * 1000).toISOString();
+}
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function cloneThread(thread: AssistantThread): AssistantThread {
+  return {
+    ...thread,
+    messages: thread.messages.map((message) => ({ ...message })),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null;
+}
+
+function isAgentMessageItem(item: unknown): item is CodexAgentMessageItem {
+  return isRecord(item) && item.type === "agentMessage" && typeof item.text === "string";
+}
+
+function isUserMessageItem(item: unknown): item is CodexUserMessageItem {
+  return isRecord(item) && item.type === "userMessage" && Array.isArray(item.content);
+}
+
+function isTextUserInput(item: CodexUserInput): item is {
+  type: "text";
+  text: string;
+} {
+  return item.type === "text" && "text" in item && typeof item.text === "string";
+}
+
+interface CodexThread {
+  id: string;
+  preview: string;
+  name: string | null;
+  cwd: string;
+  createdAt: number;
+  updatedAt: number;
+  status: unknown;
+  turns: CodexTurn[];
+}
+
+interface CodexTurn {
+  id: string;
+  items: CodexThreadItem[];
+}
+
+type CodexThreadItem = CodexAgentMessageItem | CodexUserMessageItem | {
+  type: string;
+  id: string;
+};
+
+interface CodexAgentMessageItem {
+  type: "agentMessage";
+  id: string;
+  text: string;
+}
+
+interface CodexUserMessageItem {
+  type: "userMessage";
+  id: string;
+  content: CodexUserInput[];
+}
+
+type CodexUserInput = {
+  type: "text";
+  text: string;
+} | {
+  type: string;
+};

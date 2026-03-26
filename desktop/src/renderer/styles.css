@@ -753,6 +753,150 @@ button {
   flex: 0 0 auto;
 }
 
+.assistant-panel-header--detail {
+  padding-bottom: 6px;
+}
+
+.assistant-panel-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.assistant-panel-header__main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.assistant-panel-header__title-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.assistant-panel__thread-title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.assistant-panel__new-chat {
+  padding: 0;
+  font-size: 0;
+}
+
+.assistant-panel__text-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.assistant-panel__text-icon-button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.assistant-panel__icon {
+  width: 16px;
+  height: 16px;
+}
+
+.assistant-panel__icon--new-chat {
+  width: 18px;
+  height: 18px;
+}
+
+.assistant-panel__menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.assistant-panel__menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 3;
+  display: flex;
+  min-width: 168px;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.assistant-panel__menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  padding: 9px 10px;
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.assistant-panel__menu-item:hover:not(:disabled) {
+  background: var(--muted-surface);
+  color: var(--text-primary);
+}
+
+.assistant-panel__menu-item--danger {
+  color: #b91c1c;
+}
+
+.assistant-thread-list-section {
+  min-height: 0;
+  flex: 1;
+}
+
+.assistant-thread-list {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.assistant-thread-list__button {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.assistant-thread-list__button:hover {
+  color: var(--text-primary);
+}
+
+.assistant-thread-list__title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: currentColor;
+}
+
 .assistant-panel__body {
   display: flex;
   min-height: 0;
@@ -816,23 +960,24 @@ button {
 
 .assistant-message {
   display: flex;
-  max-width: calc(100% - 20px);
+  width: 100%;
   flex-direction: column;
   gap: 6px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
+  padding: 0 10px;
 }
 
 .assistant-message--assistant {
-  align-self: flex-start;
-  background: var(--background);
+  align-items: flex-start;
 }
 
 .assistant-message--user {
   align-self: flex-end;
+  width: auto;
+  max-width: calc(100% - 28px);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 12px;
   background: var(--accent-blue-soft);
-  border-color: rgba(37, 99, 235, 0.12);
+  padding: 12px 14px;
 }
 
 .assistant-message__role {
@@ -844,6 +989,10 @@ button {
   color: var(--text-muted);
 }
 
+.assistant-message--assistant .assistant-message__role {
+  padding-left: 2px;
+}
+
 .assistant-message__content {
   margin: 0;
   white-space: pre-wrap;
@@ -851,6 +1000,15 @@ button {
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-primary);
+}
+
+.assistant-thinking-indicator {
+  margin: 0;
+  padding: 0 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  animation: assistant-thinking 1.35s ease-in-out infinite;
 }
 
 .assistant-composer {
@@ -872,9 +1030,28 @@ button {
 
 .ghost-button:disabled,
 .primary-button:disabled,
-.chat-composer:disabled {
+.chat-composer:disabled,
+.assistant-panel__text-icon-button:disabled,
+.assistant-panel__menu-item:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+@keyframes assistant-thinking {
+  0% {
+    opacity: 0.4;
+    transform: translateX(0);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: translateX(2px);
+  }
+
+  100% {
+    opacity: 0.4;
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 1200px) {

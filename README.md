@@ -35,11 +35,13 @@ Audience split:
 
 The real Mohio desktop app starts in `desktop/`.
 
-Typical local workflow:
+Quikstart development:
 
-1. `cd desktop`
-2. `npm install`
-3. `npm run dev`
+```
+cd desktop
+npm install
+npm run dev
+```
 
 Other useful commands:
 
