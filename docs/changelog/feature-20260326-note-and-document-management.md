@@ -27,6 +27,8 @@ The desktop workspace already supported opening and editing Markdown files, but 
   - `h1-linked` mode rewrites the first H1 from the editor title and renames the file
   - `filename-linked` mode renames the file without rewriting/inserting H1
   - existing frontmatter (including `title`) is preserved as-is
+- Updated renderer save-state handling so filename-linked documents immediately adopt the canonical saved title returned from main (no stale pre-sanitized title lingering in the input).
+- Strengthened Markdown editor regression coverage so heading and inline-code syntax markers must remain visually hidden while formatted text remains visible.
 - Added `titleMode` to loaded/saved document contracts so mode stays stable during an edit session and only recalculates on reload/file-change refresh.
 - Added test coverage for:
   - main document create/delete behavior and safety checks

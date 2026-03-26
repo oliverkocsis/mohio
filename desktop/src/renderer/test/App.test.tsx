@@ -745,6 +745,77 @@ describe("App", () => {
     }
   }, 10000);
 
+  it("applies the canonical filename-linked title returned from save", async () => {
+    try {
+      const saveDocument = vi.fn().mockResolvedValue({
+        relativePath: "Roadmap Q2.md",
+        fileName: "Roadmap Q2.md",
+        displayTitle: "Roadmap Q2",
+        markdown: "# Product Vision\n\nBody.\n",
+        titleMode: "filename-linked" as const,
+        savedAt: "2026-03-26T00:00:00.000Z",
+      });
+
+      window.mohio = createMohioMock({
+        getCurrentWorkspace: async () => ({
+          name: "alpha",
+          path: "/workspaces/alpha",
+          documentCount: 1,
+          documents: [
+            {
+              id: "Roadmap.md",
+              kind: "document",
+              name: "Roadmap.md",
+              relativePath: "Roadmap.md",
+              displayTitle: "Roadmap",
+            },
+          ],
+        }),
+        readDocument: async (relativePath) =>
+          relativePath === "Roadmap Q2.md"
+            ? {
+                relativePath: "Roadmap Q2.md",
+                fileName: "Roadmap Q2.md",
+                displayTitle: "Roadmap Q2",
+                markdown: "# Product Vision\n\nBody.\n",
+                titleMode: "filename-linked",
+              }
+            : {
+                relativePath: "Roadmap.md",
+                fileName: "Roadmap.md",
+                displayTitle: "Roadmap",
+                markdown: "# Product Vision\n\nBody.\n",
+                titleMode: "filename-linked",
+              },
+        saveDocument,
+      });
+
+      render(<App />);
+
+      const titleInput = await screen.findByLabelText("Document title");
+      expect(titleInput).toHaveValue("Roadmap");
+
+      vi.useFakeTimers();
+
+      fireEvent.change(titleInput, { target: { value: "Roadmap: Q2" } });
+
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+        await Promise.resolve();
+      });
+
+      expect(saveDocument).toHaveBeenCalledWith({
+        relativePath: "Roadmap.md",
+        title: "Roadmap: Q2",
+        markdown: "# Product Vision\n\nBody.\n",
+        titleMode: "filename-linked",
+      });
+      expect(screen.getByLabelText("Document title")).toHaveValue("Roadmap Q2");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("uses a list-first assistant flow with Codex chat actions", async () => {
     let onAssistantEventListener: ((event: AssistantEvent) => void) | null = null;
     const renameAssistantThread = vi.fn().mockResolvedValue(undefined);

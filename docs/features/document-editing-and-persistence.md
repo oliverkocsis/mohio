@@ -53,6 +53,7 @@ On save, Mohio rebuilds the file with:
 - `filename-linked` mode:
   - renames the file from the sanitized title
   - does not insert or rewrite H1 based on title edits
+- After a successful save, the title field updates to the canonical saved title returned from main (for example, after filename sanitization in `filename-linked` mode).
 - existing frontmatter is preserved as-is, including `frontmatter.title` if present
 
 ## Note Creation and Deletion

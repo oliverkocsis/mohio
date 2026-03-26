@@ -650,6 +650,18 @@ export function App() {
         setExpandedDirectoryIds(getExpandedDirectoryIds(refreshedWorkspace));
       }
 
+      const currentDraftSnapshot = {
+        relativePath: selectedDocumentIdRef.current ?? snapshot.relativePath,
+        title: draftTitleRef.current,
+        markdown: draftMarkdownRef.current,
+      };
+      const canApplyCommittedDraft = snapshotsMatch(currentDraftSnapshot, snapshot);
+      const committedSnapshot = {
+        relativePath: result.relativePath,
+        title: result.displayTitle,
+        markdown: result.markdown,
+      };
+
       setSelectedDocumentId(result.relativePath);
       setDocument({
         relativePath: result.relativePath,
@@ -658,11 +670,14 @@ export function App() {
         markdown: result.markdown,
         titleMode: result.titleMode,
       });
-      lastSavedSnapshotRef.current = {
-        relativePath: result.relativePath,
-        title: snapshot.title,
-        markdown: snapshot.markdown,
-      };
+
+      if (canApplyCommittedDraft) {
+        setDraftTitle(result.displayTitle);
+        setDraftMarkdown(result.markdown);
+      }
+
+      lastSavedSnapshotRef.current = committedSnapshot;
+      pendingSaveSnapshotRef.current = null;
       setSaveState("saved");
     } catch {
       if (saveSequence !== saveSequenceRef.current) {
