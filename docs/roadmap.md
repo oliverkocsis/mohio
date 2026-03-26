@@ -53,7 +53,23 @@ Planned focus areas:
 - Show what the assistant changed instead of hiding modifications.
 - Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
 
-### 4. Notes and Documents
+### 4. Note and Document Management
+
+- Create a new note from inside the app.
+- Open a newly created note immediately.
+- Delete notes from inside the app.
+- Keep the active note highlighted in the workspace browser.
+
+### 4. Navigation and Discovery
+
+- Switch between notes quickly from the workspace browser.
+- Search by file name.
+- Search by note content.
+- Recognize internal Markdown links between documents.
+- Open linked notes directly from the editor.
+- Support contextual navigation between related pages over time.
+
+### 5. Notes and Documents
 
 - Seperate notes and documents
 - Notes are used to capture quick thoughts, ideas.
@@ -67,26 +83,7 @@ Planned focus areas:
 - The notes can be order by modified time or created time. The user can switch between the two sorting options. (A-Z or Z-A)
 - The documents tab shows the shared documents in a folder hierarchical structure.
 - The documents can be ordered by name or modified time. The user can switch between the two sorting options. (A-Z or Z-A)
-- Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 My Note`).
-
-### 4. Note and Document Management
-
-- Create a new note from inside the app.
-- Open a newly created note immediately.
-- Rename notes from inside the app.
-- Delete notes from inside the app.
-- Show a browsable list or tree of workspace documents.
-- Support recent or pinned notes for fast return paths.
-- Keep the active note clearly highlighted in the workspace browser.
-
-### 4. Navigation and Discovery
-
-- Switch between notes quickly from the workspace browser.
-- Search by file name.
-- Search by note content.
-- Recognize internal Markdown links between documents.
-- Open linked notes directly from the editor.
-- Support contextual navigation between related pages over time.
+- Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 This is the first h1 if the note`).
 
 ### 6. Review, History, and Checkpoints
 
