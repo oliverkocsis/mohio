@@ -72,14 +72,14 @@ describe("getWorkspaceSummary", () => {
         kind: "document",
         name: "notes.MD",
         relativePath: "notes.MD",
-        displayTitle: "Notes; Archive",
+        displayTitle: "Notes",
       },
       {
         id: "README.md",
         kind: "document",
         name: "README.md",
         relativePath: "README.md",
-        displayTitle: "Workspace",
+        displayTitle: "README",
       },
     ]);
   });

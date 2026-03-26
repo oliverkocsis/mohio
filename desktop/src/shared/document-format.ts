@@ -1,5 +1,6 @@
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import type { DocumentTitleMode } from "./mohio-types";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/u;
 const LEADING_H1_PATTERN = /^(?:\r?\n)*#\s+(.+?)\s*(?:\r?\n|$)/u;
@@ -10,6 +11,7 @@ const MARKDOWN_EXTENSION_PATTERN = /\.(md|markdown|mdx)$/iu;
 export interface ParsedMarkdownDocument {
   bodyMarkdown: string;
   displayTitle: string;
+  titleMode: DocumentTitleMode;
   frontmatterTitle?: string;
   hasTitleFrontmatter: boolean;
   headingTitle?: string;
@@ -27,15 +29,20 @@ export function parseMarkdownDocument(
 ): ParsedMarkdownDocument {
   const parsedFrontmatter = parseFrontmatter(markdown);
   const headingTitle = getLeadingHeadingTitle(parsedFrontmatter.body);
-  const displayTitle = getDisplayTitle({
-    fallbackFileName: fileName,
-    frontmatterTitle: getFrontmatterTitle(parsedFrontmatter.metadata),
-    headingTitle,
-  });
+  const fileNameTitle = getFileNameTitle(fileName);
+  const titleMode = (
+    headingTitle && areSanitizedTitlesEquivalent(headingTitle, fileNameTitle)
+      ? "h1-linked"
+      : "filename-linked"
+  );
+  const displayTitle = titleMode === "h1-linked" ? normalizeTitle(headingTitle ?? "Untitled") : fileNameTitle;
 
   return {
-    bodyMarkdown: removeLeadingHeading(parsedFrontmatter.body),
+    bodyMarkdown: titleMode === "h1-linked"
+      ? removeLeadingHeading(parsedFrontmatter.body)
+      : parsedFrontmatter.body,
     displayTitle,
+    titleMode,
     frontmatterTitle: getFrontmatterTitle(parsedFrontmatter.metadata),
     hasTitleFrontmatter: typeof parsedFrontmatter.metadata.title === "string",
     headingTitle,
@@ -46,31 +53,30 @@ export function buildMarkdownDocument({
   bodyMarkdown,
   existingMarkdown,
   title,
+  titleMode,
 }: {
   bodyMarkdown: string;
   existingMarkdown: string;
   title: string;
+  titleMode: DocumentTitleMode;
 }): { bodyMarkdown: string; frontmatterTitle?: string; markdown: string } {
   const parsedFrontmatter = parseFrontmatter(existingMarkdown);
   const nextMetadata = { ...parsedFrontmatter.metadata };
-  const normalizedTitle = normalizeTitle(title);
-  const fileSystemTitle = sanitizeFileSystemTitle(normalizedTitle);
-
-  if (fileSystemTitle.wasModified) {
-    nextMetadata.title = normalizedTitle;
-  } else {
-    delete nextMetadata.title;
-  }
-
-  const header = `# ${normalizedTitle}`;
   const normalizedBody = normalizeBodyMarkdown(bodyMarkdown);
-  const nextBody = normalizedBody ? `${header}\n\n${normalizedBody}` : header;
+  const normalizedTitle = normalizeTitle(title);
+  const nextBody = titleMode === "h1-linked"
+    ? buildTitleLinkedBody({
+      bodyMarkdown: normalizedBody,
+      title: normalizedTitle,
+    })
+    : normalizedBody;
   const nextFrontmatter = serializeFrontmatter(nextMetadata);
+  const markdownBody = nextFrontmatter ? `${nextFrontmatter}\n${nextBody}` : nextBody;
 
   return {
     bodyMarkdown: normalizedBody,
     frontmatterTitle: typeof nextMetadata.title === "string" ? nextMetadata.title : undefined,
-    markdown: nextFrontmatter ? `${nextFrontmatter}\n${nextBody}\n` : `${nextBody}\n`,
+    markdown: `${markdownBody}${markdownBody.endsWith("\n") ? "" : "\n"}`,
   };
 }
 
@@ -135,6 +141,30 @@ export function getRenamedRelativePath({
 }): string {
   const parsedPath = path.parse(relativePath);
   return path.join(parsedPath.dir, `${sanitizedTitle}${extension}`);
+}
+
+function buildTitleLinkedBody({
+  bodyMarkdown,
+  title,
+}: {
+  bodyMarkdown: string;
+  title: string;
+}) {
+  const header = `# ${title}`;
+  return bodyMarkdown ? `${header}\n\n${bodyMarkdown}` : header;
+}
+
+function getFileNameTitle(fileName: string): string {
+  return normalizeTitle(stripMarkdownExtension(fileName) || "Untitled");
+}
+
+function areSanitizedTitlesEquivalent(left: string, right: string): boolean {
+  const leftSanitizedTitle = sanitizeFileSystemTitle(left).sanitizedTitle;
+  const rightSanitizedTitle = sanitizeFileSystemTitle(right).sanitizedTitle;
+
+  return leftSanitizedTitle.localeCompare(rightSanitizedTitle, undefined, {
+    sensitivity: "base",
+  }) === 0;
 }
 
 function normalizeTitle(title: string): string {

@@ -219,6 +219,45 @@ button {
   color: #b91c1c;
 }
 
+.workspace-document-menu {
+  position: fixed;
+  z-index: 6;
+  display: flex;
+  min-width: 170px;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.workspace-document-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+}
+
+.workspace-document-menu__item:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.workspace-document-menu__item--danger {
+  color: #b91c1c;
+}
+
+.workspace-document-menu__icon {
+  width: 14px;
+  height: 14px;
+}
+
 .note-list,
 .action-list,
 .workspace-tree,

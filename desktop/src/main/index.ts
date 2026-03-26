@@ -6,7 +6,13 @@ import path from "node:path";
 import { MOHIO_CHANNELS } from "@shared/mohio-api";
 import type { AssistantEvent, DocumentChangedEvent, WorkspaceSummary } from "@shared/mohio-types";
 import { createAssistantRuntime } from "./assistant";
-import { readDocument, resolveWorkspacePath, saveDocument } from "./document-store";
+import {
+  createDocument,
+  deleteDocument,
+  readDocument,
+  resolveWorkspacePath,
+  saveDocument,
+} from "./document-store";
 import { buildAppMenuTemplate } from "./menu";
 import { getWorkspaceSummary } from "./workspace";
 
@@ -180,6 +186,20 @@ function registerMohioHandlers() {
     }
 
     return readDocument(currentWorkspacePath, relativePath);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.createDocument, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before creating documents.");
+    }
+
+    return createDocument(currentWorkspacePath, input);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.deleteDocument, async (_event, relativePath: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before deleting documents.");
+    }
+
+    return deleteDocument(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.saveDocument, async (_event, input) => {
     if (!currentWorkspacePath) {

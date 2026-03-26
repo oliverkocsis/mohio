@@ -25,51 +25,7 @@ Planned focus areas:
 - explicit publish flow for shared updates
 - contextual navigation between related pages
 
-### 1. Workspace Management
-
-- Open a local folder as a Mohio workspace.
-- Treat Markdown files in that folder as workspace documents.
-- Show the current workspace name and context clearly.
-- Keep the default experience local-first without requiring a hosted backend.
-
-### 2. Editing Experience
-
-- Default to a polished document editing experience for non-technical users.
-- Use `Quill` as the WYSIWYG editor for standard writing workflows.
-- Show a clear document title field as part of the editing surface.
-- Provide a lightweight formatting toolbar for common writing actions.
-- Preserve Markdown as the durable source format.
-- Support default Markdown formatting options including paragraphs, headings, ordered and unordered lists, task lists, block quotes, links, images, bold, italic, strikethrough, inline code, code blocks, tables, and horizontal rules.
-- Save edits continuously without a manual save workflow.
-- Keep the document editor as the visual center of the product.
-
-### 3. AI Assistance
-
-- Provide an embedded AI panel inside the workspace for connected assistants such as Codex and Claude Code.
-- Let connected assistants summarize, rewrite, organizeUse, expand, and update the current note.
-- Allow the assistant to propose creating new notes when useful.
-- Surface suggested assistant actions where they help the current document workflow.
-- Keep assistant actions explicit and reviewable.
-- Show what the assistant changed instead of hiding modifications.
-- Aim for natural product-language interactions even when the connected assistant is Codex or Claude Code.
-
-### 4. Note and Document Management
-
-- Create a new note from inside the app.
-- Open a newly created note immediately.
-- Delete notes from inside the app.
-- Keep the active note highlighted in the workspace browser.
-
-### 4. Navigation and Discovery
-
-- Switch between notes quickly from the workspace browser.
-- Search by file name.
-- Search by note content.
-- Recognize internal Markdown links between documents.
-- Open linked notes directly from the editor.
-- Support contextual navigation between related pages over time.
-
-### 5. Notes and Documents
+### Notes and Documents
 
 - Seperate notes and documents
 - Notes are used to capture quick thoughts, ideas.
@@ -85,7 +41,30 @@ Planned focus areas:
 - The documents can be ordered by name or modified time. The user can switch between the two sorting options. (A-Z or Z-A)
 - Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 This is the first h1 if the note`).
 
-### 6. Review, History, and Checkpoints
+### Apps
+
+Create internal tools with AI assistance that are grounded in the team's existing knowledge and documentation.
+- Create tools that can be opened in the main editor page and have access to the workspace context.
+- Text based database is used
+- 
+
+### Canvas
+
+Text based canvas for freeform note-taking, brainstorming, and visual organization.
+- support for basic shapes, connectors, and text boxes
+- fixed grid layout with drag-and-drop positioning
+- fixed sized elements and spacing for simplicity
+
+### Navigation and Discovery
+
+- Switch between notes quickly from the workspace browser.
+- Search by file name.
+- Search by note content.
+- Recognize internal Markdown links between documents.
+- Open linked notes directly from the editor.
+- Support contextual navigation between related pages over time.
+
+### Review, History, and Checkpoints
 
 - Create checkpoints automatically in the background instead of asking users to manage them manually.
 - Create a checkpoint before any AI-generated change is applied.
@@ -97,14 +76,14 @@ Planned focus areas:
 - Preserve visible page-level history over time.
 - Support reviewable diffs before important shared changes are accepted.
 
-### 7. Publishing and Shared Knowledge
+### Publishing and Shared Knowledge
 
 - Separate ongoing editing from deliberate publishing.
 - Let users publish the current note when it is ready to share.
 - Make published state or last published status visible.
 - Keep publishing an explicit action rather than an automatic side effect of editing.
 
-### 8. Collaboration and Change Awareness
+### 9. Collaboration and Change Awareness
 
 These are planned feature areas beyond the earliest core workspace milestone:
 
@@ -114,7 +93,7 @@ These are planned feature areas beyond the earliest core workspace milestone:
 - Guided conflict resolution in product language.
 - Clearer signals for draft, published, and incoming changes.
 
-### 9. Mobile and Companion Workflows
+### 10. Mobile and Companion Workflows
 
 These are planned after the desktop-first core workflow is stable:
 

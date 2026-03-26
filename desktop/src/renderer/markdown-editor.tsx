@@ -426,7 +426,7 @@ function getMarkdownLineKind(lineText: string): MarkdownLineKind {
     return "list";
   }
 
-  if (/^\s{0,3}#{1,6}\s+/u.test(lineText) || /^\s{0,3}(=+|-+)\s*$/u.test(lineText)) {
+  if (/^\s{0,3}#{1,6}(?:\s+|$)/u.test(lineText) || /^\s{0,3}(=+|-+)\s*$/u.test(lineText)) {
     return "heading";
   }
 
@@ -452,11 +452,11 @@ function addLineDecorations(
   nextLineText: string | null,
 ) {
   const nextLineIsList = nextLineText !== null && getMarkdownLineKind(nextLineText) === "list";
-  const headingMatch = lineText.match(/^(\s{0,3})(#{1,6})\s+/u);
+  const headingMatch = lineText.match(/^(\s{0,3})(#{1,6})(\s+|$)/u);
 
   if (headingMatch) {
     const prefixStart = lineFrom + headingMatch[1].length;
-    const prefixEnd = prefixStart + headingMatch[2].length + 1;
+    const prefixEnd = prefixStart + headingMatch[2].length + headingMatch[3].length;
 
     builder.add(lineFrom, lineFrom, Decoration.line({ class: `cm-md-heading cm-md-heading-${headingMatch[2].length}` }));
     builder.add(prefixStart, prefixEnd, hiddenSyntax);
@@ -535,12 +535,38 @@ function addInlineDecorations(
 ) {
   addWrappedRanges(builder, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark);
   addWrappedRanges(builder, lineFrom, lineText, /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
-  addWrappedRanges(builder, lineFrom, lineText, /`([^`\n]+)`/gu, 1, inlineCodeMark);
+  addInlineCodeDecorations(builder, lineFrom, lineText);
   addWrappedRanges(builder, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark);
   addWrappedRanges(builder, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark);
   addWrappedRanges(builder, lineFrom, lineText, /__([^_\n]+)__/gu, 2, strongMark);
   addWrappedRanges(builder, lineFrom, lineText, /(?<!\*)\*([^*\n]+)\*(?!\*)/gu, 1, emphasisMark);
   addWrappedRanges(builder, lineFrom, lineText, /(?<!_)_([^_\n]+)_(?!_)/gu, 1, emphasisMark);
+}
+
+function addInlineCodeDecorations(
+  builder: RangeSetBuilder<Decoration>,
+  lineFrom: number,
+  lineText: string,
+) {
+  const inlineCodePattern = /(`+)([^`\n]+?)\1/gu;
+
+  for (const match of lineText.matchAll(inlineCodePattern)) {
+    const fullMatch = match[0];
+    const delimiter = match[1] ?? "`";
+    const content = match[2] ?? "";
+    const start = lineFrom + (match.index ?? 0);
+    const contentStart = start + delimiter.length;
+    const contentEnd = contentStart + content.length;
+    const end = start + fullMatch.length;
+
+    if (content.length === 0) {
+      continue;
+    }
+
+    builder.add(start, contentStart, hiddenSyntax);
+    builder.add(contentStart, contentEnd, inlineCodeMark);
+    builder.add(contentEnd, end, hiddenSyntax);
+  }
 }
 
 function addWrappedRanges(

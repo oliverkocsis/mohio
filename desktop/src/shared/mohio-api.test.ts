@@ -22,11 +22,20 @@ describe("createMohioApi", () => {
       fileName: "README.md",
       displayTitle: "README",
       markdown: "Body",
+      titleMode: "h1-linked" as const,
     };
 
     const getCurrentWorkspace = vi.fn().mockResolvedValue(workspace);
     const openWorkspace = vi.fn().mockResolvedValue(workspace);
     const readDocument = vi.fn().mockResolvedValue(document);
+    const createDocument = vi.fn().mockResolvedValue({
+      relativePath: "Untitled.md",
+      fileName: "Untitled.md",
+      displayTitle: "Untitled",
+      markdown: "",
+      titleMode: "h1-linked" as const,
+    });
+    const deleteDocument = vi.fn().mockResolvedValue(undefined);
     const saveDocument = vi.fn().mockResolvedValue({
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
@@ -92,6 +101,8 @@ describe("createMohioApi", () => {
       getCurrentWorkspace,
       openWorkspace,
       readDocument,
+      createDocument,
+      deleteDocument,
       saveDocument,
       watchDocument,
       listAssistantThreads,
@@ -114,10 +125,19 @@ describe("createMohioApi", () => {
     await expect(api.getCurrentWorkspace()).resolves.toEqual(workspace);
     await expect(api.openWorkspace()).resolves.toEqual(workspace);
     await expect(api.readDocument("README.md")).resolves.toEqual(document);
+    await expect(api.createDocument({ directoryRelativePath: null })).resolves.toEqual({
+      relativePath: "Untitled.md",
+      fileName: "Untitled.md",
+      displayTitle: "Untitled",
+      markdown: "",
+      titleMode: "h1-linked",
+    });
+    await expect(api.deleteDocument("README.md")).resolves.toBeUndefined();
     await expect(api.saveDocument({
       relativePath: "README.md",
       title: "README",
       markdown: "Body",
+      titleMode: "h1-linked",
     })).resolves.toEqual({
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
@@ -185,10 +205,13 @@ describe("createMohioApi", () => {
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
     expect(readDocument).toHaveBeenCalledWith("README.md");
+    expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
+    expect(deleteDocument).toHaveBeenCalledWith("README.md");
     expect(saveDocument).toHaveBeenCalledWith({
       relativePath: "README.md",
       title: "README",
       markdown: "Body",
+      titleMode: "h1-linked",
     });
     expect(watchDocument).toHaveBeenCalledWith("README.md");
     expect(listAssistantThreads).toHaveBeenCalledTimes(1);

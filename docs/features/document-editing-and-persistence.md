@@ -20,6 +20,7 @@ Each loaded document currently returns:
 - `fileName`
 - `displayTitle`
 - `markdown`
+- `titleMode` (`h1-linked` or `filename-linked`)
 - optional `frontmatterTitle`
 
 The renderer edits two draft fields:
@@ -29,22 +30,40 @@ The renderer edits two draft fields:
 
 ## Title Resolution
 
-When Mohio reads a Markdown file, the visible title is resolved in this order:
+When Mohio reads a Markdown file, it picks one of two title modes:
 
-1. frontmatter `title`
-2. leading H1
-3. filename without Markdown extension
-4. `Untitled`
+1. `h1-linked`
+   - active when the first H1 (after optional leading blank lines) sanitizes to the same value as the sanitized filename stem
+   - visible title comes from that H1
+   - the leading H1 is removed from the editable body
+2. `filename-linked`
+   - active when no first H1 exists, or when sanitized H1 and sanitized filename stem differ
+   - visible title comes from the filename stem
+   - the body is kept as-is (no title-driven H1 stripping)
 
-The leading H1 is removed from the editable body so the body editor does not duplicate the title field.
+`frontmatter.title` is ignored for visible-title resolution.
 
 ## Save Behavior
 
 On save, Mohio rebuilds the file with:
 
-- a normalized H1 generated from the title field
-- preserved non-title frontmatter
-- optional frontmatter `title` only when the filesystem-safe filename would need to differ from the visible title
+- `h1-linked` mode:
+  - rewrites the leading H1 from the title field
+  - renames the file from the sanitized title
+- `filename-linked` mode:
+  - renames the file from the sanitized title
+  - does not insert or rewrite H1 based on title edits
+- After a successful save, the title field updates to the canonical saved title returned from main (for example, after filename sanitization in `filename-linked` mode).
+- existing frontmatter is preserved as-is, including `frontmatter.title` if present
+
+## Note Creation and Deletion
+
+- New notes can be created from the workspace sidebar.
+- Mohio writes new notes with a default `# Untitled` heading.
+- New notes are created in the selected note's folder.
+- If no note is selected, the new note is created at workspace root.
+- Name collisions use numeric suffixes (`Untitled.md`, `Untitled 1.md`, ...).
+- Notes can be deleted from the workspace tree context menu after explicit confirmation.
 
 ## Filename Rules
 
@@ -103,7 +122,6 @@ On save, Mohio rebuilds the file with:
 
 - No explicit save history or checkpoint UI yet
 - No rendered preview or split-view editor yet
-- No create-note flow yet
 - No in-app rename action outside editing the title of an existing file
 - No publish workflow
 - No search workflow in the UI yet

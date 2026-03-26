@@ -38,11 +38,17 @@ Current API surface:
 - `getCurrentWorkspace()`
 - `openWorkspace()`
 - `readDocument(relativePath)`
+- `createDocument({ directoryRelativePath })`
+- `deleteDocument(relativePath)`
 - `saveDocument(input)`
 - `watchDocument(relativePath | null)`
-- `getAssistantThread(noteRelativePath)`
+- `listAssistantThreads()`
+- `createAssistantThread()`
+- `getAssistantThread(threadId)`
 - `sendAssistantMessage(input)`
-- `cancelAssistantRun(noteRelativePath)`
+- `cancelAssistantRun(threadId)`
+- `renameAssistantThread(input)`
+- `deleteAssistantThread(threadId)`
 - `onWorkspaceChanged(listener)`
 - `onDocumentChanged(listener)`
 - `onAssistantEvent(listener)`
@@ -65,9 +71,12 @@ Current API surface:
 ## Workspace Tree Behavior
 
 - The left sidebar renders a nested tree of directories and documents.
+- The `New Note` action creates a markdown note in the selected note folder.
+- If no note is selected, `New Note` creates the note at workspace root.
 - Directories are expanded by default after a workspace loads.
 - Clicking a directory row toggles expansion.
 - Clicking a document row selects that document.
+- Right-clicking a document row opens a context menu with `Delete Note`.
 - The first document in the tree becomes the default selection after workspace load.
 - Document rows display parsed titles when available.
 
@@ -87,6 +96,7 @@ Current API surface:
 ### Workspace With Documents
 
 - The selected document loads into the editor panel.
+- Newly created notes are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
 - The assistant sidebar shows a note-scoped Codex conversation for the selected note.
 
@@ -98,9 +108,7 @@ Current API surface:
 
 ## Current Limitations
 
-- No create-note UI
 - No rename-note UI
-- No delete-note UI
 - No search implementation behind the search field
 - No recent-note or pinned-note behavior yet
 - Assistant history is not persisted across restarts

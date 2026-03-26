@@ -3,6 +3,7 @@ import type {
   AssistantThread,
   AssistantThreadSummary,
   AppInfo,
+  CreateDocumentInput,
   DocumentChangedEvent,
   MohioApi,
   RenameAssistantThreadInput,
@@ -17,6 +18,8 @@ export const MOHIO_CHANNELS = {
   getCurrentWorkspace: "mohio:workspace:get-current",
   openWorkspace: "mohio:workspace:open",
   readDocument: "mohio:document:read",
+  createDocument: "mohio:document:create",
+  deleteDocument: "mohio:document:delete",
   saveDocument: "mohio:document:save",
   watchDocument: "mohio:document:watch",
   listAssistantThreads: "mohio:assistant:list-threads",
@@ -36,6 +39,8 @@ interface CreateMohioApiOptions {
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
+  createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
+  deleteDocument: (relativePath: string) => Promise<void>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
   watchDocument: (relativePath: string | null) => Promise<void>;
   listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
@@ -61,6 +66,8 @@ export function createMohioApi({
   getCurrentWorkspace,
   openWorkspace,
   readDocument,
+  createDocument,
+  deleteDocument,
   saveDocument,
   watchDocument,
   listAssistantThreads,
@@ -79,6 +86,8 @@ export function createMohioApi({
     getCurrentWorkspace,
     openWorkspace,
     readDocument,
+    createDocument,
+    deleteDocument,
     saveDocument,
     watchDocument,
     listAssistantThreads,
