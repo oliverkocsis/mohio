@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  Ellipsis,
+  MessageSquarePlus,
+  SquarePen,
+} from "lucide-react";
 import type {
+  AssistantThread,
+  AssistantThreadSummary,
   WorkspaceDocument,
   WorkspaceDocumentNode,
   WorkspaceSummary,
@@ -8,6 +18,14 @@ import type {
 import { RichTextEditor } from "./markdown-editor";
 
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
+type AssistantView = "list" | "thread";
+const THINKING_LABEL_DELAY_MS = 900;
+
+const ASSISTANT_QUICK_ACTIONS = [
+  "Summarize this note",
+  "Organize this note",
+  "Suggest related notes from this workspace",
+] as const;
 
 interface DocumentSnapshot {
   markdown: string;
@@ -27,19 +45,40 @@ export function App() {
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [assistantThreads, setAssistantThreads] = useState<AssistantThreadSummary[]>([]);
+  const [assistantView, setAssistantView] = useState<AssistantView>("list");
+  const [activeAssistantThreadId, setActiveAssistantThreadId] = useState<string | null>(null);
+  const [assistantThread, setAssistantThread] = useState<AssistantThread | null>(null);
+  const [assistantComposerValue, setAssistantComposerValue] = useState("");
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [isAssistantMenuOpen, setIsAssistantMenuOpen] = useState(false);
+  const [isAssistantListLoading, setIsAssistantListLoading] = useState(false);
+  const [isAssistantThreadLoading, setIsAssistantThreadLoading] = useState(false);
+  const [showAssistantThinking, setShowAssistantThinking] = useState(false);
   const lastSavedSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const pendingSaveSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const loadSequenceRef = useRef(0);
   const saveSequenceRef = useRef(0);
   const selectedDocumentIdRef = useRef<string | null>(null);
+  const activeAssistantThreadIdRef = useRef<string | null>(null);
+  const assistantViewRef = useRef<AssistantView>("list");
+  const assistantThreadRef = useRef<AssistantThread | null>(null);
   const saveStateRef = useRef<SaveState>("idle");
   const draftTitleRef = useRef("");
   const draftMarkdownRef = useRef("");
+  const workspacePathRef = useRef<string | null>(null);
+  const assistantBodyRef = useRef<HTMLDivElement | null>(null);
+  const assistantThinkingTimerRef = useRef<number | null>(null);
+  const lastAssistantStreamSignatureRef = useRef<string | null>(null);
 
   selectedDocumentIdRef.current = selectedDocumentId;
+  activeAssistantThreadIdRef.current = activeAssistantThreadId;
+  assistantViewRef.current = assistantView;
+  assistantThreadRef.current = assistantThread;
   saveStateRef.current = saveState;
   draftTitleRef.current = draftTitle;
   draftMarkdownRef.current = draftMarkdown;
+  workspacePathRef.current = workspace?.path ?? null;
 
   useEffect(() => {
     let isMounted = true;
@@ -212,6 +251,198 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!workspace) {
+      setAssistantThreads([]);
+      setAssistantView("list");
+      setActiveAssistantThreadId(null);
+      setAssistantThread(null);
+      setAssistantError(null);
+      setIsAssistantMenuOpen(false);
+      setIsAssistantListLoading(false);
+      setIsAssistantThreadLoading(false);
+      setShowAssistantThinking(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAssistantListLoading(true);
+    setAssistantError(null);
+
+    void window.mohio.listAssistantThreads().then(
+      (threads) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAssistantThreads(threads);
+        setActiveAssistantThreadId((currentThreadId) =>
+          getPreferredAssistantThreadId(threads, currentThreadId),
+        );
+        setAssistantView("list");
+        setIsAssistantListLoading(false);
+      },
+      () => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAssistantThreads([]);
+        setAssistantView("list");
+        setActiveAssistantThreadId(null);
+        setAssistantThread(null);
+        setAssistantError("Mohio could not load Codex chat history for this workspace.");
+        setIsAssistantListLoading(false);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [workspace]);
+
+  useEffect(() => {
+    if (!workspace || !activeAssistantThreadId) {
+      setAssistantThread(null);
+      setAssistantError(null);
+      setIsAssistantThreadLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAssistantThreadLoading(true);
+    setAssistantError(null);
+
+    void window.mohio.getAssistantThread(activeAssistantThreadId).then(
+      (thread) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAssistantThread(thread);
+        setAssistantError(thread.errorMessage);
+        setIsAssistantThreadLoading(false);
+      },
+      () => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAssistantThread(null);
+        setAssistantError("Mohio could not load the selected Codex chat.");
+        setIsAssistantThreadLoading(false);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeAssistantThreadId, workspace]);
+
+  useEffect(() => {
+    const disposeAssistantListener = window.mohio.onAssistantEvent((event) => {
+      if (event.workspacePath !== workspacePathRef.current) {
+        return;
+      }
+
+      if (event.type === "thread-list") {
+        setAssistantThreads(event.threads);
+        setActiveAssistantThreadId((currentThreadId) => {
+          const nextThreadId = getPreferredAssistantThreadId(event.threads, currentThreadId);
+
+          const shouldKeepTransientThread = Boolean(
+            currentThreadId &&
+            assistantViewRef.current === "thread" &&
+            assistantThreadRef.current?.id === currentThreadId,
+          );
+
+          if (!nextThreadId && !shouldKeepTransientThread) {
+            setAssistantThread(null);
+            setAssistantView("list");
+            setIsAssistantMenuOpen(false);
+          }
+
+          return shouldKeepTransientThread ? currentThreadId : nextThreadId;
+        });
+        setIsAssistantListLoading(false);
+        return;
+      }
+
+      if (event.thread.id !== activeAssistantThreadIdRef.current) {
+        return;
+      }
+
+      setAssistantThread(event.thread);
+      setAssistantError(event.thread.errorMessage);
+      setIsAssistantThreadLoading(false);
+    });
+
+    return () => {
+      disposeAssistantListener();
+    };
+  }, []);
+
+  useEffect(() => {
+    const assistantBody = assistantBodyRef.current;
+
+    if (!assistantBody) {
+      return;
+    }
+
+    assistantBody.scrollTop = assistantBody.scrollHeight;
+  }, [assistantThread?.messages, assistantThread?.status, isAssistantThreadLoading, showAssistantThinking]);
+
+  useEffect(() => {
+    const clearThinkingTimer = () => {
+      if (assistantThinkingTimerRef.current === null) {
+        return;
+      }
+
+      window.clearTimeout(assistantThinkingTimerRef.current);
+      assistantThinkingTimerRef.current = null;
+    };
+
+    const activeThread = assistantThread;
+    const lastAssistantMessage = getLastAssistantMessage(activeThread);
+    const streamSignature = activeThread && lastAssistantMessage
+      ? `${activeThread.id}:${lastAssistantMessage.id}:${lastAssistantMessage.content}`
+      : activeThread
+        ? `${activeThread.id}:none`
+        : null;
+
+    if (!activeThread || activeThread.status !== "running") {
+      clearThinkingTimer();
+      setShowAssistantThinking(false);
+      lastAssistantStreamSignatureRef.current = streamSignature;
+
+      return () => {
+        clearThinkingTimer();
+      };
+    }
+
+    const hasVisibleAssistantContent = Boolean(lastAssistantMessage?.content);
+    const contentChanged = streamSignature !== lastAssistantStreamSignatureRef.current;
+
+    clearThinkingTimer();
+
+    if (!hasVisibleAssistantContent) {
+      setShowAssistantThinking(true);
+    } else if (contentChanged) {
+      setShowAssistantThinking(false);
+      assistantThinkingTimerRef.current = window.setTimeout(() => {
+        if (assistantThreadRef.current?.status === "running") {
+          setShowAssistantThinking(true);
+        }
+      }, THINKING_LABEL_DELAY_MS);
+    }
+
+    lastAssistantStreamSignatureRef.current = streamSignature;
+
+    return () => {
+      clearThinkingTimer();
+    };
+  }, [assistantThread]);
+
   const isDirty = useMemo(() => {
     const lastSavedSnapshot = lastSavedSnapshotRef.current;
 
@@ -343,6 +574,174 @@ export function App() {
     });
   };
 
+  const handleCreateAssistantThread = async () => {
+    if (!workspace) {
+      return null;
+    }
+
+    setAssistantError(null);
+    setIsAssistantMenuOpen(false);
+
+    try {
+      const nextThread = await window.mohio.createAssistantThread();
+
+      setAssistantThreads((currentThreads) => [
+        {
+          createdAt: new Date().toISOString(),
+          id: nextThread.id,
+          preview: nextThread.preview,
+          status: nextThread.status,
+          title: nextThread.title,
+          updatedAt: new Date().toISOString(),
+        },
+        ...currentThreads.filter((thread) => thread.id !== nextThread.id),
+      ]);
+      setActiveAssistantThreadId(nextThread.id);
+      setAssistantThread(nextThread);
+      setAssistantView("thread");
+
+      return nextThread;
+    } catch {
+      setAssistantError("Mohio could not create a new Codex chat for this workspace.");
+      return null;
+    }
+  };
+
+  const handleSendAssistantMessage = async (message: string) => {
+    const trimmedMessage = message.trim();
+
+    if (!workspace || !selectedDocumentId || !document || trimmedMessage.length === 0) {
+      return;
+    }
+
+    setAssistantComposerValue("");
+    setAssistantError(null);
+
+    try {
+      const shouldStartNewThread = assistantViewRef.current === "list";
+      const currentThread = shouldStartNewThread
+        ? await handleCreateAssistantThread()
+        : (assistantThread ?? await handleCreateAssistantThread());
+
+      if (!currentThread) {
+        return;
+      }
+
+      const nextThread = await window.mohio.sendAssistantMessage({
+        threadId: currentThread.id,
+        noteRelativePath: selectedDocumentId,
+        content: trimmedMessage,
+        documentTitle: draftTitle,
+        documentMarkdown: draftMarkdown,
+      });
+
+      setActiveAssistantThreadId(nextThread.id);
+      setAssistantThread(nextThread);
+      setAssistantView("thread");
+    } catch {
+      setAssistantError("Mohio could not send that message to the selected Codex chat.");
+    }
+  };
+
+  const handleCancelAssistantRun = async () => {
+    if (!activeAssistantThreadId) {
+      return;
+    }
+
+    try {
+      await window.mohio.cancelAssistantRun(activeAssistantThreadId);
+    } catch {
+      setAssistantError("Mohio could not stop the current Codex run.");
+    }
+  };
+
+  const handleOpenAssistantThread = (threadId: string) => {
+    setAssistantError(null);
+    setIsAssistantMenuOpen(false);
+    setActiveAssistantThreadId(threadId);
+    setAssistantView("thread");
+  };
+
+  const handleRenameAssistantThread = async () => {
+    if (!activeAssistantThreadId) {
+      return;
+    }
+
+    const currentTitle = assistantThread?.title || "New Chat";
+    const nextTitle = window.prompt("Rename Chat", currentTitle)?.trim();
+
+    if (!nextTitle) {
+      return;
+    }
+
+    setAssistantError(null);
+    setIsAssistantMenuOpen(false);
+
+    try {
+      await window.mohio.renameAssistantThread({
+        threadId: activeAssistantThreadId,
+        title: nextTitle,
+      });
+      setAssistantThread((currentThread) => (
+        currentThread ? { ...currentThread, title: nextTitle } : currentThread
+      ));
+      setAssistantThreads((currentThreads) =>
+        currentThreads.map((thread) => (
+          thread.id === activeAssistantThreadId
+            ? { ...thread, title: nextTitle }
+            : thread
+        )),
+      );
+    } catch {
+      setAssistantError("Mohio could not rename this Codex chat.");
+    }
+  };
+
+  const handleDeleteAssistantThread = async () => {
+    if (!activeAssistantThreadId) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this chat from the visible workspace list?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    const threadId = activeAssistantThreadId;
+
+    setAssistantError(null);
+    setIsAssistantMenuOpen(false);
+
+    try {
+      await window.mohio.deleteAssistantThread(threadId);
+      setAssistantThreads((currentThreads) =>
+        currentThreads.filter((thread) => thread.id !== threadId),
+      );
+      setActiveAssistantThreadId(null);
+      setAssistantThread(null);
+      setAssistantView("list");
+    } catch {
+      setAssistantError("Mohio could not delete this Codex chat.");
+    }
+  };
+
+  const assistantHasContext = Boolean(workspace && selectedDocumentId && document);
+  const assistantIsBusy = assistantThread?.status === "running";
+  const assistantIsDetailView = assistantView === "thread";
+  const assistantVisibleMessages = assistantThread?.messages.filter((message) =>
+    message.role === "user" || message.content.trim().length > 0
+  ) ?? [];
+  const activeAssistantThreadSummary = assistantThreads.find(
+    (thread) => thread.id === activeAssistantThreadId,
+  ) ?? null;
+  const assistantThreadTitle = assistantThread?.title || activeAssistantThreadSummary?.title || "New Chat";
+  const canSendAssistantMessage =
+    assistantHasContext &&
+    !assistantIsBusy &&
+    assistantComposerValue.trim().length > 0;
+  const showAssistantFooter = assistantIsDetailView || Boolean(workspace);
+
   return (
     <div className="app-shell">
       <header className="top-bar" data-testid="top-bar">
@@ -357,10 +756,10 @@ export function App() {
             type="button"
           >
             <span className="workspace-label__name">
-              {workspace?.name ?? "Open a workspace"}
+              {workspace?.name ?? "Open Workspace"}
             </span>
             <span className="workspace-label__chevron" aria-hidden="true">
-              <ChevronDownIcon />
+              <ChevronDown aria-hidden="true" className="toolbar-chevron-icon" />
             </span>
           </button>
         </div>
@@ -381,7 +780,17 @@ export function App() {
       <div className="workspace-shell">
         <aside className="sidebar sidebar--left" data-testid="workspace-sidebar">
           <section className="sidebar__section">
-            <h2 className="sidebar__title">Workspace</h2>
+            <div className="assistant-panel-header__row">
+              <h2 className="sidebar__title">Workspace</h2>
+              <button
+                aria-label="New Note"
+                className="assistant-panel__text-icon-button workspace-panel__new-note"
+                disabled
+                type="button"
+              >
+                <SquarePen aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
+              </button>
+            </div>
 
             {isWorkspaceLoading ? (
               <p className="workspace-panel__copy">Loading current workspace...</p>
@@ -448,7 +857,7 @@ export function App() {
                   }}
                   type="button"
                 >
-                  {isWorkspaceOpening ? "Opening Workspace ..." : "Choose folder"}
+                  {isWorkspaceOpening ? "Opening Workspace..." : "Open Workspace"}
                 </button>
               </section>
             )}
@@ -462,25 +871,239 @@ export function App() {
         </main>
 
         <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
-          <section className="sidebar__section assistant-panel-header">
-            <p className="assistant-panel__label">Assistant</p>
-          </section>
+          {assistantIsDetailView ? (
+            <>
+              <section className="sidebar__section assistant-panel-header assistant-panel-header--detail">
+                <div className="assistant-panel-header__row">
+                  <div className="assistant-panel-header__main">
+                    <button
+                      aria-label="Back to chats"
+                      className="assistant-panel__text-icon-button"
+                      onClick={() => {
+                        setAssistantView("list");
+                        setIsAssistantMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <ArrowLeft aria-hidden="true" className="assistant-panel__icon" />
+                    </button>
+                    <div className="assistant-panel-header__title-group">
+                      <p className="assistant-panel__label">Assistant</p>
+                      <h2 className="assistant-panel__thread-title">{assistantThreadTitle}</h2>
+                    </div>
+                  </div>
 
-          <div className="assistant-panel__body" />
+                  <div className="assistant-panel__menu">
+                    <button
+                      aria-expanded={isAssistantMenuOpen}
+                      aria-haspopup="menu"
+                      aria-label="Chat options"
+                      className="assistant-panel__text-icon-button"
+                      onClick={() => {
+                        setIsAssistantMenuOpen((currentState) => !currentState);
+                      }}
+                      type="button"
+                    >
+                      <Ellipsis aria-hidden="true" className="assistant-panel__icon" />
+                    </button>
 
-          <div className="assistant-panel__footer">
-            <section className="sidebar__section">
-              <ul className="action-list">
-                <li>Summarize note</li>
-                <li>Discover related notes</li>
-                <li>Resolve conflicting notes</li>
-              </ul>
-            </section>
+                    {isAssistantMenuOpen ? (
+                      <div
+                        className="assistant-panel__menu-popover"
+                        role="menu"
+                      >
+                        <button
+                          className="assistant-panel__menu-item"
+                          disabled={!workspace || assistantIsBusy}
+                          onClick={() => {
+                            void handleCreateAssistantThread();
+                          }}
+                          role="menuitem"
+                          type="button"
+                        >
+                          New Chat
+                        </button>
+                        <button
+                          className="assistant-panel__menu-item"
+                          onClick={() => {
+                            void handleRenameAssistantThread();
+                          }}
+                          role="menuitem"
+                          type="button"
+                        >
+                          Rename Chat
+                        </button>
+                        <button
+                          className="assistant-panel__menu-item assistant-panel__menu-item--danger"
+                          onClick={() => {
+                            void handleDeleteAssistantThread();
+                          }}
+                          role="menuitem"
+                          type="button"
+                        >
+                          Delete Chat
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
 
-            <div className="chat-composer" aria-label="Assistant composer">
-              Ask Mohio for help
+              <div
+                ref={assistantBodyRef}
+                className="assistant-panel__body"
+                data-testid="assistant-transcript"
+              >
+                {!workspace ? null : !selectedDocumentId || !document ? (
+                  <p className="assistant-panel__copy">
+                    Select a note before asking Codex about this workspace.
+                  </p>
+                ) : isAssistantThreadLoading ? (
+                  <p className="assistant-panel__copy">Loading the selected Codex chat...</p>
+                ) : assistantVisibleMessages.length > 0 ? (
+                  <ol className="assistant-message-list" aria-live="polite">
+                    {assistantVisibleMessages.map((message) => (
+                      <li
+                        className={`assistant-message assistant-message--${message.role}`}
+                        key={message.id}
+                      >
+                        <p className="assistant-message__role">
+                          {message.role === "assistant" ? "Codex" : "You"}
+                        </p>
+                        <p className="assistant-message__content">{message.content}</p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+
+                {showAssistantThinking ? (
+                  <p className="assistant-thinking-indicator" aria-live="polite">
+                    Thinking...
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <section className="sidebar__section assistant-panel-header">
+                <div className="assistant-panel-header__row">
+                  <p className="assistant-panel__label">Assistant</p>
+                  <button
+                    aria-label="New Chat"
+                    className="assistant-panel__text-icon-button assistant-panel__new-chat"
+                    disabled={!workspace || assistantIsBusy}
+                    onClick={() => {
+                      void handleCreateAssistantThread();
+                    }}
+                    type="button"
+                  >
+                    <MessageSquarePlus aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
+                  </button>
+                </div>
+                {!workspace || !selectedDocumentId ? (
+                  <p className="workspace-panel__copy">Open a workspace to chat with the assistant</p>
+                ) : null}
+              </section>
+
+              <section className="sidebar__section assistant-thread-list-section">
+                {isAssistantListLoading ? (
+                  <p className="workspace-panel__copy">Loading Codex chat history...</p>
+                ) : !workspace ? null : assistantThreads.length > 0 ? (
+                  <ul className="assistant-thread-list" data-testid="assistant-thread-list">
+                    {assistantThreads.map((thread) => (
+                      <li key={thread.id}>
+                        <button
+                          className="assistant-thread-list__button"
+                          onClick={() => {
+                            handleOpenAssistantThread(thread.id);
+                          }}
+                          type="button"
+                        >
+                          <span className="assistant-thread-list__title">{thread.title || "New Chat"}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="workspace-panel__copy">No Codex chats yet for this workspace.</p>
+                )}
+              </section>
+            </>
+          )}
+
+          {showAssistantFooter ? (
+            <div className="assistant-panel__footer">
+              <section className="sidebar__section">
+                <ul className="action-list">
+                  {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                    <li key={action}>
+                      <button
+                        className="assistant-action-chip"
+                        disabled={!assistantHasContext || assistantIsBusy}
+                        onClick={() => {
+                          void handleSendAssistantMessage(action);
+                        }}
+                        type="button"
+                      >
+                        {action}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              {assistantError ? (
+                <p className="workspace-panel__error" role="status">
+                  {assistantError}
+                </p>
+              ) : null}
+
+              <form
+                className="assistant-composer"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleSendAssistantMessage(assistantComposerValue);
+                }}
+              >
+                <input
+                  aria-label="Assistant composer"
+                  className="chat-composer"
+                  data-testid="assistant-composer-input"
+                  disabled={!assistantHasContext || assistantIsBusy}
+                  onChange={(event) => {
+                    setAssistantComposerValue(event.target.value);
+                  }}
+                  placeholder={
+                    assistantHasContext
+                      ? "Ask Codex about this note or workspace"
+                      : "Select a note to chat with Codex"
+                  }
+                  type="text"
+                  value={assistantComposerValue}
+                />
+
+                <div className="assistant-composer__actions">
+                  <button
+                    className="ghost-button"
+                    disabled={!assistantIsBusy}
+                    onClick={() => {
+                      void handleCancelAssistantRun();
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="primary-button"
+                    disabled={!canSendAssistantMessage}
+                    type="submit"
+                  >
+                    Send
+                  </button>
+                </div>
+              </form>
             </div>
-          </div>
+          ) : null}
         </aside>
       </div>
     </div>
@@ -521,7 +1144,11 @@ function renderWorkspaceNode({
           type="button"
         >
           <span className="tree-node__chevron" aria-hidden="true">
-            <TreeChevronIcon isExpanded={isExpanded} />
+            {isExpanded ? (
+              <ChevronDown aria-hidden="true" className="tree-chevron-icon" />
+            ) : (
+              <ChevronRight aria-hidden="true" className="tree-chevron-icon" />
+            )}
           </span>
           <span className="tree-node__label">{node.name}</span>
         </button>
@@ -598,6 +1225,22 @@ function getPreferredDocumentId(
   return findFirstDocumentId(workspace.documents);
 }
 
+function getLastAssistantMessage(thread: AssistantThread | null) {
+  if (!thread) {
+    return null;
+  }
+
+  for (let index = thread.messages.length - 1; index >= 0; index -= 1) {
+    const message = thread.messages[index];
+
+    if (message.role === "assistant") {
+      return message;
+    }
+  }
+
+  return null;
+}
+
 function findFirstDocumentId(nodes: WorkspaceTreeNode[]): string | null {
   for (const node of nodes) {
     if (node.kind === "document") {
@@ -670,32 +1313,15 @@ function snapshotsMatch(
   );
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg aria-hidden="true" className="toolbar-chevron-icon" fill="none" viewBox="0 0 16 16">
-      <path
-        d="M4.5 6.5 8 10l3.5-3.5"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.35"
-      />
-    </svg>
-  );
-}
+function getPreferredAssistantThreadId(
+  threads: AssistantThreadSummary[],
+  preferredThreadId?: string | null,
+): string | null {
+  if (preferredThreadId && threads.some((thread) => thread.id === preferredThreadId)) {
+    return preferredThreadId;
+  }
 
-function TreeChevronIcon({ isExpanded }: { isExpanded: boolean }) {
-  return (
-    <svg aria-hidden="true" className="tree-chevron-icon" fill="none" viewBox="0 0 16 16">
-      <path
-        d={isExpanded ? "M4.75 6.5 8 9.75 11.25 6.5" : "M6.5 4.75 9.75 8 6.5 11.25"}
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.45"
-      />
-    </svg>
-  );
+  return null;
 }
 
 export default App;

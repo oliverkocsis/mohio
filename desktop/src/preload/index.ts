@@ -13,6 +13,20 @@ const mohioApi = createMohioApi({
   readDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.readDocument, relativePath),
   saveDocument: (input) => ipcRenderer.invoke(MOHIO_CHANNELS.saveDocument, input),
   watchDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.watchDocument, relativePath),
+  listAssistantThreads: () =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.listAssistantThreads),
+  createAssistantThread: () =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.createAssistantThread),
+  getAssistantThread: (threadId) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.getAssistantThread, threadId),
+  sendAssistantMessage: (input) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.sendAssistantMessage, input),
+  cancelAssistantRun: (threadId) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.cancelAssistantRun, threadId),
+  renameAssistantThread: (input) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.renameAssistantThread, input),
+  deleteAssistantThread: (threadId) =>
+    ipcRenderer.invoke(MOHIO_CHANNELS.deleteAssistantThread, threadId),
   onDocumentChanged: (listener) => {
     const handleDocumentChanged = (
       _event: Electron.IpcRendererEvent,
@@ -39,6 +53,20 @@ const mohioApi = createMohioApi({
 
     return () => {
       ipcRenderer.removeListener(MOHIO_CHANNELS.workspaceChanged, handleWorkspaceChanged);
+    };
+  },
+  onAssistantEvent: (listener) => {
+    const handleAssistantEvent = (
+      _event: Electron.IpcRendererEvent,
+      assistantEvent: Awaited<ReturnType<typeof ipcRenderer.invoke>>,
+    ) => {
+      listener(assistantEvent);
+    };
+
+    ipcRenderer.on(MOHIO_CHANNELS.assistantEvent, handleAssistantEvent);
+
+    return () => {
+      ipcRenderer.removeListener(MOHIO_CHANNELS.assistantEvent, handleAssistantEvent);
     };
   },
 });

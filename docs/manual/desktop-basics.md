@@ -18,6 +18,9 @@ You can open a workspace in either of these ways:
 
 After you choose a folder, Mohio shows its Markdown documents in the left sidebar.
 
+When no workspace is open, the main empty-state button is labeled `Open Workspace`.
+The workspace sidebar also shows a `New Note` icon button, but note creation from the UI is still not available yet.
+
 ## Browse Documents
 
 - Folders appear before documents.
@@ -43,10 +46,31 @@ After you choose a folder, Mohio shows its Markdown documents in the left sideba
 - Mohio watches the document that is currently open.
 - If that file changes on disk, Mohio reloads it when it can do so safely.
 
+## Use the Assistant Panel
+
+- Open a workspace and select a note.
+- Use the right sidebar to browse Codex chats for the current workspace.
+- The assistant opens in a chat-list view first.
+- Click an existing chat to open it, or click `New Chat` to start another parallel conversation.
+- The quick actions and composer stay at the bottom of the sidebar while you browse the chat list.
+- If you trigger a quick action or send a message from the list view, Mohio automatically starts a new chat first.
+- When a chat is open, use the back button to return to the list.
+- Use the `...` menu in an open chat to start another chat, rename the current one, or remove it from the visible workspace list.
+- Your own prompts appear as compact bubbles, but Codex replies render as full-width left-aligned responses.
+- While Codex is still working, Mohio keeps a muted animated `Thinking...` line at the bottom of the chat during quiet gaps, hides it while fresh text is printing, and leaves streamed text visible once it appears.
+- You can type your own request or use the quick actions:
+  - summarize the note
+  - organize the note
+  - suggest related notes from the current workspace
+- Mohio sends the current note content along with the wider workspace context for that run.
+- The selected note stays the main context for what you send, but the chat history itself comes from Codex and is not tied to one note inside Mohio.
+- Use `Cancel` if you want to stop the current assistant response.
+
 ## Current Limits
 
 - You cannot create a new note from the UI yet.
 - You cannot rename or delete notes from a dedicated sidebar action yet.
 - Search is not active yet.
-- The assistant panel is present, but it is not connected to a live workflow yet.
+- Mohio only shows Codex chats whose working folder matches the open workspace.
+- The assistant can chat about your workspace, but it cannot apply note edits through Mohio yet.
 - There is no rendered preview or split view for Markdown yet.

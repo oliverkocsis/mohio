@@ -4,12 +4,14 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
 import type { BaseWindow, IpcMainInvokeEvent, WebContents } from "electron";
 import path from "node:path";
 import { MOHIO_CHANNELS } from "@shared/mohio-api";
-import type { DocumentChangedEvent, WorkspaceSummary } from "@shared/mohio-types";
+import type { AssistantEvent, DocumentChangedEvent, WorkspaceSummary } from "@shared/mohio-types";
+import { createAssistantRuntime } from "./assistant";
 import { readDocument, resolveWorkspacePath, saveDocument } from "./document-store";
 import { buildAppMenuTemplate } from "./menu";
 import { getWorkspaceSummary } from "./workspace";
 
 let currentWorkspacePath: string | null = null;
+const assistantRuntime = createAssistantRuntime();
 const activeDocumentWatches = new Map<number, {
   absolutePath: string;
   listener: (currentStats: Stats, previousStats: Stats) => void;
@@ -62,6 +64,12 @@ async function loadCurrentWorkspace() {
 function broadcastWorkspaceChange(workspace: WorkspaceSummary | null) {
   for (const window of BrowserWindow.getAllWindows()) {
     window.webContents.send(MOHIO_CHANNELS.workspaceChanged, workspace);
+  }
+}
+
+function broadcastAssistantEvent(event: AssistantEvent) {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send(MOHIO_CHANNELS.assistantEvent, event);
   }
 }
 
@@ -183,6 +191,82 @@ function registerMohioHandlers() {
   ipcMain.handle(MOHIO_CHANNELS.watchDocument, async (event, relativePath: string | null) => {
     watchDocumentForEventSender(event, relativePath);
   });
+  ipcMain.handle(MOHIO_CHANNELS.listAssistantThreads, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    return assistantRuntime.listThreads({
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.createAssistantThread, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    return assistantRuntime.createThread({
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getAssistantThread, async (_event, threadId: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    return assistantRuntime.getThread({
+      threadId,
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.sendAssistantMessage, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    const workspace = await loadCurrentWorkspace();
+
+    if (!workspace) {
+      throw new Error("Open a workspace before starting an assistant conversation.");
+    }
+
+    return assistantRuntime.sendMessage({
+      workspacePath: currentWorkspacePath,
+      workspaceName: workspace.name,
+      ...input,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.cancelAssistantRun, async (_event, threadId: string) => {
+    if (!currentWorkspacePath) {
+      return;
+    }
+
+    await assistantRuntime.cancelRun({
+      threadId,
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.renameAssistantThread, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before renaming an assistant conversation.");
+    }
+
+    await assistantRuntime.renameThread({
+      threadId: input.threadId,
+      title: input.title,
+      workspacePath: currentWorkspacePath,
+    });
+  });
+  ipcMain.handle(MOHIO_CHANNELS.deleteAssistantThread, async (_event, threadId: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before deleting an assistant conversation.");
+    }
+
+    await assistantRuntime.deleteThread({
+      threadId,
+      workspacePath: currentWorkspacePath,
+    });
+  });
 }
 
 function registerApplicationMenu() {
@@ -197,6 +281,9 @@ function registerApplicationMenu() {
 
 app.whenReady().then(() => {
   app.setName("Mohio");
+  assistantRuntime.onEvent((event) => {
+    broadcastAssistantEvent(event);
+  });
   registerMohioHandlers();
   registerApplicationMenu();
   const mainWindow = createMainWindow();

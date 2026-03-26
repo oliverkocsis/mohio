@@ -52,10 +52,15 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Right Sidebar
 
 - Width target: `384px`
-- Purpose: reserve space for assistant-driven workflows
+- Purpose: support assistant-driven note and workspace conversations
 - Rules:
-  - keep the panel quiet until real assistant actions exist
-  - show lightweight suggestion text instead of dense instructional UI
+  - keep the panel visually secondary to the editor
+  - start with a dedicated session-list screen instead of mixing history and transcript together
+  - keep the list-view header minimal and use one clear `New Chat` action
+  - use a detail header with back navigation, thread title, and a compact overflow menu
+  - keep header icon controls lightweight, without bordered icon chrome for back, new-chat, or chat-menu actions
+  - avoid bubble chrome for assistant answers; render them as full-width left-aligned note-style responses
+  - use quick-action chips for common note workflows
   - composer stays anchored at the bottom
 
 ## Visual Tokens
@@ -104,6 +109,9 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 
 ## Component Rules
 
+- Use Title Case for visible button labels.
+- Exception: assistant quick-action chips use sentence case.
+
 ### Workspace Selector
 
 - Treated as the main entry point when no workspace is open
@@ -114,12 +122,14 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Prefer compact rows over roomy file-explorer spacing
 - Show display titles when available instead of raw filenames
 - Keep nesting readable with indentation, not heavy borders
+- Show a lightweight `New Note` icon control in the workspace header, using the same unframed icon-button treatment as the assistant panel
 
 ### Editor Toolbar
 
 - Only include actions that work today
 - Group controls by formatting type
 - Prefer compact icon buttons and short heading buttons over large segmented chrome
+- Use `lucide-react` consistently for shared shell and editor icons
 
 ### Title Input
 
@@ -132,13 +142,31 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Use one clear message
 - Use one clear next action
 
+### Assistant Panel
+
+- show Codex chats as a simple first-stage text list of selectable titles
+- use a single clear `New Chat` action in the list view instead of mode-heavy controls
+- use `message-square-plus` for the list-view `New Chat` action
+- when a thread is open, show back navigation and thread-level actions instead of the history list
+- keep the assistant footer pinned to the bottom of the right sidebar in both list and thread views
+- Keep user prompts compact, but render assistant answers as full-width left-aligned responses
+- Keep `Thinking...` as a separate last-line status row, not as replacement text inside the assistant response
+- Hide `Thinking...` while assistant text is actively streaming, and bring it back only during quiet gaps in an active run
+- Never let streamed assistant text disappear once it has been rendered
+- Use the same surface palette as the rest of the shell
+- Keep assistant errors local to the panel footer
+- Disable quick actions and the composer while a run is active
+
 ## Interaction Rules
 
 - Opening a workspace should update the shell immediately.
 - Selecting a document should feel instant and should not expose raw IPC or filesystem concepts.
 - Saving should be automatic and mostly invisible.
 - Error messages should be brief and local to the affected panel.
-- Assistant UI should remain secondary to the document until real workflows are implemented.
+- Assistant UI should remain secondary to the document even when live.
+- Switching chats should not change the selected note.
+- Switching notes should keep the active Codex chat, but future prompts should use the newly selected note as primary context.
+- Assistant runs should stream text into the panel instead of waiting for a full-page transition.
 
 ## Responsive Guidance
 

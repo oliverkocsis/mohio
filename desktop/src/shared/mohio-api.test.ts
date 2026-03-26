@@ -32,8 +32,56 @@ describe("createMohioApi", () => {
       savedAt: "2026-03-21T00:00:00.000Z",
     });
     const watchDocument = vi.fn().mockResolvedValue(undefined);
+    const listAssistantThreads = vi.fn().mockResolvedValue([
+      {
+        id: "thread-1",
+        title: "README summary",
+        preview: "README summary",
+        createdAt: "2026-03-21T00:00:00.000Z",
+        updatedAt: "2026-03-21T00:00:00.000Z",
+        status: "idle" as const,
+      },
+    ]);
+    const createAssistantThread = vi.fn().mockResolvedValue({
+      id: "thread-1",
+      workspacePath: "/workspace/mohio",
+      title: "README summary",
+      preview: "README summary",
+      messages: [],
+      status: "idle" as const,
+      errorMessage: null,
+    });
+    const getAssistantThread = vi.fn().mockResolvedValue({
+      id: "thread-1",
+      workspacePath: "/workspace/mohio",
+      title: "README summary",
+      preview: "README summary",
+      messages: [],
+      status: "idle" as const,
+      errorMessage: null,
+    });
+    const sendAssistantMessage = vi.fn().mockResolvedValue({
+      id: "thread-1",
+      workspacePath: "/workspace/mohio",
+      title: "README summary",
+      preview: "README summary",
+      messages: [
+        {
+          id: "message-1",
+          role: "user" as const,
+          content: "Summarize this note",
+          createdAt: "2026-03-21T00:00:00.000Z",
+        },
+      ],
+      status: "running" as const,
+      errorMessage: null,
+    });
+    const cancelAssistantRun = vi.fn().mockResolvedValue(undefined);
+    const renameAssistantThread = vi.fn().mockResolvedValue(undefined);
+    const deleteAssistantThread = vi.fn().mockResolvedValue(undefined);
     const onDocumentChanged = vi.fn().mockReturnValue(() => undefined);
     const onWorkspaceChanged = vi.fn().mockReturnValue(() => undefined);
+    const onAssistantEvent = vi.fn().mockReturnValue(() => undefined);
 
     const api = createMohioApi({
       appInfo: {
@@ -46,8 +94,16 @@ describe("createMohioApi", () => {
       readDocument,
       saveDocument,
       watchDocument,
+      listAssistantThreads,
+      createAssistantThread,
+      getAssistantThread,
+      sendAssistantMessage,
+      cancelAssistantRun,
+      renameAssistantThread,
+      deleteAssistantThread,
       onDocumentChanged,
       onWorkspaceChanged,
+      onAssistantEvent,
     });
 
     expect(api.getAppInfo()).toEqual({
@@ -67,8 +123,65 @@ describe("createMohioApi", () => {
       savedAt: "2026-03-21T00:00:00.000Z",
     });
     await expect(api.watchDocument("README.md")).resolves.toBeUndefined();
+    await expect(api.listAssistantThreads()).resolves.toEqual([
+      {
+        id: "thread-1",
+        title: "README summary",
+        preview: "README summary",
+        createdAt: "2026-03-21T00:00:00.000Z",
+        updatedAt: "2026-03-21T00:00:00.000Z",
+        status: "idle",
+      },
+    ]);
+    await expect(api.createAssistantThread()).resolves.toEqual({
+      id: "thread-1",
+      workspacePath: "/workspace/mohio",
+      title: "README summary",
+      preview: "README summary",
+      messages: [],
+      status: "idle",
+      errorMessage: null,
+    });
+    await expect(api.getAssistantThread("thread-1")).resolves.toEqual({
+      id: "thread-1",
+      workspacePath: "/workspace/mohio",
+      title: "README summary",
+      preview: "README summary",
+      messages: [],
+      status: "idle",
+      errorMessage: null,
+    });
+    await expect(api.sendAssistantMessage({
+      threadId: "thread-1",
+      noteRelativePath: "README.md",
+      content: "Summarize this note",
+      documentTitle: "README",
+      documentMarkdown: "Body",
+    })).resolves.toEqual({
+      id: "thread-1",
+      workspacePath: "/workspace/mohio",
+      title: "README summary",
+      preview: "README summary",
+      messages: [
+        {
+          id: "message-1",
+          role: "user",
+          content: "Summarize this note",
+          createdAt: "2026-03-21T00:00:00.000Z",
+        },
+      ],
+      status: "running",
+      errorMessage: null,
+    });
+    await expect(api.cancelAssistantRun("thread-1")).resolves.toBeUndefined();
+    await expect(api.renameAssistantThread({
+      threadId: "thread-1",
+      title: "Renamed chat",
+    })).resolves.toBeUndefined();
+    await expect(api.deleteAssistantThread("thread-1")).resolves.toBeUndefined();
     expect(api.onWorkspaceChanged(() => undefined)).toEqual(expect.any(Function));
     expect(api.onDocumentChanged(() => undefined)).toEqual(expect.any(Function));
+    expect(api.onAssistantEvent(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
     expect(readDocument).toHaveBeenCalledWith("README.md");
@@ -78,7 +191,24 @@ describe("createMohioApi", () => {
       markdown: "Body",
     });
     expect(watchDocument).toHaveBeenCalledWith("README.md");
+    expect(listAssistantThreads).toHaveBeenCalledTimes(1);
+    expect(createAssistantThread).toHaveBeenCalledTimes(1);
+    expect(getAssistantThread).toHaveBeenCalledWith("thread-1");
+    expect(sendAssistantMessage).toHaveBeenCalledWith({
+      threadId: "thread-1",
+      noteRelativePath: "README.md",
+      content: "Summarize this note",
+      documentTitle: "README",
+      documentMarkdown: "Body",
+    });
+    expect(cancelAssistantRun).toHaveBeenCalledWith("thread-1");
+    expect(renameAssistantThread).toHaveBeenCalledWith({
+      threadId: "thread-1",
+      title: "Renamed chat",
+    });
+    expect(deleteAssistantThread).toHaveBeenCalledWith("thread-1");
     expect(onDocumentChanged).toHaveBeenCalledTimes(1);
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1);
+    expect(onAssistantEvent).toHaveBeenCalledTimes(1);
   });
 });
