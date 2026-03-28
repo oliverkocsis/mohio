@@ -65,23 +65,34 @@ Text based canvas for freeform note-taking, brainstorming, and visual organizati
 - Support contextual navigation between related pages over time.
 
 ### Review, History, and Checkpoints
-
-- Create checkpoints automatically in the background instead of asking users to manage them manually.
-- Create a checkpoint before any AI-generated change is applied.
-- Create a checkpoint after a meaningful local editing burst followed by a pause, rather than on a fixed short timer.
+- Under the hood, Mohio uses Git for version history and collaboration (users should not need to interact with Git directly).
+- Create automatic checkpoints in the background to help users recover from mistakes without learning Git concepts.
+- Create a checkpoint before applying any AI-generated change.
+- Create a checkpoint after a meaningful local editing burst followed by a pause (not on a fixed short timer).
 - Use a safer heuristic than a simple 60-second idle rule:
-  create a checkpoint only when there has been material document change and the user has been idle for around 90 seconds.
-- Optionally create checkpoints before other high-risk transitions such as publish or destructive note actions.
+  Create a checkpoint only when there were material document changes and the user has been idle for ~60 seconds.
+- Create a checkpoint when the user switches between documents.
+- Create checkpoints before high-risk transitions (publish, rename/move, delete, bulk edits).
 - Keep checkpoints primarily as a recovery and safety mechanism rather than a visible workflow step.
-- Preserve visible page-level history over time.
+- Preserve visible, page-level history over time.
 - Support reviewable diffs before important shared changes are accepted.
+- Add a right-panel `History` tab with a clear timeline and a diff viewer (compare any two checkpoints).
+- Make reverting to a previous checkpoint a simple, non-technical action.
+
 
 ### Publishing and Shared Knowledge
+- When there are local changes that haven’t been published yet, show a `Publish` button in the top bar with a badge indicating the number of documents with unpublished changes.
+- Add a left-panel view (tab or filter) that lists all documents with unpublished changes in the same folder hierarchy and sorting as the main Documents view.
+- Make publishing state visible and understandable at a glance (e.g. `Published`, `Unpublished changes`, `Never published`, plus a `Last published` timestamp).
+- Keep publishing an explicit action (editing should not silently publish shared knowledge).
 
-- Separate ongoing editing from deliberate publishing.
-- Let users publish the current note when it is ready to share.
-- Make published state or last published status visible.
-- Keep publishing an explicit action rather than an automatic side effect of editing.
+### Pull Changes
+- Automatically check for and sync incoming changes when the workspace is opened, at regular intervals while it stays open, and when a document is opened.
+- Apply incoming changes automatically when it’s safe, and merge automatically when changes don’t overlap (checkpoint before/after applying them).
+- When a conflict is detected, show a clear notification and a guided resolution flow that doesn’t require Git knowledge.
+- Conflict resolution options: review changes side-by-side, keep one version, or manually combine them in the editor.
+- Explain conflicts in product language (what happened and what the options mean) without using technical Git terms.
+
 
 ### 9. Collaboration and Change Awareness
 
