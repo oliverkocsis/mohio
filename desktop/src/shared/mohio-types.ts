@@ -60,6 +60,115 @@ export interface SaveDocumentResult {
   savedAt: string;
 }
 
+export type DocumentPublishState =
+  | "published"
+  | "unpublished-changes"
+  | "never-published";
+
+export interface DocumentPublishStatus {
+  relativePath: string;
+  state: DocumentPublishState;
+  lastPublishedAt: string | null;
+}
+
+export interface PublishSummary {
+  documents: DocumentPublishStatus[];
+  unpublishedCount: number;
+  unpublishedTree: WorkspaceTreeNode[];
+}
+
+export type CheckpointTrigger =
+  | "ai-change"
+  | "document-switch"
+  | "idle-burst"
+  | "publish"
+  | "rename-move"
+  | "delete"
+  | "bulk-edit"
+  | "sync-before"
+  | "sync-after"
+  | "manual"
+  | "revert";
+
+export interface CreateCheckpointInput {
+  reason: string;
+  trigger: CheckpointTrigger;
+  force?: boolean;
+  relativePath?: string;
+}
+
+export interface CheckpointSummary {
+  id: string;
+  createdAt: string;
+  reason: string;
+  trigger: CheckpointTrigger;
+  commit: string;
+  ref: string;
+  touchedDocuments: string[];
+}
+
+export interface CommitHistoryEntry {
+  sha: string;
+  shortSha: string;
+  subject: string;
+  authoredAt: string;
+}
+
+export interface UnpublishedDiffResult {
+  relativePath: string;
+  hasRemoteVersion: boolean;
+  patch: string;
+  message: string | null;
+}
+
+export interface CheckpointDiffInput {
+  fromCheckpointId: string;
+  toCheckpointId: string;
+  relativePath: string;
+}
+
+export interface CheckpointDiff {
+  fromCheckpointId: string;
+  toCheckpointId: string;
+  relativePath: string;
+  patch: string;
+}
+
+export interface RevertToCheckpointInput {
+  checkpointId: string;
+  relativePath: string;
+}
+
+export interface PublishResult {
+  committed: boolean;
+  commitSha: string | null;
+  publishedAt: string | null;
+  message: string;
+}
+
+export interface SyncConflict {
+  relativePath: string;
+  localContent: string;
+  incomingContent: string;
+  baseContent: string | null;
+}
+
+export type SyncStatus = "idle" | "checking" | "syncing" | "conflict" | "error";
+
+export interface SyncState {
+  status: SyncStatus;
+  lastCheckedAt: string | null;
+  lastAppliedAt: string | null;
+  message: string | null;
+  conflicts: SyncConflict[];
+}
+
+export interface ResolveConflictInput {
+  relativePath: string;
+  resolution: "keep-local" | "keep-incoming" | "manual";
+  manualContent?: string;
+}
+
 export interface DocumentChangedEvent {
   relativePath: string;
   document: WorkspaceDocument | null;
@@ -128,6 +237,18 @@ export interface MohioApi {
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
+  createCheckpoint: (input: CreateCheckpointInput) => Promise<CheckpointSummary | null>;
+  createAiChangeCheckpoint: (relativePath: string, reason: string) => Promise<CheckpointSummary | null>;
+  listCheckpoints: (relativePath: string | null) => Promise<CheckpointSummary[]>;
+  listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
+  getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
+  getCheckpointDiff: (input: CheckpointDiffInput) => Promise<CheckpointDiff>;
+  revertToCheckpoint: (input: RevertToCheckpointInput) => Promise<void>;
+  getPublishSummary: () => Promise<PublishSummary>;
+  publishWorkspaceChanges: () => Promise<PublishResult>;
+  syncIncomingChanges: (reason: string) => Promise<SyncState>;
+  getSyncState: () => Promise<SyncState>;
+  resolveSyncConflict: (input: ResolveConflictInput) => Promise<SyncState>;
   watchDocument: (relativePath: string | null) => Promise<void>;
   listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
   createAssistantThread: () => Promise<AssistantThread>;

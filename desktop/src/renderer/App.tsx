@@ -3,14 +3,23 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
+  GitCompare,
   Ellipsis,
   MessageSquarePlus,
+  RefreshCw,
   SquarePen,
   Trash2,
 } from "lucide-react";
 import type {
   AssistantThread,
   AssistantThreadSummary,
+  CheckpointSummary,
+  CommitHistoryEntry,
+  DocumentPublishStatus,
+  PublishSummary,
+  SyncConflict,
+  SyncState,
+  UnpublishedDiffResult,
   WorkspaceDocument,
   WorkspaceDocumentNode,
   WorkspaceSummary,
@@ -20,7 +29,10 @@ import { RichTextEditor } from "./markdown-editor";
 
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
 type AssistantView = "list" | "thread";
+type LeftSidebarTab = "documents" | "unpublished";
+type RightSidebarTab = "assistant" | "history";
 const THINKING_LABEL_DELAY_MS = 900;
+const SYNC_INTERVAL_MS = 60_000;
 
 const ASSISTANT_QUICK_ACTIONS = [
   "Summarize this note",
@@ -47,6 +59,8 @@ export function App() {
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
   const [isWorkspaceOpening, setIsWorkspaceOpening] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("documents");
+  const [rightSidebarTab, setRightSidebarTab] = useState<RightSidebarTab>("assistant");
   const [document, setDocument] = useState<WorkspaceDocument | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMarkdown, setDraftMarkdown] = useState("");
@@ -63,6 +77,25 @@ export function App() {
   const [isAssistantListLoading, setIsAssistantListLoading] = useState(false);
   const [isAssistantThreadLoading, setIsAssistantThreadLoading] = useState(false);
   const [showAssistantThinking, setShowAssistantThinking] = useState(false);
+  const [publishSummary, setPublishSummary] = useState<PublishSummary | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [checkpointTimeline, setCheckpointTimeline] = useState<CheckpointSummary[]>([]);
+  const [commitHistory, setCommitHistory] = useState<CommitHistoryEntry[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyDiff, setHistoryDiff] = useState<string>("");
+  const [unpublishedDiff, setUnpublishedDiff] = useState<UnpublishedDiffResult | null>(null);
+  const [isUnpublishedDiffLoading, setIsUnpublishedDiffLoading] = useState(false);
+  const [unpublishedDiffError, setUnpublishedDiffError] = useState<string | null>(null);
+  const [historyFromCheckpointId, setHistoryFromCheckpointId] = useState<string>("");
+  const [historyToCheckpointId, setHistoryToCheckpointId] = useState<string>("");
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isRevertingHistory, setIsRevertingHistory] = useState(false);
+  const [conflictSelectionByPath, setConflictSelectionByPath] = useState<Record<string, "keep-local" | "keep-incoming" | "manual">>({});
+  const [manualConflictContentByPath, setManualConflictContentByPath] = useState<Record<string, string>>({});
+  const [isResolvingConflict, setIsResolvingConflict] = useState(false);
   const lastSavedSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const pendingSaveSnapshotRef = useRef<DocumentSnapshot | null>(null);
   const loadSequenceRef = useRef(0);
@@ -79,6 +112,9 @@ export function App() {
   const assistantBodyRef = useRef<HTMLDivElement | null>(null);
   const assistantThinkingTimerRef = useRef<number | null>(null);
   const lastAssistantStreamSignatureRef = useRef<string | null>(null);
+  const lastMaterialEditAtRef = useRef<number | null>(null);
+  const hasRecentMaterialEditRef = useRef(false);
+  const previousSelectedDocumentIdRef = useRef<string | null>(null);
 
   selectedDocumentIdRef.current = selectedDocumentId;
   activeAssistantThreadIdRef.current = activeAssistantThreadId;
@@ -88,6 +124,109 @@ export function App() {
   draftTitleRef.current = draftTitle;
   draftMarkdownRef.current = draftMarkdown;
   workspacePathRef.current = workspace?.path ?? null;
+
+  const refreshPublishSummary = async () => {
+    if (!workspace) {
+      setPublishSummary(null);
+      return;
+    }
+
+    try {
+      const summary = await window.mohio.getPublishSummary();
+      setPublishSummary(summary);
+      setPublishError(null);
+    } catch {
+      setPublishError("Mohio could not load publishing status.");
+    }
+  };
+
+  const refreshSyncState = async () => {
+    if (!workspace) {
+      setSyncState(null);
+      return;
+    }
+
+    try {
+      const state = await window.mohio.getSyncState();
+      setSyncState(state);
+      setSyncError(null);
+    } catch {
+      setSyncError("Mohio could not load sync status.");
+    }
+  };
+
+  const triggerSync = async (reason: string) => {
+    if (!workspace) {
+      return;
+    }
+
+    try {
+      const state = await window.mohio.syncIncomingChanges(reason);
+      setSyncState(state);
+      setSyncError(null);
+      await refreshPublishSummary();
+    } catch {
+      setSyncError("Mohio could not sync incoming workspace changes.");
+    }
+  };
+
+  const loadCheckpointTimeline = async () => {
+    if (!workspace || !selectedDocumentId) {
+      setCheckpointTimeline([]);
+      setCommitHistory([]);
+      setHistoryDiff("");
+      setHistoryFromCheckpointId("");
+      setHistoryToCheckpointId("");
+      return;
+    }
+
+    try {
+      setIsHistoryLoading(true);
+      const [checkpoints, commits] = await Promise.all([
+        window.mohio.listCheckpoints(selectedDocumentId),
+        window.mohio.listCommitHistory(selectedDocumentId),
+      ]);
+      setCheckpointTimeline(checkpoints);
+      setCommitHistory(commits);
+      setHistoryError(null);
+
+      if (checkpoints.length >= 2) {
+        setHistoryFromCheckpointId(checkpoints[1].id);
+        setHistoryToCheckpointId(checkpoints[0].id);
+      } else if (checkpoints.length === 1) {
+        setHistoryFromCheckpointId(checkpoints[0].id);
+        setHistoryToCheckpointId(checkpoints[0].id);
+      } else {
+        setHistoryFromCheckpointId("");
+        setHistoryToCheckpointId("");
+      }
+    } catch {
+      setHistoryError("Mohio could not load checkpoint history for this document.");
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  const loadUnpublishedDiff = async () => {
+    if (!workspace || !selectedDocumentId || leftSidebarTab !== "unpublished") {
+      setUnpublishedDiff(null);
+      setUnpublishedDiffError(null);
+      setIsUnpublishedDiffLoading(false);
+      return;
+    }
+
+    try {
+      setIsUnpublishedDiffLoading(true);
+      const diffResult = await window.mohio.getUnpublishedDiff(selectedDocumentId);
+      setUnpublishedDiff(diffResult);
+      setUnpublishedDiffError(null);
+    } catch {
+      setUnpublishedDiff(null);
+      setUnpublishedDiffError("Mohio could not load the remote vs local diff for this document.");
+    } finally {
+      setIsUnpublishedDiffLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -139,6 +278,20 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!workspace) {
+      setPublishSummary(null);
+      setPublishError(null);
+      setSyncState(null);
+      setSyncError(null);
+      return;
+    }
+
+    void refreshPublishSummary();
+    void refreshSyncState();
+    void triggerSync("workspace-open");
+  }, [workspace?.path]);
+
+  useEffect(() => {
     if (!selectedDocumentId) {
       setDocument(null);
       setDraftTitle("");
@@ -183,6 +336,48 @@ export function App() {
       },
     );
   }, [selectedDocumentId]);
+
+  useEffect(() => {
+    const previousSelectedId = previousSelectedDocumentIdRef.current;
+    const switchedDocument = Boolean(
+      previousSelectedId &&
+      selectedDocumentId &&
+      previousSelectedId !== selectedDocumentId,
+    );
+
+    if (switchedDocument && hasRecentMaterialEditRef.current) {
+      void window.mohio.createCheckpoint({
+        reason: "Before switching documents after a local editing burst",
+        trigger: "document-switch",
+        relativePath: previousSelectedId ?? undefined,
+      }).catch(() => undefined);
+      hasRecentMaterialEditRef.current = false;
+    }
+
+    previousSelectedDocumentIdRef.current = selectedDocumentId;
+    if (selectedDocumentId) {
+      void triggerSync("document-open");
+    }
+    void loadCheckpointTimeline();
+  }, [selectedDocumentId, workspace?.path]);
+
+  useEffect(() => {
+    void loadUnpublishedDiff();
+  }, [selectedDocumentId, leftSidebarTab, workspace?.path]);
+
+  useEffect(() => {
+    if (!workspace) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void triggerSync("workspace-interval");
+    }, SYNC_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [workspace?.path]);
 
   useEffect(() => {
     if (!documentContextMenu) {
@@ -286,6 +481,8 @@ export function App() {
       }
 
       setSaveState("saved");
+      void refreshPublishSummary();
+      void loadCheckpointTimeline();
     });
 
     return () => {
@@ -501,6 +698,42 @@ export function App() {
 
   useEffect(() => {
     if (!document || !isDirty) {
+      return;
+    }
+
+    lastMaterialEditAtRef.current = Date.now();
+    hasRecentMaterialEditRef.current = true;
+  }, [document?.relativePath, draftTitle, draftMarkdown, isDirty]);
+
+  useEffect(() => {
+    if (!document || !isDirty) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (!hasRecentMaterialEditRef.current) {
+        return;
+      }
+
+      void window.mohio.createCheckpoint({
+        reason: "After local editing burst idle pause",
+        trigger: "idle-burst",
+        relativePath: document.relativePath,
+      }).then((checkpoint) => {
+        if (checkpoint) {
+          hasRecentMaterialEditRef.current = false;
+          void loadCheckpointTimeline();
+        }
+      }).catch(() => undefined);
+    }, 60_000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [document?.relativePath, draftTitle, draftMarkdown, isDirty]);
+
+  useEffect(() => {
+    if (!document || !isDirty) {
       if (document && saveState === "loading") {
         return;
       }
@@ -521,6 +754,22 @@ export function App() {
     };
   }, [document, draftMarkdown, draftTitle, isDirty]);
 
+  useEffect(() => {
+    if (rightSidebarTab !== "history") {
+      return;
+    }
+
+    void loadCheckpointTimeline();
+  }, [rightSidebarTab, selectedDocumentId, workspace?.path]);
+
+  useEffect(() => {
+    if (rightSidebarTab !== "history") {
+      return;
+    }
+
+    void handleLoadHistoryDiff();
+  }, [rightSidebarTab, historyFromCheckpointId, historyToCheckpointId, selectedDocumentId]);
+
   const handleOpenWorkspace = async () => {
     try {
       setIsWorkspaceOpening(true);
@@ -530,6 +779,8 @@ export function App() {
       setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
       setSelectedDocumentId(getPreferredDocumentId(nextWorkspace));
       setWorkspaceError(null);
+      setLeftSidebarTab("documents");
+      setRightSidebarTab("assistant");
     } catch {
       setWorkspaceError("Mohio could not open that folder as a workspace.");
     } finally {
@@ -570,6 +821,7 @@ export function App() {
       };
       pendingSaveSnapshotRef.current = null;
       setSaveState("saved");
+      await refreshPublishSummary();
     } catch {
       setWorkspaceError("Mohio could not create a new note.");
     }
@@ -591,6 +843,12 @@ export function App() {
     setDocumentContextMenu(null);
 
     try {
+      await window.mohio.createCheckpoint({
+        reason: `Before deleting ${relativePath}`,
+        trigger: "delete",
+        force: true,
+        relativePath,
+      });
       await window.mohio.deleteDocument(relativePath);
       const refreshedWorkspace = await window.mohio.getCurrentWorkspace();
 
@@ -604,6 +862,7 @@ export function App() {
             : selectedDocumentIdRef.current,
         ),
       );
+      await refreshPublishSummary();
     } catch {
       setWorkspaceError("Mohio could not delete that note.");
     }
@@ -638,6 +897,14 @@ export function App() {
     setDocumentError(null);
 
     try {
+      if (snapshot.title.trim() !== document.displayTitle.trim()) {
+        await window.mohio.createCheckpoint({
+          reason: `Before renaming or moving ${document.relativePath}`,
+          trigger: "rename-move",
+          force: true,
+          relativePath: document.relativePath,
+        });
+      }
       const result = await window.mohio.saveDocument(snapshot);
       const refreshedWorkspace = await window.mohio.getCurrentWorkspace();
 
@@ -679,6 +946,9 @@ export function App() {
       lastSavedSnapshotRef.current = committedSnapshot;
       pendingSaveSnapshotRef.current = null;
       setSaveState("saved");
+      hasRecentMaterialEditRef.current = false;
+      await refreshPublishSummary();
+      await loadCheckpointTimeline();
     } catch {
       if (saveSequence !== saveSequenceRef.current) {
         return;
@@ -687,6 +957,106 @@ export function App() {
       pendingSaveSnapshotRef.current = null;
       setDocumentError("Mohio could not save that document.");
       setSaveState("error");
+    }
+  };
+
+  const handlePublishWorkspaceChanges = async () => {
+    if (!workspace) {
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+      setPublishError(null);
+      await window.mohio.publishWorkspaceChanges();
+      await refreshPublishSummary();
+      await loadCheckpointTimeline();
+    } catch {
+      setPublishError("Mohio could not publish your workspace changes.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleLoadHistoryDiff = async () => {
+    if (!selectedDocumentId || !historyFromCheckpointId || !historyToCheckpointId) {
+      setHistoryDiff("");
+      return;
+    }
+
+    try {
+      const diff = await window.mohio.getCheckpointDiff({
+        fromCheckpointId: historyFromCheckpointId,
+        toCheckpointId: historyToCheckpointId,
+        relativePath: selectedDocumentId,
+      });
+      setHistoryDiff(diff.patch || "No content differences for this document between selected checkpoints.");
+      setHistoryError(null);
+    } catch {
+      setHistoryError("Mohio could not load diff output for the selected checkpoints.");
+    }
+  };
+
+  const handleRevertToCheckpoint = async (checkpointId: string) => {
+    if (!selectedDocumentId || !workspace) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Restore this document checkpoint? Mohio will keep a safety checkpoint first.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsRevertingHistory(true);
+      await window.mohio.revertToCheckpoint({
+        checkpointId,
+        relativePath: selectedDocumentId,
+      });
+      const refreshedDocument = await window.mohio.readDocument(selectedDocumentId);
+      setDocument(refreshedDocument);
+      setDraftTitle(refreshedDocument.displayTitle);
+      setDraftMarkdown(refreshedDocument.markdown);
+      lastSavedSnapshotRef.current = {
+        relativePath: refreshedDocument.relativePath,
+        title: refreshedDocument.displayTitle,
+        markdown: refreshedDocument.markdown,
+      };
+      setSaveState("saved");
+      await refreshPublishSummary();
+      await loadCheckpointTimeline();
+    } catch {
+      setHistoryError("Mohio could not restore that checkpoint.");
+    } finally {
+      setIsRevertingHistory(false);
+    }
+  };
+
+  const handleResolveSyncConflict = async (conflict: SyncConflict) => {
+    if (!workspace) {
+      return;
+    }
+
+    const resolution = conflictSelectionByPath[conflict.relativePath] ?? "keep-local";
+    const manualContent = manualConflictContentByPath[conflict.relativePath];
+
+    try {
+      setIsResolvingConflict(true);
+      const state = await window.mohio.resolveSyncConflict({
+        relativePath: conflict.relativePath,
+        resolution,
+        manualContent,
+      });
+      setSyncState(state);
+      await refreshPublishSummary();
+      await loadCheckpointTimeline();
+    } catch {
+      setSyncError("Mohio could not apply your conflict resolution choice.");
+    } finally {
+      setIsResolvingConflict(false);
     }
   };
 
@@ -702,6 +1072,14 @@ export function App() {
 
       return nextExpandedDirectoryIds;
     });
+  };
+
+  const handleSelectDocument = (documentId: string) => {
+    setSelectedDocumentId(documentId);
+
+    if (leftSidebarTab === "unpublished") {
+      setRightSidebarTab("history");
+    }
   };
 
   const handleCreateAssistantThread = async () => {
@@ -871,6 +1249,25 @@ export function App() {
     !assistantIsBusy &&
     assistantComposerValue.trim().length > 0;
   const showAssistantFooter = assistantIsDetailView || Boolean(workspace);
+  const publishStatusesByPath = useMemo(
+    () => new Map((publishSummary?.documents ?? []).map((status) => [status.relativePath, status])),
+    [publishSummary?.documents],
+  );
+  const leftSidebarNodes = leftSidebarTab === "documents"
+    ? (workspace?.documents ?? [])
+    : (publishSummary?.unpublishedTree ?? []);
+  const leftSidebarDocumentCount = countWorkspaceDocuments(leftSidebarNodes);
+  const unpublishedDocumentCount = publishSummary?.unpublishedCount ?? 0;
+  const selectedDocumentPublishStatus = selectedDocumentId
+    ? publishStatusesByPath.get(selectedDocumentId) ?? null
+    : null;
+  const activeSyncConflicts = syncState?.conflicts ?? [];
+  const historyCanCompare = Boolean(
+    selectedDocumentId &&
+    historyFromCheckpointId &&
+    historyToCheckpointId &&
+    historyFromCheckpointId !== historyToCheckpointId,
+  );
 
   return (
     <div className="app-shell">
@@ -904,7 +1301,45 @@ export function App() {
           />
         </div>
 
-        <div className="top-bar__actions" />
+        <div className="top-bar__actions">
+          {syncState?.status === "conflict" ? (
+            <button
+              className="ghost-button top-bar__sync-button top-bar__sync-button--warning"
+              onClick={() => {
+                setRightSidebarTab("history");
+              }}
+              type="button"
+            >
+              Resolve incoming overlap ({activeSyncConflicts.length})
+            </button>
+          ) : null}
+          <button
+            className="ghost-button top-bar__sync-button"
+            disabled={!workspace}
+            onClick={() => {
+              void triggerSync("manual-refresh");
+            }}
+            type="button"
+          >
+            <RefreshCw aria-hidden="true" className="top-bar__sync-icon" />
+            Sync
+          </button>
+          <button
+            className="primary-button top-bar__publish-button"
+            disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
+            onClick={() => {
+              void handlePublishWorkspaceChanges();
+            }}
+            type="button"
+          >
+            Publish
+            {unpublishedDocumentCount > 0 ? (
+              <span className="top-bar__badge" aria-label={`${unpublishedDocumentCount} unpublished documents`}>
+                {unpublishedDocumentCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
       </header>
 
       <div className="workspace-shell">
@@ -925,21 +1360,53 @@ export function App() {
               </button>
             </div>
 
+            <div className="sidebar-tabs" role="tablist" aria-label="Workspace views">
+              <button
+                aria-selected={leftSidebarTab === "documents"}
+                className={`sidebar-tab${leftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
+                onClick={() => {
+                  setLeftSidebarTab("documents");
+                }}
+                role="tab"
+                type="button"
+              >
+                Documents
+              </button>
+              <button
+                aria-selected={leftSidebarTab === "unpublished"}
+                className={`sidebar-tab${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
+                onClick={() => {
+                  setLeftSidebarTab("unpublished");
+                }}
+                role="tab"
+                type="button"
+              >
+                Unpublished
+                {unpublishedDocumentCount > 0 ? (
+                  <span className="sidebar-tab__badge">{unpublishedDocumentCount}</span>
+                ) : null}
+              </button>
+            </div>
+
             {isWorkspaceLoading ? (
               <p className="workspace-panel__copy">Loading current workspace...</p>
             ) : workspace ? (
               <>
-                {workspace.documentCount === 0 ? (
-                  <p className="workspace-panel__copy">No Markdown documents found.</p>
+                {leftSidebarDocumentCount === 0 ? (
+                  <p className="workspace-panel__copy">
+                    {leftSidebarTab === "documents"
+                      ? "No Markdown documents found."
+                      : "No unpublished documents in this workspace."}
+                  </p>
                 ) : (
                   <ul className="workspace-tree" role="tree">
-                    {workspace.documents.map((node) =>
+                    {leftSidebarNodes.map((node) =>
                       renderWorkspaceNode({
                         node,
                         selectedDocumentId,
                         expandedDirectoryIds,
                         depth: 0,
-                        onSelect: setSelectedDocumentId,
+                        onSelect: handleSelectDocument,
                         onOpenDocumentContextMenu: (input) => {
                           setDocumentContextMenu(input);
                         },
@@ -956,6 +1423,26 @@ export function App() {
             {workspaceError ? (
               <p className="workspace-panel__error" role="status">
                 {workspaceError}
+              </p>
+            ) : null}
+            {publishError ? (
+              <p className="workspace-panel__error" role="status">
+                {publishError}
+              </p>
+            ) : null}
+            {selectedDocumentPublishStatus ? (
+              <p className="workspace-panel__copy" role="status">
+                {formatPublishStatus(selectedDocumentPublishStatus)}
+              </p>
+            ) : null}
+            {syncError ? (
+              <p className="workspace-panel__error" role="status">
+                {syncError}
+              </p>
+            ) : null}
+            {syncState?.message ? (
+              <p className="workspace-panel__copy" role="status">
+                {syncState.message}
               </p>
             ) : null}
 
@@ -1031,239 +1518,491 @@ export function App() {
         </main>
 
         <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
-          {assistantIsDetailView ? (
+          <section className="sidebar__section">
+            <div className="sidebar-tabs" role="tablist" aria-label="Right panel views">
+              <button
+                aria-selected={rightSidebarTab === "assistant"}
+                className={`sidebar-tab${rightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
+                onClick={() => {
+                  setRightSidebarTab("assistant");
+                }}
+                role="tab"
+                type="button"
+              >
+                Assistant
+              </button>
+              <button
+                aria-selected={rightSidebarTab === "history"}
+                className={`sidebar-tab${rightSidebarTab === "history" ? " sidebar-tab--active" : ""}`}
+                onClick={() => {
+                  setRightSidebarTab("history");
+                }}
+                role="tab"
+                type="button"
+              >
+                History
+              </button>
+            </div>
+          </section>
+
+          {rightSidebarTab === "assistant" ? (
             <>
-              <section className="sidebar__section assistant-panel-header assistant-panel-header--detail">
-                <div className="assistant-panel-header__row">
-                  <div className="assistant-panel-header__main">
-                    <button
-                      aria-label="Back to chats"
-                      className="assistant-panel__text-icon-button"
-                      onClick={() => {
-                        setAssistantView("list");
-                        setIsAssistantMenuOpen(false);
-                      }}
-                      type="button"
-                    >
-                      <ArrowLeft aria-hidden="true" className="assistant-panel__icon" />
-                    </button>
-                    <div className="assistant-panel-header__title-group">
-                      <p className="assistant-panel__label">Assistant</p>
-                      <h2 className="assistant-panel__thread-title">{assistantThreadTitle}</h2>
-                    </div>
-                  </div>
-
-                  <div className="assistant-panel__menu">
-                    <button
-                      aria-expanded={isAssistantMenuOpen}
-                      aria-haspopup="menu"
-                      aria-label="Chat options"
-                      className="assistant-panel__text-icon-button"
-                      onClick={() => {
-                        setIsAssistantMenuOpen((currentState) => !currentState);
-                      }}
-                      type="button"
-                    >
-                      <Ellipsis aria-hidden="true" className="assistant-panel__icon" />
-                    </button>
-
-                    {isAssistantMenuOpen ? (
-                      <div
-                        className="assistant-panel__menu-popover"
-                        role="menu"
-                      >
+              {assistantIsDetailView ? (
+                <>
+                  <section className="sidebar__section assistant-panel-header assistant-panel-header--detail">
+                    <div className="assistant-panel-header__row">
+                      <div className="assistant-panel-header__main">
                         <button
-                          className="assistant-panel__menu-item"
-                          disabled={!workspace || assistantIsBusy}
+                          aria-label="Back to chats"
+                          className="assistant-panel__text-icon-button"
                           onClick={() => {
-                            void handleCreateAssistantThread();
+                            setAssistantView("list");
+                            setIsAssistantMenuOpen(false);
                           }}
-                          role="menuitem"
                           type="button"
                         >
-                          New Chat
+                          <ArrowLeft aria-hidden="true" className="assistant-panel__icon" />
                         </button>
-                        <button
-                          className="assistant-panel__menu-item"
-                          onClick={() => {
-                            void handleRenameAssistantThread();
-                          }}
-                          role="menuitem"
-                          type="button"
-                        >
-                          Rename Chat
-                        </button>
-                        <button
-                          className="assistant-panel__menu-item assistant-panel__menu-item--danger"
-                          onClick={() => {
-                            void handleDeleteAssistantThread();
-                          }}
-                          role="menuitem"
-                          type="button"
-                        >
-                          Delete Chat
-                        </button>
+                        <div className="assistant-panel-header__title-group">
+                          <p className="assistant-panel__label">Assistant</p>
+                          <h2 className="assistant-panel__thread-title">{assistantThreadTitle}</h2>
+                        </div>
                       </div>
+
+                      <div className="assistant-panel__menu">
+                        <button
+                          aria-expanded={isAssistantMenuOpen}
+                          aria-haspopup="menu"
+                          aria-label="Chat options"
+                          className="assistant-panel__text-icon-button"
+                          onClick={() => {
+                            setIsAssistantMenuOpen((currentState) => !currentState);
+                          }}
+                          type="button"
+                        >
+                          <Ellipsis aria-hidden="true" className="assistant-panel__icon" />
+                        </button>
+
+                        {isAssistantMenuOpen ? (
+                          <div
+                            className="assistant-panel__menu-popover"
+                            role="menu"
+                          >
+                            <button
+                              className="assistant-panel__menu-item"
+                              disabled={!workspace || assistantIsBusy}
+                              onClick={() => {
+                                void handleCreateAssistantThread();
+                              }}
+                              role="menuitem"
+                              type="button"
+                            >
+                              New Chat
+                            </button>
+                            <button
+                              className="assistant-panel__menu-item"
+                              onClick={() => {
+                                void handleRenameAssistantThread();
+                              }}
+                              role="menuitem"
+                              type="button"
+                            >
+                              Rename Chat
+                            </button>
+                            <button
+                              className="assistant-panel__menu-item assistant-panel__menu-item--danger"
+                              onClick={() => {
+                                void handleDeleteAssistantThread();
+                              }}
+                              role="menuitem"
+                              type="button"
+                            >
+                              Delete Chat
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+
+                  <div
+                    ref={assistantBodyRef}
+                    className="assistant-panel__body"
+                    data-testid="assistant-transcript"
+                  >
+                    {!workspace ? null : !selectedDocumentId || !document ? (
+                      <p className="assistant-panel__copy">
+                        Select a note before asking Codex about this workspace.
+                      </p>
+                    ) : isAssistantThreadLoading ? (
+                      <p className="assistant-panel__copy">Loading the selected Codex chat...</p>
+                    ) : assistantVisibleMessages.length > 0 ? (
+                      <ol className="assistant-message-list" aria-live="polite">
+                        {assistantVisibleMessages.map((message) => (
+                          <li
+                            className={`assistant-message assistant-message--${message.role}`}
+                            key={message.id}
+                          >
+                            <p className="assistant-message__role">
+                              {message.role === "assistant" ? "Codex" : "You"}
+                            </p>
+                            <p className="assistant-message__content">{message.content}</p>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : null}
+
+                    {showAssistantThinking ? (
+                      <p className="assistant-thinking-indicator" aria-live="polite">
+                        Thinking...
+                      </p>
                     ) : null}
                   </div>
-                </div>
-              </section>
-
-              <div
-                ref={assistantBodyRef}
-                className="assistant-panel__body"
-                data-testid="assistant-transcript"
-              >
-                {!workspace ? null : !selectedDocumentId || !document ? (
-                  <p className="assistant-panel__copy">
-                    Select a note before asking Codex about this workspace.
-                  </p>
-                ) : isAssistantThreadLoading ? (
-                  <p className="assistant-panel__copy">Loading the selected Codex chat...</p>
-                ) : assistantVisibleMessages.length > 0 ? (
-                  <ol className="assistant-message-list" aria-live="polite">
-                    {assistantVisibleMessages.map((message) => (
-                      <li
-                        className={`assistant-message assistant-message--${message.role}`}
-                        key={message.id}
-                      >
-                        <p className="assistant-message__role">
-                          {message.role === "assistant" ? "Codex" : "You"}
-                        </p>
-                        <p className="assistant-message__content">{message.content}</p>
-                      </li>
-                    ))}
-                  </ol>
-                ) : null}
-
-                {showAssistantThinking ? (
-                  <p className="assistant-thinking-indicator" aria-live="polite">
-                    Thinking...
-                  </p>
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <>
-              <section className="sidebar__section assistant-panel-header">
-                <div className="assistant-panel-header__row">
-                  <p className="assistant-panel__label">Assistant</p>
-                  <button
-                    aria-label="New Chat"
-                    className="assistant-panel__text-icon-button assistant-panel__new-chat"
-                    disabled={!workspace || assistantIsBusy}
-                    onClick={() => {
-                      void handleCreateAssistantThread();
-                    }}
-                    type="button"
-                  >
-                    <MessageSquarePlus aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
-                  </button>
-                </div>
-                {!workspace || !selectedDocumentId ? (
-                  <p className="workspace-panel__copy">Open a workspace to chat with the assistant</p>
-                ) : null}
-              </section>
-
-              <section className="sidebar__section assistant-thread-list-section">
-                {isAssistantListLoading ? (
-                  <p className="workspace-panel__copy">Loading Codex chat history...</p>
-                ) : !workspace ? null : assistantThreads.length > 0 ? (
-                  <ul className="assistant-thread-list" data-testid="assistant-thread-list">
-                    {assistantThreads.map((thread) => (
-                      <li key={thread.id}>
-                        <button
-                          className="assistant-thread-list__button"
-                          onClick={() => {
-                            handleOpenAssistantThread(thread.id);
-                          }}
-                          type="button"
-                        >
-                          <span className="assistant-thread-list__title">{thread.title || "New Chat"}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="workspace-panel__copy">No Codex chats yet for this workspace.</p>
-                )}
-              </section>
-            </>
-          )}
-
-          {showAssistantFooter ? (
-            <div className="assistant-panel__footer">
-              <section className="sidebar__section">
-                <ul className="action-list">
-                  {ASSISTANT_QUICK_ACTIONS.map((action) => (
-                    <li key={action}>
+                </>
+              ) : (
+                <>
+                  <section className="sidebar__section assistant-panel-header">
+                    <div className="assistant-panel-header__row">
+                      <p className="assistant-panel__label">Assistant</p>
                       <button
-                        className="assistant-action-chip"
-                        disabled={!assistantHasContext || assistantIsBusy}
+                        aria-label="New Chat"
+                        className="assistant-panel__text-icon-button assistant-panel__new-chat"
+                        disabled={!workspace || assistantIsBusy}
                         onClick={() => {
-                          void handleSendAssistantMessage(action);
+                          void handleCreateAssistantThread();
                         }}
                         type="button"
                       >
-                        {action}
+                        <MessageSquarePlus aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                    </div>
+                    {!workspace || !selectedDocumentId ? (
+                      <p className="workspace-panel__copy">Open a workspace to chat with the assistant</p>
+                    ) : null}
+                  </section>
 
-              {assistantError ? (
-                <p className="workspace-panel__error" role="status">
-                  {assistantError}
-                </p>
+                  <section className="sidebar__section assistant-thread-list-section">
+                    {isAssistantListLoading ? (
+                      <p className="workspace-panel__copy">Loading Codex chat history...</p>
+                    ) : !workspace ? null : assistantThreads.length > 0 ? (
+                      <ul className="assistant-thread-list" data-testid="assistant-thread-list">
+                        {assistantThreads.map((thread) => (
+                          <li key={thread.id}>
+                            <button
+                              className="assistant-thread-list__button"
+                              onClick={() => {
+                                handleOpenAssistantThread(thread.id);
+                              }}
+                              type="button"
+                            >
+                              <span className="assistant-thread-list__title">{thread.title || "New Chat"}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="workspace-panel__copy">No Codex chats yet for this workspace.</p>
+                    )}
+                  </section>
+                </>
+              )}
+
+              {showAssistantFooter ? (
+                <div className="assistant-panel__footer">
+                  <section className="sidebar__section">
+                    <ul className="action-list">
+                      {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                        <li key={action}>
+                          <button
+                            className="assistant-action-chip"
+                            disabled={!assistantHasContext || assistantIsBusy}
+                            onClick={() => {
+                              void handleSendAssistantMessage(action);
+                            }}
+                            type="button"
+                          >
+                            {action}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  {assistantError ? (
+                    <p className="workspace-panel__error" role="status">
+                      {assistantError}
+                    </p>
+                  ) : null}
+
+                  <form
+                    className="assistant-composer"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void handleSendAssistantMessage(assistantComposerValue);
+                    }}
+                  >
+                    <input
+                      aria-label="Assistant composer"
+                      className="chat-composer"
+                      data-testid="assistant-composer-input"
+                      disabled={!assistantHasContext || assistantIsBusy}
+                      onChange={(event) => {
+                        setAssistantComposerValue(event.target.value);
+                      }}
+                      placeholder={
+                        assistantHasContext
+                          ? "Ask Codex about this note or workspace"
+                          : "Select a note to chat with Codex"
+                      }
+                      type="text"
+                      value={assistantComposerValue}
+                    />
+
+                    <div className="assistant-composer__actions">
+                      <button
+                        className="ghost-button"
+                        disabled={!assistantIsBusy}
+                        onClick={() => {
+                          void handleCancelAssistantRun();
+                        }}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="primary-button"
+                        disabled={!canSendAssistantMessage}
+                        type="submit"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <section className="sidebar__section history-panel">
+              {!workspace ? (
+                <p className="workspace-panel__copy">Open a workspace to view history.</p>
+              ) : !selectedDocumentId ? (
+                <p className="workspace-panel__copy">Select a document to view checkpoint history.</p>
+              ) : (
+                <>
+                  {leftSidebarTab === "unpublished" ? (
+                    <div className="history-remote-diff">
+                      <p className="assistant-panel__label">Remote vs Local Diff</p>
+                      {isUnpublishedDiffLoading ? (
+                        <p className="workspace-panel__copy">Loading remote diff...</p>
+                      ) : unpublishedDiffError ? (
+                        <p className="workspace-panel__error" role="status">
+                          {unpublishedDiffError}
+                        </p>
+                      ) : unpublishedDiff?.patch ? (
+                        <pre className="history-diff-output">{unpublishedDiff.patch}</pre>
+                      ) : unpublishedDiff?.message ? (
+                        <p className="workspace-panel__copy">{unpublishedDiff.message}</p>
+                      ) : (
+                        <p className="workspace-panel__copy">No remote/local diff available.</p>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {isHistoryLoading ? (
+                    <p className="workspace-panel__copy">Loading checkpoint timeline...</p>
+                  ) : (
+                    <>
+                      <div className="history-commit-list">
+                        <p className="assistant-panel__label">Commits</p>
+                        {commitHistory.length > 0 ? (
+                          <ul className="history-commit-list__items">
+                            {commitHistory.map((commit) => (
+                              <li className="history-commit-list__item" key={commit.sha}>
+                                <p className="history-commit-list__subject">{commit.subject}</p>
+                                <p className="history-commit-list__meta">
+                                  {commit.shortSha} · {new Date(commit.authoredAt).toLocaleString()}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="workspace-panel__copy">No commits found for this document yet.</p>
+                        )}
+                      </div>
+
+                      <div className="history-checkpoint-list">
+                        <p className="assistant-panel__label">Checkpoints</p>
+                        {checkpointTimeline.length > 0 ? (
+                          <ul className="history-timeline">
+                            {checkpointTimeline.map((checkpoint) => (
+                              <li key={checkpoint.id} className="history-timeline__item">
+                                <button
+                                  className="history-timeline__revert-button"
+                                  disabled={isRevertingHistory}
+                                  onClick={() => {
+                                    void handleRevertToCheckpoint(checkpoint.id);
+                                  }}
+                                  type="button"
+                                >
+                                  Restore
+                                </button>
+                                <p className="history-timeline__reason">{checkpoint.reason}</p>
+                                <p className="history-timeline__meta">
+                                  {formatCheckpointMeta(checkpoint)}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="workspace-panel__copy">No checkpoints yet for this document.</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="history-compare">
+                    <p className="assistant-panel__label">Compare checkpoints</p>
+                    <label className="history-compare__label" htmlFor="history-from">
+                      From
+                    </label>
+                    <select
+                      className="history-compare__select"
+                      id="history-from"
+                      onChange={(event) => {
+                        setHistoryFromCheckpointId(event.target.value);
+                      }}
+                      value={historyFromCheckpointId}
+                    >
+                      <option value="">Select checkpoint</option>
+                      {checkpointTimeline.map((checkpoint) => (
+                        <option key={`from-${checkpoint.id}`} value={checkpoint.id}>
+                          {formatCheckpointOption(checkpoint)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label className="history-compare__label" htmlFor="history-to">
+                      To
+                    </label>
+                    <select
+                      className="history-compare__select"
+                      id="history-to"
+                      onChange={(event) => {
+                        setHistoryToCheckpointId(event.target.value);
+                      }}
+                      value={historyToCheckpointId}
+                    >
+                      <option value="">Select checkpoint</option>
+                      {checkpointTimeline.map((checkpoint) => (
+                        <option key={`to-${checkpoint.id}`} value={checkpoint.id}>
+                          {formatCheckpointOption(checkpoint)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      className="ghost-button history-compare__button"
+                      disabled={!historyCanCompare}
+                      onClick={() => {
+                        void handleLoadHistoryDiff();
+                      }}
+                      type="button"
+                    >
+                      <GitCompare aria-hidden="true" className="top-bar__sync-icon" />
+                      Compare
+                    </button>
+                    {historyDiff ? (
+                      <pre className="history-diff-output">{historyDiff}</pre>
+                    ) : null}
+                  </div>
+                </>
+              )}
+
+              {syncState?.status === "conflict" ? (
+                <div className="history-conflicts">
+                  <p className="assistant-panel__label">Incoming overlap resolution</p>
+                  {syncState.conflicts.map((conflict) => {
+                    const selectedResolution = conflictSelectionByPath[conflict.relativePath] ?? "keep-local";
+                    return (
+                      <div className="history-conflict-card" key={conflict.relativePath}>
+                        <p className="history-conflict-card__path">{conflict.relativePath}</p>
+                        <div className="history-conflict-card__actions">
+                          <button
+                            className={`ghost-button${selectedResolution === "keep-local" ? " history-choice--active" : ""}`}
+                            onClick={() => {
+                              setConflictSelectionByPath((current) => ({
+                                ...current,
+                                [conflict.relativePath]: "keep-local",
+                              }));
+                            }}
+                            type="button"
+                          >
+                            Keep local
+                          </button>
+                          <button
+                            className={`ghost-button${selectedResolution === "keep-incoming" ? " history-choice--active" : ""}`}
+                            onClick={() => {
+                              setConflictSelectionByPath((current) => ({
+                                ...current,
+                                [conflict.relativePath]: "keep-incoming",
+                              }));
+                            }}
+                            type="button"
+                          >
+                            Keep incoming
+                          </button>
+                          <button
+                            className={`ghost-button${selectedResolution === "manual" ? " history-choice--active" : ""}`}
+                            onClick={() => {
+                              setConflictSelectionByPath((current) => ({
+                                ...current,
+                                [conflict.relativePath]: "manual",
+                              }));
+                              setManualConflictContentByPath((current) => ({
+                                ...current,
+                                [conflict.relativePath]: current[conflict.relativePath] ?? conflict.localContent,
+                              }));
+                            }}
+                            type="button"
+                          >
+                            Combine manually
+                          </button>
+                        </div>
+                        {selectedResolution === "manual" ? (
+                          <textarea
+                            className="history-conflict-card__textarea"
+                            onChange={(event) => {
+                              setManualConflictContentByPath((current) => ({
+                                ...current,
+                                [conflict.relativePath]: event.target.value,
+                              }));
+                            }}
+                            value={manualConflictContentByPath[conflict.relativePath] ?? conflict.localContent}
+                          />
+                        ) : null}
+                        <button
+                          className="primary-button history-conflict-card__resolve"
+                          disabled={isResolvingConflict}
+                          onClick={() => {
+                            void handleResolveSyncConflict(conflict);
+                          }}
+                          type="button"
+                        >
+                          Resolve file
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : null}
 
-              <form
-                className="assistant-composer"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void handleSendAssistantMessage(assistantComposerValue);
-                }}
-              >
-                <input
-                  aria-label="Assistant composer"
-                  className="chat-composer"
-                  data-testid="assistant-composer-input"
-                  disabled={!assistantHasContext || assistantIsBusy}
-                  onChange={(event) => {
-                    setAssistantComposerValue(event.target.value);
-                  }}
-                  placeholder={
-                    assistantHasContext
-                      ? "Ask Codex about this note or workspace"
-                      : "Select a note to chat with Codex"
-                  }
-                  type="text"
-                  value={assistantComposerValue}
-                />
-
-                <div className="assistant-composer__actions">
-                  <button
-                    className="ghost-button"
-                    disabled={!assistantIsBusy}
-                    onClick={() => {
-                      void handleCancelAssistantRun();
-                    }}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="primary-button"
-                    disabled={!canSendAssistantMessage}
-                    type="submit"
-                  >
-                    Send
-                  </button>
-                </div>
-              </form>
-            </div>
-          ) : null}
+              {historyError ? (
+                <p className="workspace-panel__error" role="status">
+                  {historyError}
+                </p>
+              ) : null}
+            </section>
+          )}
         </aside>
       </div>
     </div>
@@ -1359,6 +2098,38 @@ function renderWorkspaceNode({
       </button>
     </li>
   );
+}
+
+function countWorkspaceDocuments(nodes: WorkspaceTreeNode[]): number {
+  return nodes.reduce((count, node) => {
+    if (node.kind === "document") {
+      return count + 1;
+    }
+
+    return count + countWorkspaceDocuments(node.children);
+  }, 0);
+}
+
+function formatPublishStatus(status: DocumentPublishStatus): string {
+  const label = status.state === "published"
+    ? "Published"
+    : status.state === "unpublished-changes"
+      ? "Unpublished changes"
+      : "Never published";
+  const lastPublishedLabel = status.lastPublishedAt
+    ? `Last published ${new Date(status.lastPublishedAt).toLocaleString()}`
+    : "Last published not available";
+
+  return `${label} · ${lastPublishedLabel}`;
+}
+
+function formatCheckpointMeta(checkpoint: CheckpointSummary): string {
+  return `${new Date(checkpoint.createdAt).toLocaleString()} · ${checkpoint.trigger}`;
+}
+
+function formatCheckpointOption(checkpoint: CheckpointSummary): string {
+  const shortDate = new Date(checkpoint.createdAt).toLocaleString();
+  return `${shortDate} · ${checkpoint.reason}`;
 }
 
 function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string> {

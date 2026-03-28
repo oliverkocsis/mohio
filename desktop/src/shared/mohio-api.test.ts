@@ -40,6 +40,55 @@ describe("createMohioApi", () => {
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
     });
+    const createCheckpoint = vi.fn().mockResolvedValue(null);
+    const createAiChangeCheckpoint = vi.fn().mockResolvedValue(null);
+    const listCheckpoints = vi.fn().mockResolvedValue([]);
+    const listCommitHistory = vi.fn().mockResolvedValue([]);
+    const getUnpublishedDiff = vi.fn().mockResolvedValue({
+      relativePath: "README.md",
+      hasRemoteVersion: true,
+      patch: "",
+      message: null,
+    });
+    const getCheckpointDiff = vi.fn().mockResolvedValue({
+      fromCheckpointId: "a",
+      toCheckpointId: "b",
+      relativePath: "README.md",
+      patch: "",
+    });
+    const revertToCheckpoint = vi.fn().mockResolvedValue(undefined);
+    const getPublishSummary = vi.fn().mockResolvedValue({
+      documents: [],
+      unpublishedCount: 0,
+      unpublishedTree: [],
+    });
+    const publishWorkspaceChanges = vi.fn().mockResolvedValue({
+      committed: false,
+      commitSha: null,
+      publishedAt: null,
+      message: "No unpublished Markdown changes were ready to publish.",
+    });
+    const syncIncomingChanges = vi.fn().mockResolvedValue({
+      status: "idle" as const,
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    const getSyncState = vi.fn().mockResolvedValue({
+      status: "idle" as const,
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    const resolveSyncConflict = vi.fn().mockResolvedValue({
+      status: "idle" as const,
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
     const watchDocument = vi.fn().mockResolvedValue(undefined);
     const listAssistantThreads = vi.fn().mockResolvedValue([
       {
@@ -104,6 +153,18 @@ describe("createMohioApi", () => {
       createDocument,
       deleteDocument,
       saveDocument,
+      createCheckpoint,
+      createAiChangeCheckpoint,
+      listCheckpoints,
+      listCommitHistory,
+      getUnpublishedDiff,
+      getCheckpointDiff,
+      revertToCheckpoint,
+      getPublishSummary,
+      publishWorkspaceChanges,
+      syncIncomingChanges,
+      getSyncState,
+      resolveSyncConflict,
       watchDocument,
       listAssistantThreads,
       createAssistantThread,
@@ -133,6 +194,68 @@ describe("createMohioApi", () => {
       titleMode: "h1-linked",
     });
     await expect(api.deleteDocument("README.md")).resolves.toBeUndefined();
+    await expect(api.createCheckpoint({
+      reason: "checkpoint",
+      trigger: "manual",
+    })).resolves.toBeNull();
+    await expect(api.createAiChangeCheckpoint("README.md", "before ai apply")).resolves.toBeNull();
+    await expect(api.listCheckpoints("README.md")).resolves.toEqual([]);
+    await expect(api.listCommitHistory("README.md")).resolves.toEqual([]);
+    await expect(api.getUnpublishedDiff("README.md")).resolves.toEqual({
+      relativePath: "README.md",
+      hasRemoteVersion: true,
+      patch: "",
+      message: null,
+    });
+    await expect(api.getCheckpointDiff({
+      fromCheckpointId: "a",
+      toCheckpointId: "b",
+      relativePath: "README.md",
+    })).resolves.toEqual({
+      fromCheckpointId: "a",
+      toCheckpointId: "b",
+      relativePath: "README.md",
+      patch: "",
+    });
+    await expect(api.revertToCheckpoint({
+      checkpointId: "a",
+      relativePath: "README.md",
+    })).resolves.toBeUndefined();
+    await expect(api.getPublishSummary()).resolves.toEqual({
+      documents: [],
+      unpublishedCount: 0,
+      unpublishedTree: [],
+    });
+    await expect(api.publishWorkspaceChanges()).resolves.toEqual({
+      committed: false,
+      commitSha: null,
+      publishedAt: null,
+      message: "No unpublished Markdown changes were ready to publish.",
+    });
+    await expect(api.syncIncomingChanges("manual")).resolves.toEqual({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    await expect(api.getSyncState()).resolves.toEqual({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    await expect(api.resolveSyncConflict({
+      relativePath: "README.md",
+      resolution: "keep-local",
+    })).resolves.toEqual({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
     await expect(api.saveDocument({
       relativePath: "README.md",
       title: "README",
@@ -207,6 +330,31 @@ describe("createMohioApi", () => {
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
     expect(deleteDocument).toHaveBeenCalledWith("README.md");
+    expect(createCheckpoint).toHaveBeenCalledWith({
+      reason: "checkpoint",
+      trigger: "manual",
+    });
+    expect(createAiChangeCheckpoint).toHaveBeenCalledWith("README.md", "before ai apply");
+    expect(listCheckpoints).toHaveBeenCalledWith("README.md");
+    expect(listCommitHistory).toHaveBeenCalledWith("README.md");
+    expect(getUnpublishedDiff).toHaveBeenCalledWith("README.md");
+    expect(getCheckpointDiff).toHaveBeenCalledWith({
+      fromCheckpointId: "a",
+      toCheckpointId: "b",
+      relativePath: "README.md",
+    });
+    expect(revertToCheckpoint).toHaveBeenCalledWith({
+      checkpointId: "a",
+      relativePath: "README.md",
+    });
+    expect(getPublishSummary).toHaveBeenCalledTimes(1);
+    expect(publishWorkspaceChanges).toHaveBeenCalledTimes(1);
+    expect(syncIncomingChanges).toHaveBeenCalledWith("manual");
+    expect(getSyncState).toHaveBeenCalledTimes(1);
+    expect(resolveSyncConflict).toHaveBeenCalledWith({
+      relativePath: "README.md",
+      resolution: "keep-local",
+    });
     expect(saveDocument).toHaveBeenCalledWith({
       relativePath: "README.md",
       title: "README",

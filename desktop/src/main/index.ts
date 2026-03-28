@@ -6,6 +6,7 @@ import path from "node:path";
 import { MOHIO_CHANNELS } from "@shared/mohio-api";
 import type { AssistantEvent, DocumentChangedEvent, WorkspaceSummary } from "@shared/mohio-types";
 import { createAssistantRuntime } from "./assistant";
+import { createGitCollaborationService } from "./git-collaboration";
 import {
   createDocument,
   deleteDocument,
@@ -18,6 +19,7 @@ import { getWorkspaceSummary } from "./workspace";
 
 let currentWorkspacePath: string | null = null;
 const assistantRuntime = createAssistantRuntime();
+const gitCollaboration = createGitCollaborationService();
 const activeDocumentWatches = new Map<number, {
   absolutePath: string;
   listener: (currentStats: Stats, previousStats: Stats) => void;
@@ -173,6 +175,9 @@ async function openWorkspace(browserWindow?: BaseWindow) {
 
   const workspace = await loadCurrentWorkspace();
   broadcastWorkspaceChange(workspace);
+  if (currentWorkspacePath) {
+    void gitCollaboration.syncIncomingChanges(currentWorkspacePath, "workspace-open").catch(() => undefined);
+  }
 
   return workspace;
 }
@@ -185,6 +190,7 @@ function registerMohioHandlers() {
       throw new Error("Open a workspace before loading documents.");
     }
 
+    void gitCollaboration.syncIncomingChanges(currentWorkspacePath, "document-open").catch(() => undefined);
     return readDocument(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.createDocument, async (_event, input) => {
@@ -207,6 +213,110 @@ function registerMohioHandlers() {
     }
 
     return saveDocument(currentWorkspacePath, input);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.createCheckpoint, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before creating a checkpoint.");
+    }
+
+    return gitCollaboration.createCheckpoint(currentWorkspacePath, input);
+  });
+  ipcMain.handle(
+    MOHIO_CHANNELS.createAiChangeCheckpoint,
+    async (_event, relativePath: string, reason: string) => {
+      if (!currentWorkspacePath) {
+        throw new Error("Open a workspace before creating a checkpoint.");
+      }
+
+      return gitCollaboration.createAiChangeCheckpoint(currentWorkspacePath, relativePath, reason);
+    },
+  );
+  ipcMain.handle(MOHIO_CHANNELS.listCheckpoints, async (_event, relativePath: string | null) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading history.");
+    }
+
+    return gitCollaboration.listCheckpoints(currentWorkspacePath, relativePath);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.listCommitHistory, async (_event, relativePath: string | null) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading history.");
+    }
+
+    return gitCollaboration.listCommitHistory(currentWorkspacePath, relativePath);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getUnpublishedDiff, async (_event, relativePath: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading history.");
+    }
+
+    return gitCollaboration.getUnpublishedDiff(currentWorkspacePath, relativePath);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getCheckpointDiff, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading history.");
+    }
+
+    return gitCollaboration.getCheckpointDiff(currentWorkspacePath, input);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.revertToCheckpoint, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before reverting history.");
+    }
+
+    await gitCollaboration.revertToCheckpoint(currentWorkspacePath, input);
+    const workspace = await loadCurrentWorkspace();
+    broadcastWorkspaceChange(workspace);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getPublishSummary, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading publish state.");
+    }
+
+    const workspace = await loadCurrentWorkspace();
+
+    if (!workspace) {
+      throw new Error("Open a workspace before loading publish state.");
+    }
+
+    return gitCollaboration.getPublishSummary(currentWorkspacePath, workspace.documents);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.publishWorkspaceChanges, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before publishing.");
+    }
+
+    const result = await gitCollaboration.publishWorkspaceChanges(currentWorkspacePath);
+    const workspace = await loadCurrentWorkspace();
+    broadcastWorkspaceChange(workspace);
+    return result;
+  });
+  ipcMain.handle(MOHIO_CHANNELS.syncIncomingChanges, async (_event, reason: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before syncing changes.");
+    }
+
+    const state = await gitCollaboration.syncIncomingChanges(currentWorkspacePath, reason);
+    const workspace = await loadCurrentWorkspace().catch(() => null);
+    broadcastWorkspaceChange(workspace);
+    return state;
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getSyncState, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading sync state.");
+    }
+
+    return gitCollaboration.getSyncState(currentWorkspacePath);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.resolveSyncConflict, async (_event, input) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before resolving conflicts.");
+    }
+
+    const state = await gitCollaboration.resolveSyncConflict(currentWorkspacePath, input);
+    const workspace = await loadCurrentWorkspace().catch(() => null);
+    broadcastWorkspaceChange(workspace);
+    return state;
   });
   ipcMain.handle(MOHIO_CHANNELS.watchDocument, async (event, relativePath: string | null) => {
     watchDocumentForEventSender(event, relativePath);

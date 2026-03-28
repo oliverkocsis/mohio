@@ -110,6 +110,7 @@ On save, Mohio rebuilds the file with:
 - Autosave runs after `1000ms` of idle time when the draft differs from the last saved snapshot.
 - Saving updates the selected document path if the title changed the filename.
 - Save failures are surfaced in the editor panel as a local error state.
+- When the title edit is likely to rename or move the file, Mohio creates a pre-change checkpoint before saving.
 
 ## External File Changes
 
@@ -117,18 +118,25 @@ On save, Mohio rebuilds the file with:
 - If the file changes on disk, Mohio reloads the current workspace summary and current document.
 - If the file disappears, the renderer clears the document and selects the next available document when possible.
 - If the incoming version is safe to apply, the renderer refreshes the visible title and body automatically.
+- Opening a document also triggers an incoming-change sync check through the collaboration service.
+
+## Checkpoint Hooks in Editing Flow
+
+- Mohio tracks recent material local edits and creates a background checkpoint after about 60 seconds of idle time.
+- Switching documents after recent local edits triggers a pre-switch checkpoint.
+- Deleting a note triggers a pre-delete checkpoint.
+- Restoring an older checkpoint creates a safety checkpoint first.
 
 ## Current Limitations
 
-- No explicit save history or checkpoint UI yet
 - No rendered preview or split-view editor yet
 - No in-app rename action outside editing the title of an existing file
-- No publish workflow
 - No search workflow in the UI yet
 
 ## Code Anchors
 
 - Main process document reads and saves: `desktop/src/main/document-store.ts`
+- Main process collaboration service and checkpoints: `desktop/src/main/git-collaboration.ts`
 - Shared document formats: `desktop/src/shared/document-format.ts`
 - Renderer editor shell: `desktop/src/renderer/App.tsx`
 - Markdown editor implementation: `desktop/src/renderer/markdown-editor.tsx`

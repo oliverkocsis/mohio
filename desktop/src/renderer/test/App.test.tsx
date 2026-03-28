@@ -61,6 +61,55 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     saveDocument: async () => {
       throw new Error("No document");
     },
+    createCheckpoint: async () => null,
+    createAiChangeCheckpoint: async () => null,
+    listCheckpoints: async () => [],
+    listCommitHistory: async () => [],
+    getUnpublishedDiff: async (relativePath) => ({
+      relativePath,
+      hasRemoteVersion: true,
+      patch: "",
+      message: null,
+    }),
+    getCheckpointDiff: async () => ({
+      fromCheckpointId: "a",
+      toCheckpointId: "b",
+      relativePath: "README.md",
+      patch: "",
+    }),
+    revertToCheckpoint: async () => undefined,
+    getPublishSummary: async () => ({
+      documents: [],
+      unpublishedCount: 0,
+      unpublishedTree: [],
+    }),
+    publishWorkspaceChanges: async () => ({
+      committed: false,
+      commitSha: null,
+      publishedAt: null,
+      message: "",
+    }),
+    syncIncomingChanges: async () => ({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    }),
+    getSyncState: async () => ({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    }),
+    resolveSyncConflict: async () => ({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    }),
     watchDocument: async () => undefined,
     listAssistantThreads: async () => [],
     createAssistantThread: async () => createAssistantThread("thread-1"),
@@ -104,7 +153,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Open Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New Note" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Heading 1" })).not.toBeInTheDocument();
-    expect(screen.getByText("Assistant")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Assistant" })).toBeInTheDocument();
     expect(screen.getByText("Open a workspace to chat with the assistant")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New Chat" })).toBeDisabled();
     expect(screen.queryByText("Codex chat")).not.toBeInTheDocument();

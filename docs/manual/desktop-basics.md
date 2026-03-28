@@ -29,6 +29,9 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 - Click a document row to open it.
 - If a document has a visible title, Mohio shows that title in the sidebar.
 - Right-click a document row to open the context menu and choose `Delete Note`.
+- Use the left sidebar tabs:
+  - `Documents` to browse all notes
+  - `Unpublished` to focus on notes that are not fully published yet
 
 ## Edit a Document
 
@@ -44,16 +47,50 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 - Mohio saves your changes automatically after a short pause.
 - You do not need to click a save button.
 - Changing the title can also rename the file on disk.
+- Mohio creates background recovery checkpoints after meaningful editing bursts and before higher-risk actions (publish, rename/move, delete, restore).
+
+## Publish Shared Changes
+
+- Publishing is explicit.
+- The top bar `Publish` button appears with a badge when there are unpublished notes.
+- Click `Publish` to send your local Markdown updates to the shared branch.
+- Each note can show status such as:
+  - `Published`
+  - `Unpublished changes`
+  - `Never published`
+- Mohio also shows `Last published` timing when available.
+
+## History and Restore
+
+- Open the right sidebar `History` tab while a note is selected.
+- If you selected the note from `Unpublished`, Mohio shows the remote-versus-local diff first.
+- Review the commit list for that note.
+- Review the checkpoint timeline for that note.
+- Compare any two checkpoints to inspect their diff.
+- Use `Restore` on a checkpoint to roll the current note back to that state.
+- Mohio creates a safety checkpoint before restoring.
 
 ## If a File Changes Outside Mohio
 
 - Mohio watches the document that is currently open.
 - If that file changes on disk, Mohio reloads it when it can do so safely.
 
+## Incoming Changes and Overlaps
+
+- Mohio checks for incoming shared updates:
+  - when you open a workspace
+  - every minute while the workspace is open
+  - when you open a document
+- If incoming updates are safe, Mohio applies them automatically.
+- If local and incoming edits overlap, Mohio shows guided choices in `History`:
+  - keep local
+  - keep incoming
+  - combine manually
+
 ## Use the Assistant Panel
 
 - Open a workspace and select a note.
-- Use the right sidebar to browse Codex chats for the current workspace.
+- Use the right sidebar `Assistant` tab to browse Codex chats for the current workspace.
 - The assistant opens in a chat-list view first.
 - Click an existing chat to open it, or click `New Chat` to start another parallel conversation.
 - The quick actions and composer stay at the bottom of the sidebar while you browse the chat list.
