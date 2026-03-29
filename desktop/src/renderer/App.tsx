@@ -1427,7 +1427,7 @@ export function App() {
         </main>
 
         <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
-          <section className="sidebar__section">
+          <section className="sidebar__section sidebar__section--edge-tabs">
             <div className="sidebar-tabs sidebar-tabs--full-width" role="tablist" aria-label="Right panel views">
               <button
                 aria-selected={rightSidebarTab === "assistant"}
