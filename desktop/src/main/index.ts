@@ -214,29 +214,19 @@ function registerMohioHandlers() {
 
     return saveDocument(currentWorkspacePath, input);
   });
-  ipcMain.handle(MOHIO_CHANNELS.createCheckpoint, async (_event, input) => {
+  ipcMain.handle(MOHIO_CHANNELS.recordRiskyCommit, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before creating a checkpoint.");
+      throw new Error("Open a workspace before recording a commit.");
     }
 
-    return gitCollaboration.createCheckpoint(currentWorkspacePath, input);
+    return gitCollaboration.recordRiskyCommit(currentWorkspacePath, input);
   });
-  ipcMain.handle(
-    MOHIO_CHANNELS.createAiChangeCheckpoint,
-    async (_event, relativePath: string, reason: string) => {
-      if (!currentWorkspacePath) {
-        throw new Error("Open a workspace before creating a checkpoint.");
-      }
-
-      return gitCollaboration.createAiChangeCheckpoint(currentWorkspacePath, relativePath, reason);
-    },
-  );
-  ipcMain.handle(MOHIO_CHANNELS.listCheckpoints, async (_event, relativePath: string | null) => {
+  ipcMain.handle(MOHIO_CHANNELS.recordAutoSaveCommit, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading history.");
+      throw new Error("Open a workspace before recording a commit.");
     }
 
-    return gitCollaboration.listCheckpoints(currentWorkspacePath, relativePath);
+    return gitCollaboration.recordAutoSaveCommit(currentWorkspacePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.listCommitHistory, async (_event, relativePath: string | null) => {
     if (!currentWorkspacePath) {
@@ -251,22 +241,6 @@ function registerMohioHandlers() {
     }
 
     return gitCollaboration.getUnpublishedDiff(currentWorkspacePath, relativePath);
-  });
-  ipcMain.handle(MOHIO_CHANNELS.getCheckpointDiff, async (_event, input) => {
-    if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading history.");
-    }
-
-    return gitCollaboration.getCheckpointDiff(currentWorkspacePath, input);
-  });
-  ipcMain.handle(MOHIO_CHANNELS.revertToCheckpoint, async (_event, input) => {
-    if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before reverting history.");
-    }
-
-    await gitCollaboration.revertToCheckpoint(currentWorkspacePath, input);
-    const workspace = await loadCurrentWorkspace();
-    broadcastWorkspaceChange(workspace);
   });
   ipcMain.handle(MOHIO_CHANNELS.getPublishSummary, async () => {
     if (!currentWorkspacePath) {

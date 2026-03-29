@@ -3,9 +3,9 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
-  GitCompare,
   Ellipsis,
-  MessageSquarePlus,
+  History as HistoryIcon,
+  MessageSquare,
   RefreshCw,
   SquarePen,
   Trash2,
@@ -13,7 +13,6 @@ import {
 import type {
   AssistantThread,
   AssistantThreadSummary,
-  CheckpointSummary,
   CommitHistoryEntry,
   DocumentPublishStatus,
   PublishSummary,
@@ -82,17 +81,12 @@ export function App() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [syncState, setSyncState] = useState<SyncState | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [checkpointTimeline, setCheckpointTimeline] = useState<CheckpointSummary[]>([]);
   const [commitHistory, setCommitHistory] = useState<CommitHistoryEntry[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [historyDiff, setHistoryDiff] = useState<string>("");
   const [unpublishedDiff, setUnpublishedDiff] = useState<UnpublishedDiffResult | null>(null);
   const [isUnpublishedDiffLoading, setIsUnpublishedDiffLoading] = useState(false);
   const [unpublishedDiffError, setUnpublishedDiffError] = useState<string | null>(null);
-  const [historyFromCheckpointId, setHistoryFromCheckpointId] = useState<string>("");
-  const [historyToCheckpointId, setHistoryToCheckpointId] = useState<string>("");
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-  const [isRevertingHistory, setIsRevertingHistory] = useState(false);
   const [conflictSelectionByPath, setConflictSelectionByPath] = useState<Record<string, "keep-local" | "keep-incoming" | "manual">>({});
   const [manualConflictContentByPath, setManualConflictContentByPath] = useState<Record<string, string>>({});
   const [isResolvingConflict, setIsResolvingConflict] = useState(false);
@@ -170,38 +164,19 @@ export function App() {
     }
   };
 
-  const loadCheckpointTimeline = async () => {
+  const loadCommitHistory = async () => {
     if (!workspace || !selectedDocumentId) {
-      setCheckpointTimeline([]);
       setCommitHistory([]);
-      setHistoryDiff("");
-      setHistoryFromCheckpointId("");
-      setHistoryToCheckpointId("");
       return;
     }
 
     try {
       setIsHistoryLoading(true);
-      const [checkpoints, commits] = await Promise.all([
-        window.mohio.listCheckpoints(selectedDocumentId),
-        window.mohio.listCommitHistory(selectedDocumentId),
-      ]);
-      setCheckpointTimeline(checkpoints);
+      const commits = await window.mohio.listCommitHistory(selectedDocumentId);
       setCommitHistory(commits);
       setHistoryError(null);
-
-      if (checkpoints.length >= 2) {
-        setHistoryFromCheckpointId(checkpoints[1].id);
-        setHistoryToCheckpointId(checkpoints[0].id);
-      } else if (checkpoints.length === 1) {
-        setHistoryFromCheckpointId(checkpoints[0].id);
-        setHistoryToCheckpointId(checkpoints[0].id);
-      } else {
-        setHistoryFromCheckpointId("");
-        setHistoryToCheckpointId("");
-      }
     } catch {
-      setHistoryError("Mohio could not load checkpoint history for this document.");
+      setHistoryError("Mohio could not load commit history for this document.");
     } finally {
       setIsHistoryLoading(false);
     }
@@ -346,8 +321,7 @@ export function App() {
     );
 
     if (switchedDocument && hasRecentMaterialEditRef.current) {
-      void window.mohio.createCheckpoint({
-        reason: "Before switching documents after a local editing burst",
+      void window.mohio.recordRiskyCommit({
         trigger: "document-switch",
         relativePath: previousSelectedId ?? undefined,
       }).catch(() => undefined);
@@ -358,7 +332,7 @@ export function App() {
     if (selectedDocumentId) {
       void triggerSync("document-open");
     }
-    void loadCheckpointTimeline();
+    void loadCommitHistory();
   }, [selectedDocumentId, workspace?.path]);
 
   useEffect(() => {
@@ -482,7 +456,7 @@ export function App() {
 
       setSaveState("saved");
       void refreshPublishSummary();
-      void loadCheckpointTimeline();
+      void loadCommitHistory();
     });
 
     return () => {
@@ -715,14 +689,13 @@ export function App() {
         return;
       }
 
-      void window.mohio.createCheckpoint({
-        reason: "After local editing burst idle pause",
+      void window.mohio.recordRiskyCommit({
         trigger: "idle-burst",
         relativePath: document.relativePath,
-      }).then((checkpoint) => {
-        if (checkpoint) {
+      }).then((committed) => {
+        if (committed) {
           hasRecentMaterialEditRef.current = false;
-          void loadCheckpointTimeline();
+          void loadCommitHistory();
         }
       }).catch(() => undefined);
     }, 60_000);
@@ -759,16 +732,8 @@ export function App() {
       return;
     }
 
-    void loadCheckpointTimeline();
+    void loadCommitHistory();
   }, [rightSidebarTab, selectedDocumentId, workspace?.path]);
-
-  useEffect(() => {
-    if (rightSidebarTab !== "history") {
-      return;
-    }
-
-    void handleLoadHistoryDiff();
-  }, [rightSidebarTab, historyFromCheckpointId, historyToCheckpointId, selectedDocumentId]);
 
   const handleOpenWorkspace = async () => {
     try {
@@ -843,8 +808,7 @@ export function App() {
     setDocumentContextMenu(null);
 
     try {
-      await window.mohio.createCheckpoint({
-        reason: `Before deleting ${relativePath}`,
+      await window.mohio.recordRiskyCommit({
         trigger: "delete",
         force: true,
         relativePath,
@@ -897,9 +861,10 @@ export function App() {
     setDocumentError(null);
 
     try {
-      if (snapshot.title.trim() !== document.displayTitle.trim()) {
-        await window.mohio.createCheckpoint({
-          reason: `Before renaming or moving ${document.relativePath}`,
+      const isRenameOrMove = snapshot.title.trim() !== document.displayTitle.trim();
+      let createdRiskyCommit = false;
+      if (isRenameOrMove) {
+        createdRiskyCommit = await window.mohio.recordRiskyCommit({
           trigger: "rename-move",
           force: true,
           relativePath: document.relativePath,
@@ -946,9 +911,16 @@ export function App() {
       lastSavedSnapshotRef.current = committedSnapshot;
       pendingSaveSnapshotRef.current = null;
       setSaveState("saved");
-      hasRecentMaterialEditRef.current = false;
+      if (!isRenameOrMove) {
+        const autoSaved = await window.mohio.recordAutoSaveCommit();
+        if (autoSaved) {
+          hasRecentMaterialEditRef.current = false;
+        }
+      } else if (createdRiskyCommit) {
+        hasRecentMaterialEditRef.current = false;
+      }
       await refreshPublishSummary();
-      await loadCheckpointTimeline();
+      await loadCommitHistory();
     } catch {
       if (saveSequence !== saveSequenceRef.current) {
         return;
@@ -970,68 +942,11 @@ export function App() {
       setPublishError(null);
       await window.mohio.publishWorkspaceChanges();
       await refreshPublishSummary();
-      await loadCheckpointTimeline();
+      await loadCommitHistory();
     } catch {
       setPublishError("Mohio could not publish your workspace changes.");
     } finally {
       setIsPublishing(false);
-    }
-  };
-
-  const handleLoadHistoryDiff = async () => {
-    if (!selectedDocumentId || !historyFromCheckpointId || !historyToCheckpointId) {
-      setHistoryDiff("");
-      return;
-    }
-
-    try {
-      const diff = await window.mohio.getCheckpointDiff({
-        fromCheckpointId: historyFromCheckpointId,
-        toCheckpointId: historyToCheckpointId,
-        relativePath: selectedDocumentId,
-      });
-      setHistoryDiff(diff.patch || "No content differences for this document between selected checkpoints.");
-      setHistoryError(null);
-    } catch {
-      setHistoryError("Mohio could not load diff output for the selected checkpoints.");
-    }
-  };
-
-  const handleRevertToCheckpoint = async (checkpointId: string) => {
-    if (!selectedDocumentId || !workspace) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Restore this document checkpoint? Mohio will keep a safety checkpoint first.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setIsRevertingHistory(true);
-      await window.mohio.revertToCheckpoint({
-        checkpointId,
-        relativePath: selectedDocumentId,
-      });
-      const refreshedDocument = await window.mohio.readDocument(selectedDocumentId);
-      setDocument(refreshedDocument);
-      setDraftTitle(refreshedDocument.displayTitle);
-      setDraftMarkdown(refreshedDocument.markdown);
-      lastSavedSnapshotRef.current = {
-        relativePath: refreshedDocument.relativePath,
-        title: refreshedDocument.displayTitle,
-        markdown: refreshedDocument.markdown,
-      };
-      setSaveState("saved");
-      await refreshPublishSummary();
-      await loadCheckpointTimeline();
-    } catch {
-      setHistoryError("Mohio could not restore that checkpoint.");
-    } finally {
-      setIsRevertingHistory(false);
     }
   };
 
@@ -1052,7 +967,7 @@ export function App() {
       });
       setSyncState(state);
       await refreshPublishSummary();
-      await loadCheckpointTimeline();
+      await loadCommitHistory();
     } catch {
       setSyncError("Mohio could not apply your conflict resolution choice.");
     } finally {
@@ -1262,12 +1177,6 @@ export function App() {
     ? publishStatusesByPath.get(selectedDocumentId) ?? null
     : null;
   const activeSyncConflicts = syncState?.conflicts ?? [];
-  const historyCanCompare = Boolean(
-    selectedDocumentId &&
-    historyFromCheckpointId &&
-    historyToCheckpointId &&
-    historyFromCheckpointId !== historyToCheckpointId,
-  );
 
   return (
     <div className="app-shell">
@@ -1356,7 +1265,7 @@ export function App() {
                 }}
                 type="button"
               >
-                <SquarePen aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
+                <SquarePen aria-hidden="true" className="assistant-panel__icon" />
               </button>
             </div>
 
@@ -1519,27 +1428,29 @@ export function App() {
 
         <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
           <section className="sidebar__section">
-            <div className="sidebar-tabs" role="tablist" aria-label="Right panel views">
+            <div className="sidebar-tabs sidebar-tabs--full-width" role="tablist" aria-label="Right panel views">
               <button
                 aria-selected={rightSidebarTab === "assistant"}
-                className={`sidebar-tab${rightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
+                className={`sidebar-tab sidebar-tab--full-width${rightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
                 onClick={() => {
                   setRightSidebarTab("assistant");
                 }}
                 role="tab"
                 type="button"
               >
+                <MessageSquare aria-hidden="true" className="sidebar-tab__icon" />
                 Assistant
               </button>
               <button
                 aria-selected={rightSidebarTab === "history"}
-                className={`sidebar-tab${rightSidebarTab === "history" ? " sidebar-tab--active" : ""}`}
+                className={`sidebar-tab sidebar-tab--full-width${rightSidebarTab === "history" ? " sidebar-tab--active" : ""}`}
                 onClick={() => {
                   setRightSidebarTab("history");
                 }}
                 role="tab"
                 type="button"
               >
+                <HistoryIcon aria-hidden="true" className="sidebar-tab__icon" />
                 History
               </button>
             </div>
@@ -1564,7 +1475,6 @@ export function App() {
                           <ArrowLeft aria-hidden="true" className="assistant-panel__icon" />
                         </button>
                         <div className="assistant-panel-header__title-group">
-                          <p className="assistant-panel__label">Assistant</p>
                           <h2 className="assistant-panel__thread-title">{assistantThreadTitle}</h2>
                         </div>
                       </div>
@@ -1663,18 +1573,7 @@ export function App() {
                 <>
                   <section className="sidebar__section assistant-panel-header">
                     <div className="assistant-panel-header__row">
-                      <p className="assistant-panel__label">Assistant</p>
-                      <button
-                        aria-label="New Chat"
-                        className="assistant-panel__text-icon-button assistant-panel__new-chat"
-                        disabled={!workspace || assistantIsBusy}
-                        onClick={() => {
-                          void handleCreateAssistantThread();
-                        }}
-                        type="button"
-                      >
-                        <MessageSquarePlus aria-hidden="true" className="assistant-panel__icon assistant-panel__icon--new-chat" />
-                      </button>
+                      <h2 className="assistant-panel__thread-title">Chats</h2>
                     </div>
                     {!workspace || !selectedDocumentId ? (
                       <p className="workspace-panel__copy">Open a workspace to chat with the assistant</p>
@@ -1786,12 +1685,11 @@ export function App() {
               {!workspace ? (
                 <p className="workspace-panel__copy">Open a workspace to view history.</p>
               ) : !selectedDocumentId ? (
-                <p className="workspace-panel__copy">Select a document to view checkpoint history.</p>
+                <p className="workspace-panel__copy">Select a document to view commit history.</p>
               ) : (
                 <>
                   {leftSidebarTab === "unpublished" ? (
                     <div className="history-remote-diff">
-                      <p className="assistant-panel__label">Remote vs Local Diff</p>
                       {isUnpublishedDiffLoading ? (
                         <p className="workspace-panel__copy">Loading remote diff...</p>
                       ) : unpublishedDiffError ? (
@@ -1809,118 +1707,30 @@ export function App() {
                   ) : null}
 
                   {isHistoryLoading ? (
-                    <p className="workspace-panel__copy">Loading checkpoint timeline...</p>
+                    <p className="workspace-panel__copy">Loading commit history...</p>
                   ) : (
-                    <>
-                      <div className="history-commit-list">
-                        <p className="assistant-panel__label">Commits</p>
-                        {commitHistory.length > 0 ? (
-                          <ul className="history-commit-list__items">
-                            {commitHistory.map((commit) => (
-                              <li className="history-commit-list__item" key={commit.sha}>
-                                <p className="history-commit-list__subject">{commit.subject}</p>
-                                <p className="history-commit-list__meta">
-                                  {commit.shortSha} · {new Date(commit.authoredAt).toLocaleString()}
-                                </p>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="workspace-panel__copy">No commits found for this document yet.</p>
-                        )}
-                      </div>
-
-                      <div className="history-checkpoint-list">
-                        <p className="assistant-panel__label">Checkpoints</p>
-                        {checkpointTimeline.length > 0 ? (
-                          <ul className="history-timeline">
-                            {checkpointTimeline.map((checkpoint) => (
-                              <li key={checkpoint.id} className="history-timeline__item">
-                                <button
-                                  className="history-timeline__revert-button"
-                                  disabled={isRevertingHistory}
-                                  onClick={() => {
-                                    void handleRevertToCheckpoint(checkpoint.id);
-                                  }}
-                                  type="button"
-                                >
-                                  Restore
-                                </button>
-                                <p className="history-timeline__reason">{checkpoint.reason}</p>
-                                <p className="history-timeline__meta">
-                                  {formatCheckpointMeta(checkpoint)}
-                                </p>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="workspace-panel__copy">No checkpoints yet for this document.</p>
-                        )}
-                      </div>
-                    </>
+                    <div className="history-commit-list">
+                      {commitHistory.length > 0 ? (
+                        <ul className="history-commit-list__items">
+                          {commitHistory.map((commit) => (
+                            <li className="history-commit-list__item" key={commit.sha}>
+                              <p className="history-commit-list__subject">{commit.subject}</p>
+                              <p className="history-commit-list__meta">
+                                {new Date(commit.authoredAt).toLocaleString()} · {commit.shortStat ?? "No file stats"}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="workspace-panel__copy">No commits found for this document yet.</p>
+                      )}
+                    </div>
                   )}
-
-                  <div className="history-compare">
-                    <p className="assistant-panel__label">Compare checkpoints</p>
-                    <label className="history-compare__label" htmlFor="history-from">
-                      From
-                    </label>
-                    <select
-                      className="history-compare__select"
-                      id="history-from"
-                      onChange={(event) => {
-                        setHistoryFromCheckpointId(event.target.value);
-                      }}
-                      value={historyFromCheckpointId}
-                    >
-                      <option value="">Select checkpoint</option>
-                      {checkpointTimeline.map((checkpoint) => (
-                        <option key={`from-${checkpoint.id}`} value={checkpoint.id}>
-                          {formatCheckpointOption(checkpoint)}
-                        </option>
-                      ))}
-                    </select>
-
-                    <label className="history-compare__label" htmlFor="history-to">
-                      To
-                    </label>
-                    <select
-                      className="history-compare__select"
-                      id="history-to"
-                      onChange={(event) => {
-                        setHistoryToCheckpointId(event.target.value);
-                      }}
-                      value={historyToCheckpointId}
-                    >
-                      <option value="">Select checkpoint</option>
-                      {checkpointTimeline.map((checkpoint) => (
-                        <option key={`to-${checkpoint.id}`} value={checkpoint.id}>
-                          {formatCheckpointOption(checkpoint)}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      className="ghost-button history-compare__button"
-                      disabled={!historyCanCompare}
-                      onClick={() => {
-                        void handleLoadHistoryDiff();
-                      }}
-                      type="button"
-                    >
-                      <GitCompare aria-hidden="true" className="top-bar__sync-icon" />
-                      Compare
-                    </button>
-                    {historyDiff ? (
-                      <pre className="history-diff-output">{historyDiff}</pre>
-                    ) : null}
-                  </div>
                 </>
               )}
 
               {syncState?.status === "conflict" ? (
                 <div className="history-conflicts">
-                  <p className="assistant-panel__label">Incoming overlap resolution</p>
                   {syncState.conflicts.map((conflict) => {
                     const selectedResolution = conflictSelectionByPath[conflict.relativePath] ?? "keep-local";
                     return (
@@ -2121,15 +1931,6 @@ function formatPublishStatus(status: DocumentPublishStatus): string {
     : "Last published not available";
 
   return `${label} · ${lastPublishedLabel}`;
-}
-
-function formatCheckpointMeta(checkpoint: CheckpointSummary): string {
-  return `${new Date(checkpoint.createdAt).toLocaleString()} · ${checkpoint.trigger}`;
-}
-
-function formatCheckpointOption(checkpoint: CheckpointSummary): string {
-  const shortDate = new Date(checkpoint.createdAt).toLocaleString();
-  return `${shortDate} · ${checkpoint.reason}`;
 }
 
 function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string> {

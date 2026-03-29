@@ -4,10 +4,7 @@ import type {
   AssistantThreadSummary,
   CommitHistoryEntry,
   UnpublishedDiffResult,
-  CheckpointDiff,
-  CheckpointDiffInput,
-  CheckpointSummary,
-  CreateCheckpointInput,
+  RecordRiskyCommitInput,
   AppInfo,
   CreateDocumentInput,
   DocumentChangedEvent,
@@ -20,7 +17,6 @@ import type {
   SaveDocumentInput,
   SaveDocumentResult,
   SyncState,
-  RevertToCheckpointInput,
   WorkspaceDocument,
   WorkspaceSummary,
 } from "./mohio-types";
@@ -32,13 +28,10 @@ export const MOHIO_CHANNELS = {
   createDocument: "mohio:document:create",
   deleteDocument: "mohio:document:delete",
   saveDocument: "mohio:document:save",
-  createCheckpoint: "mohio:checkpoint:create",
-  createAiChangeCheckpoint: "mohio:checkpoint:create-ai-change",
-  listCheckpoints: "mohio:checkpoint:list",
+  recordRiskyCommit: "mohio:commit:record-risky",
+  recordAutoSaveCommit: "mohio:commit:record-auto-save",
   listCommitHistory: "mohio:history:commits",
   getUnpublishedDiff: "mohio:history:unpublished-diff",
-  getCheckpointDiff: "mohio:checkpoint:diff",
-  revertToCheckpoint: "mohio:checkpoint:revert",
   getPublishSummary: "mohio:publish:summary",
   publishWorkspaceChanges: "mohio:publish:changes",
   syncIncomingChanges: "mohio:sync:incoming",
@@ -65,13 +58,10 @@ interface CreateMohioApiOptions {
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
-  createCheckpoint: (input: CreateCheckpointInput) => Promise<CheckpointSummary | null>;
-  createAiChangeCheckpoint: (relativePath: string, reason: string) => Promise<CheckpointSummary | null>;
-  listCheckpoints: (relativePath: string | null) => Promise<CheckpointSummary[]>;
+  recordRiskyCommit: (input: RecordRiskyCommitInput) => Promise<boolean>;
+  recordAutoSaveCommit: () => Promise<boolean>;
   listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
   getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
-  getCheckpointDiff: (input: CheckpointDiffInput) => Promise<CheckpointDiff>;
-  revertToCheckpoint: (input: RevertToCheckpointInput) => Promise<void>;
   getPublishSummary: () => Promise<PublishSummary>;
   publishWorkspaceChanges: () => Promise<PublishResult>;
   syncIncomingChanges: (reason: string) => Promise<SyncState>;
@@ -104,13 +94,10 @@ export function createMohioApi({
   createDocument,
   deleteDocument,
   saveDocument,
-  createCheckpoint,
-  createAiChangeCheckpoint,
-  listCheckpoints,
+  recordRiskyCommit,
+  recordAutoSaveCommit,
   listCommitHistory,
   getUnpublishedDiff,
-  getCheckpointDiff,
-  revertToCheckpoint,
   getPublishSummary,
   publishWorkspaceChanges,
   syncIncomingChanges,
@@ -136,13 +123,10 @@ export function createMohioApi({
     createDocument,
     deleteDocument,
     saveDocument,
-    createCheckpoint,
-    createAiChangeCheckpoint,
-    listCheckpoints,
+    recordRiskyCommit,
+    recordAutoSaveCommit,
     listCommitHistory,
     getUnpublishedDiff,
-    getCheckpointDiff,
-    revertToCheckpoint,
     getPublishSummary,
     publishWorkspaceChanges,
     syncIncomingChanges,

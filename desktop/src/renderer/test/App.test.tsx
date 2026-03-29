@@ -61,9 +61,8 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     saveDocument: async () => {
       throw new Error("No document");
     },
-    createCheckpoint: async () => null,
-    createAiChangeCheckpoint: async () => null,
-    listCheckpoints: async () => [],
+    recordRiskyCommit: async () => false,
+    recordAutoSaveCommit: async () => false,
     listCommitHistory: async () => [],
     getUnpublishedDiff: async (relativePath) => ({
       relativePath,
@@ -71,13 +70,6 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
       patch: "",
       message: null,
     }),
-    getCheckpointDiff: async () => ({
-      fromCheckpointId: "a",
-      toCheckpointId: "b",
-      relativePath: "README.md",
-      patch: "",
-    }),
-    revertToCheckpoint: async () => undefined,
     getPublishSummary: async () => ({
       documents: [],
       unpublishedCount: 0,
@@ -155,7 +147,7 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Heading 1" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Assistant" })).toBeInTheDocument();
     expect(screen.getByText("Open a workspace to chat with the assistant")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New Chat" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "New Chat" })).not.toBeInTheDocument();
     expect(screen.queryByText("Codex chat")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Open a workspace to start chatting with Codex inside Mohio."),
@@ -994,7 +986,7 @@ describe("App", () => {
 
       expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture Overview");
       expect(getAssistantThread).not.toHaveBeenCalled();
-      expect(screen.getByRole("button", { name: "New Chat" })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: "New Chat" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Architecture follow-up/ })).toBeInTheDocument();
 
       await act(async () => {

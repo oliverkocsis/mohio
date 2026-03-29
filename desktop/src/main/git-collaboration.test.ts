@@ -17,22 +17,37 @@ afterEach(async () => {
 });
 
 describe("git-collaboration", () => {
-  it("creates and lists hidden checkpoints from material markdown changes", async () => {
-    const workspacePath = await createWorkspace("checkpoint");
+  it("creates risky commits and lists commit history with stats", async () => {
+    const workspacePath = await createWorkspace("history");
     const service = createGitCollaborationService();
 
     await writeFile(path.join(workspacePath, "README.md"), "# Title\n\nline1\nline2\nline3\n", "utf8");
 
-    const checkpoint = await service.createCheckpoint(workspacePath, {
-      reason: "After local editing burst",
+    const committed = await service.recordRiskyCommit(workspacePath, {
       trigger: "idle-burst",
     });
 
-    expect(checkpoint).not.toBeNull();
+    expect(committed).toBe(true);
 
-    const checkpoints = await service.listCheckpoints(workspacePath, "README.md");
-    expect(checkpoints.length).toBeGreaterThan(0);
-    expect(checkpoints[0]?.trigger).toBe("idle-burst");
+    const commits = await service.listCommitHistory(workspacePath, "README.md");
+    expect(commits.length).toBeGreaterThan(0);
+    expect(commits[0]?.subject).toBe("checkpoint");
+    expect(commits[0]?.shortStat).toContain("file changed");
+  });
+
+  it("creates non-risk auto-save commits only when markdown content changed", async () => {
+    const workspacePath = await createWorkspace("autosave");
+    const service = createGitCollaborationService();
+
+    const firstCommit = await service.recordAutoSaveCommit(workspacePath);
+    expect(firstCommit).toBe(false);
+
+    await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nchanged\n", "utf8");
+    const secondCommit = await service.recordAutoSaveCommit(workspacePath);
+    expect(secondCommit).toBe(true);
+
+    const commits = await service.listCommitHistory(workspacePath, "README.md");
+    expect(commits[0]?.subject).toBe("auto-save");
   });
 
   it("reports publish states as published, unpublished changes, and never published", async () => {

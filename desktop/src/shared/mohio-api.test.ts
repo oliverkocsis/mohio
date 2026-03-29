@@ -40,9 +40,8 @@ describe("createMohioApi", () => {
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
     });
-    const createCheckpoint = vi.fn().mockResolvedValue(null);
-    const createAiChangeCheckpoint = vi.fn().mockResolvedValue(null);
-    const listCheckpoints = vi.fn().mockResolvedValue([]);
+    const recordRiskyCommit = vi.fn().mockResolvedValue(false);
+    const recordAutoSaveCommit = vi.fn().mockResolvedValue(false);
     const listCommitHistory = vi.fn().mockResolvedValue([]);
     const getUnpublishedDiff = vi.fn().mockResolvedValue({
       relativePath: "README.md",
@@ -50,13 +49,6 @@ describe("createMohioApi", () => {
       patch: "",
       message: null,
     });
-    const getCheckpointDiff = vi.fn().mockResolvedValue({
-      fromCheckpointId: "a",
-      toCheckpointId: "b",
-      relativePath: "README.md",
-      patch: "",
-    });
-    const revertToCheckpoint = vi.fn().mockResolvedValue(undefined);
     const getPublishSummary = vi.fn().mockResolvedValue({
       documents: [],
       unpublishedCount: 0,
@@ -153,13 +145,10 @@ describe("createMohioApi", () => {
       createDocument,
       deleteDocument,
       saveDocument,
-      createCheckpoint,
-      createAiChangeCheckpoint,
-      listCheckpoints,
+      recordRiskyCommit,
+      recordAutoSaveCommit,
       listCommitHistory,
       getUnpublishedDiff,
-      getCheckpointDiff,
-      revertToCheckpoint,
       getPublishSummary,
       publishWorkspaceChanges,
       syncIncomingChanges,
@@ -194,12 +183,10 @@ describe("createMohioApi", () => {
       titleMode: "h1-linked",
     });
     await expect(api.deleteDocument("README.md")).resolves.toBeUndefined();
-    await expect(api.createCheckpoint({
-      reason: "checkpoint",
+    await expect(api.recordRiskyCommit({
       trigger: "manual",
-    })).resolves.toBeNull();
-    await expect(api.createAiChangeCheckpoint("README.md", "before ai apply")).resolves.toBeNull();
-    await expect(api.listCheckpoints("README.md")).resolves.toEqual([]);
+    })).resolves.toBe(false);
+    await expect(api.recordAutoSaveCommit()).resolves.toBe(false);
     await expect(api.listCommitHistory("README.md")).resolves.toEqual([]);
     await expect(api.getUnpublishedDiff("README.md")).resolves.toEqual({
       relativePath: "README.md",
@@ -207,20 +194,6 @@ describe("createMohioApi", () => {
       patch: "",
       message: null,
     });
-    await expect(api.getCheckpointDiff({
-      fromCheckpointId: "a",
-      toCheckpointId: "b",
-      relativePath: "README.md",
-    })).resolves.toEqual({
-      fromCheckpointId: "a",
-      toCheckpointId: "b",
-      relativePath: "README.md",
-      patch: "",
-    });
-    await expect(api.revertToCheckpoint({
-      checkpointId: "a",
-      relativePath: "README.md",
-    })).resolves.toBeUndefined();
     await expect(api.getPublishSummary()).resolves.toEqual({
       documents: [],
       unpublishedCount: 0,
@@ -330,23 +303,12 @@ describe("createMohioApi", () => {
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
     expect(deleteDocument).toHaveBeenCalledWith("README.md");
-    expect(createCheckpoint).toHaveBeenCalledWith({
-      reason: "checkpoint",
+    expect(recordRiskyCommit).toHaveBeenCalledWith({
       trigger: "manual",
     });
-    expect(createAiChangeCheckpoint).toHaveBeenCalledWith("README.md", "before ai apply");
-    expect(listCheckpoints).toHaveBeenCalledWith("README.md");
+    expect(recordAutoSaveCommit).toHaveBeenCalledTimes(1);
     expect(listCommitHistory).toHaveBeenCalledWith("README.md");
     expect(getUnpublishedDiff).toHaveBeenCalledWith("README.md");
-    expect(getCheckpointDiff).toHaveBeenCalledWith({
-      fromCheckpointId: "a",
-      toCheckpointId: "b",
-      relativePath: "README.md",
-    });
-    expect(revertToCheckpoint).toHaveBeenCalledWith({
-      checkpointId: "a",
-      relativePath: "README.md",
-    });
     expect(getPublishSummary).toHaveBeenCalledTimes(1);
     expect(publishWorkspaceChanges).toHaveBeenCalledTimes(1);
     expect(syncIncomingChanges).toHaveBeenCalledWith("manual");

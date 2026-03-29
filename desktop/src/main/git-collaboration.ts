@@ -1,21 +1,16 @@
-import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { resolveWorkspacePath } from "./document-store";
 import type {
-  CheckpointDiff,
-  CheckpointDiffInput,
   CommitHistoryEntry,
-  CheckpointSummary,
-  CheckpointTrigger,
-  CreateCheckpointInput,
   DocumentPublishState,
   DocumentPublishStatus,
   PublishResult,
   PublishSummary,
+  RecordRiskyCommitInput,
   ResolveConflictInput,
-  RevertToCheckpointInput,
   SyncConflict,
   SyncState,
   UnpublishedDiffResult,
@@ -24,17 +19,8 @@ import type {
 
 const execFileAsync = promisify(execFile);
 const MARKDOWN_PATHS = ["*.md", "*.markdown", "*.mdx"];
-const CHECKPOINT_MIN_LINE_DELTA = 3;
-
-interface CheckpointRecord {
-  id: string;
-  createdAt: string;
-  reason: string;
-  trigger: CheckpointTrigger;
-  commit: string;
-  ref: string;
-  touchedDocuments: string[];
-}
+const MIN_RISKY_LINE_DELTA = 3;
+const legacyCheckpointCleanupDone = new Set<string>();
 
 const defaultSyncState: SyncState = {
   status: "idle",
@@ -45,7 +31,7 @@ const defaultSyncState: SyncState = {
 };
 
 export function createGitCollaborationService() {
-  const lastCheckpointFingerprintByWorkspace = new Map<string, string>();
+  const lastCommittedFingerprintByWorkspace = new Map<string, string>();
   const syncStateByWorkspace = new Map<string, SyncState>();
 
   const getSyncState = async (workspacePath: string): Promise<SyncState> => {
@@ -53,86 +39,25 @@ export function createGitCollaborationService() {
     return syncStateByWorkspace.get(workspacePath) ?? defaultSyncState;
   };
 
-  const createCheckpoint = async (
+  const recordRiskyCommit = async (
     workspacePath: string,
-    input: CreateCheckpointInput,
-  ): Promise<CheckpointSummary | null> => {
+    input: RecordRiskyCommitInput,
+  ): Promise<boolean> => {
     await ensureGitWorkspace(workspacePath);
-
-    const material = await getMaterialChanges(workspacePath);
-    if (!input.force) {
-      if (!material.hasChanges || material.lineDelta < CHECKPOINT_MIN_LINE_DELTA) {
-        return null;
-      }
-
-      const previousFingerprint = lastCheckpointFingerprintByWorkspace.get(workspacePath);
-      if (previousFingerprint && previousFingerprint === material.fingerprint) {
-        return null;
-      }
-    }
-
-    const stashResult = await runGit(
-      workspacePath,
-      ["stash", "create", `mohio checkpoint ${input.trigger}`],
-      { allowFailure: true },
-    );
-    const commit = stashResult.stdout.trim();
-
-    if (!commit) {
-      return null;
-    }
-
-    const checkpointId = buildCheckpointId();
-    const checkpointRef = `refs/mohio/checkpoints/${checkpointId}`;
-    await runGit(workspacePath, ["update-ref", checkpointRef, commit]);
-
-    const touchedDocuments = await listCommitDocuments(workspacePath, commit);
-    const record: CheckpointRecord = {
-      id: checkpointId,
-      createdAt: new Date().toISOString(),
-      reason: input.reason,
-      trigger: input.trigger,
-      commit,
-      ref: checkpointRef,
-      touchedDocuments,
-    };
-
-    await appendCheckpointRecord(workspacePath, record);
-    lastCheckpointFingerprintByWorkspace.set(workspacePath, material.fingerprint);
-
-    return mapCheckpointRecord(record);
-  };
-
-  const createAiChangeCheckpoint = async (
-    workspacePath: string,
-    relativePath: string,
-    reason: string,
-  ) => {
-    return createCheckpoint(workspacePath, {
-      reason,
-      trigger: "ai-change",
-      force: true,
-      relativePath,
+    return writeCommit(workspacePath, {
+      force: input.force,
+      message: "checkpoint",
+      minLineDelta: input.force ? 0 : MIN_RISKY_LINE_DELTA,
     });
   };
 
-  const listCheckpoints = async (
-    workspacePath: string,
-    relativePath: string | null,
-  ): Promise<CheckpointSummary[]> => {
+  const recordAutoSaveCommit = async (workspacePath: string): Promise<boolean> => {
     await ensureGitWorkspace(workspacePath);
-    const checkpoints = await readCheckpointRecords(workspacePath);
-
-    return checkpoints
-      .filter((checkpoint) => {
-        if (!relativePath) {
-          return true;
-        }
-
-        return checkpoint.touchedDocuments.includes(relativePath);
-      })
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-      .map(mapCheckpointRecord);
+    return writeCommit(workspacePath, {
+      force: false,
+      message: "auto-save",
+      minLineDelta: 0,
+    });
   };
 
   const listCommitHistory = async (
@@ -144,6 +69,7 @@ export function createGitCollaborationService() {
       "log",
       "--date=iso-strict",
       "--pretty=format:%H%x1f%h%x1f%cI%x1f%s",
+      "--shortstat",
       "-n",
       "100",
     ];
@@ -157,19 +83,46 @@ export function createGitCollaborationService() {
       return [];
     }
 
-    return logResult.stdout
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
+    const commits: CommitHistoryEntry[] = [];
+    let currentEntry: CommitHistoryEntry | null = null;
+
+    for (const line of logResult.stdout.split("\n")) {
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        if (currentEntry) {
+          commits.push(currentEntry);
+          currentEntry = null;
+        }
+        continue;
+      }
+
+      if (line.includes("\u001f")) {
+        if (currentEntry) {
+          commits.push(currentEntry);
+        }
+
         const [sha, shortSha, authoredAt, subject] = line.split("\u001f");
-        return {
+        currentEntry = {
           sha,
           shortSha,
           authoredAt,
           subject,
-        } satisfies CommitHistoryEntry;
-      });
+          shortStat: null,
+        };
+        continue;
+      }
+
+      if (currentEntry && isShortStatLine(trimmed)) {
+        currentEntry.shortStat = trimmed;
+      }
+    }
+
+    if (currentEntry) {
+      commits.push(currentEntry);
+    }
+
+    return commits;
   };
 
   const getUnpublishedDiff = async (
@@ -215,60 +168,49 @@ export function createGitCollaborationService() {
     };
   };
 
-  const getCheckpointDiff = async (
+  const writeCommit = async (
     workspacePath: string,
-    input: CheckpointDiffInput,
-  ): Promise<CheckpointDiff> => {
-    await ensureGitWorkspace(workspacePath);
-    const checkpoints = await readCheckpointRecords(workspacePath);
-    const fromCheckpoint = checkpoints.find((checkpoint) => checkpoint.id === input.fromCheckpointId);
-    const toCheckpoint = checkpoints.find((checkpoint) => checkpoint.id === input.toCheckpointId);
-
-    if (!fromCheckpoint || !toCheckpoint) {
-      throw new Error("Mohio could not find one of the selected checkpoints.");
+    options: { force?: boolean; message: "auto-save" | "checkpoint"; minLineDelta: number },
+  ): Promise<boolean> => {
+    const material = await getMaterialChanges(workspacePath);
+    if (!material.hasChanges) {
+      return false;
     }
 
-    const diffResult = await runGit(workspacePath, [
-      "diff",
-      fromCheckpoint.commit,
-      toCheckpoint.commit,
+    const previousFingerprint = lastCommittedFingerprintByWorkspace.get(workspacePath);
+    if (previousFingerprint && previousFingerprint === material.fingerprint) {
+      return false;
+    }
+
+    if (!options.force && material.lineDelta < options.minLineDelta) {
+      return false;
+    }
+
+    if (material.changedPaths.length === 0) {
+      return false;
+    }
+
+    await runGit(workspacePath, ["add", "-A", "--", ...material.changedPaths]);
+    const stagedResult = await runGit(
+      workspacePath,
+      ["diff", "--cached", "--name-only", "--", ...material.changedPaths],
+      { allowFailure: true },
+    );
+
+    if (stagedResult.code !== 0 || !stagedResult.stdout.trim()) {
+      return false;
+    }
+
+    await runGit(workspacePath, [
+      "commit",
+      "-m",
+      options.message,
+      "--only",
       "--",
-      input.relativePath,
+      ...material.changedPaths,
     ]);
-
-    return {
-      fromCheckpointId: input.fromCheckpointId,
-      toCheckpointId: input.toCheckpointId,
-      relativePath: input.relativePath,
-      patch: diffResult.stdout,
-    };
-  };
-
-  const revertToCheckpoint = async (
-    workspacePath: string,
-    input: RevertToCheckpointInput,
-  ): Promise<void> => {
-    await ensureGitWorkspace(workspacePath);
-    const checkpoints = await readCheckpointRecords(workspacePath);
-    const checkpoint = checkpoints.find((entry) => entry.id === input.checkpointId);
-
-    if (!checkpoint) {
-      throw new Error("Mohio could not find the selected checkpoint.");
-    }
-
-    await createCheckpoint(workspacePath, {
-      reason: `Before revert ${input.relativePath}`,
-      trigger: "revert",
-      force: true,
-      relativePath: input.relativePath,
-    });
-
-    const fileContents = await runGit(workspacePath, [
-      "show",
-      `${checkpoint.commit}:${input.relativePath}`,
-    ]);
-    const absolutePath = resolveWorkspacePath(workspacePath, input.relativePath);
-    await fs.writeFile(absolutePath, fileContents.stdout, "utf8");
+    lastCommittedFingerprintByWorkspace.set(workspacePath, material.fingerprint);
+    return true;
   };
 
   const getPublishSummary = async (
@@ -296,37 +238,23 @@ export function createGitCollaborationService() {
 
   const publishWorkspaceChanges = async (workspacePath: string): Promise<PublishResult> => {
     await ensureGitWorkspace(workspacePath);
-
-    await createCheckpoint(workspacePath, {
-      reason: "Before publish",
+    const committed = await recordRiskyCommit(workspacePath, {
       trigger: "publish",
       force: true,
     });
 
-    await runGit(workspacePath, ["add", "-A", "--", ...MARKDOWN_PATHS]);
-    const stagedResult = await runGit(workspacePath, [
-      "diff",
-      "--cached",
-      "--name-only",
-      "--",
-      ...MARKDOWN_PATHS,
-    ]);
-
-    if (!stagedResult.stdout.trim()) {
-      return {
-        committed: false,
-        commitSha: null,
-        publishedAt: null,
-        message: "No unpublished Markdown changes were ready to publish.",
-      };
-    }
-
-    const publishedAt = new Date().toISOString();
-    const shortDate = publishedAt.slice(0, 10);
-    await runGit(workspacePath, ["commit", "-m", `Publish Mohio updates (${shortDate})`]);
-
     const upstream = await getUpstreamBranch(workspacePath);
     if (upstream) {
+      const aheadCount = await getAheadCommitCount(workspacePath, upstream);
+      if (aheadCount === 0) {
+        return {
+          committed,
+          commitSha: null,
+          publishedAt: null,
+          message: "No local commits were ready to publish.",
+        };
+      }
+
       await runGit(workspacePath, ["push"]);
     } else {
       const branchResult = await runGit(workspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]);
@@ -337,10 +265,10 @@ export function createGitCollaborationService() {
     const shaResult = await runGit(workspacePath, ["rev-parse", "HEAD"]);
 
     return {
-      committed: true,
+      committed,
       commitSha: shaResult.stdout.trim(),
       publishedAt,
-      message: "Published your Markdown updates.",
+      message: "Published your local commits.",
     };
   };
 
@@ -390,23 +318,18 @@ export function createGitCollaborationService() {
       message: `Applying ${behindCount} incoming update${behindCount === 1 ? "" : "s"}.`,
     });
 
-    await createCheckpoint(workspacePath, {
-      reason: "Before applying incoming updates",
+    await recordRiskyCommit(workspacePath, {
       trigger: "sync-before",
       force: true,
     });
 
-    const mergeResult = await runGit(workspacePath, ["merge", "--no-ff", "--no-edit", upstream], {
+    const mergeResult = await runGit(workspacePath, ["merge", "--no-ff", "--no-commit", upstream], {
       allowFailure: true,
     });
 
     if (mergeResult.code === 0) {
+      await runGit(workspacePath, ["commit", "-m", "checkpoint"]);
       const appliedAt = new Date().toISOString();
-      await createCheckpoint(workspacePath, {
-        reason: "After applying incoming updates",
-        trigger: "sync-after",
-        force: true,
-      });
       const state: SyncState = {
         ...defaultSyncState,
         status: "idle",
@@ -476,12 +399,7 @@ export function createGitCollaborationService() {
       return state;
     }
 
-    await runGit(workspacePath, ["commit", "--no-edit"]);
-    await createCheckpoint(workspacePath, {
-      reason: "After resolving incoming update conflicts",
-      trigger: "sync-after",
-      force: true,
-    });
+    await runGit(workspacePath, ["commit", "-m", "checkpoint"]);
 
     const resolvedState: SyncState = {
       ...defaultSyncState,
@@ -495,13 +413,10 @@ export function createGitCollaborationService() {
   };
 
   return {
-    createCheckpoint,
-    createAiChangeCheckpoint,
-    listCheckpoints,
+    recordRiskyCommit,
+    recordAutoSaveCommit,
     listCommitHistory,
     getUnpublishedDiff,
-    getCheckpointDiff,
-    revertToCheckpoint,
     getPublishSummary,
     publishWorkspaceChanges,
     syncIncomingChanges,
@@ -555,11 +470,18 @@ async function ensureGitWorkspace(workspacePath: string): Promise<void> {
   if (gitCheck.code !== 0 || gitCheck.stdout.trim() !== "true") {
     throw new Error("Mohio needs a valid Git workspace to use history, publish, and sync.");
   }
+
+  if (legacyCheckpointCleanupDone.has(workspacePath)) {
+    return;
+  }
+
+  await cleanupLegacyCheckpointArtifacts(workspacePath);
+  legacyCheckpointCleanupDone.add(workspacePath);
 }
 
 async function getMaterialChanges(
   workspacePath: string,
-): Promise<{ hasChanges: boolean; lineDelta: number; fingerprint: string }> {
+): Promise<{ hasChanges: boolean; lineDelta: number; fingerprint: string; changedPaths: string[] }> {
   const status = await runGit(workspacePath, ["status", "--porcelain", "--", ...MARKDOWN_PATHS]);
   const fingerprint = status.stdout.trim();
 
@@ -568,8 +490,24 @@ async function getMaterialChanges(
       hasChanges: false,
       lineDelta: 0,
       fingerprint: "",
+      changedPaths: [],
     };
   }
+
+  const changedPaths = status.stdout
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).trim())
+    .map((pathspec) => {
+      if (!pathspec.includes(" -> ")) {
+        return pathspec;
+      }
+
+      const [, nextPath] = pathspec.split(" -> ");
+      return (nextPath ?? pathspec).trim();
+    })
+    .filter(Boolean);
 
   const diff = await runGit(workspacePath, ["diff", "--numstat", "HEAD", "--", ...MARKDOWN_PATHS]);
   const lineDelta = diff.stdout
@@ -587,67 +525,39 @@ async function getMaterialChanges(
     hasChanges: true,
     lineDelta,
     fingerprint,
+    changedPaths,
   };
 }
 
-function buildCheckpointId(): string {
-  return `cp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+async function getAheadCommitCount(workspacePath: string, upstream: string): Promise<number> {
+  const aheadBehind = await runGit(workspacePath, ["rev-list", "--left-right", "--count", `HEAD...${upstream}`]);
+  const [aheadRaw] = aheadBehind.stdout.trim().split(/\s+/);
+  const aheadCount = Number.parseInt(aheadRaw ?? "0", 10);
+  return Number.isFinite(aheadCount) ? aheadCount : 0;
 }
 
-async function listCommitDocuments(workspacePath: string, commit: string): Promise<string[]> {
-  const treeResult = await runGit(workspacePath, ["show", "--name-only", "--pretty=format:", commit]);
+function isShortStatLine(line: string): boolean {
+  return line.includes(" file changed")
+    || line.includes(" files changed");
+}
 
-  return treeResult.stdout
+async function cleanupLegacyCheckpointArtifacts(workspacePath: string): Promise<void> {
+  const refs = await runGit(
+    workspacePath,
+    ["for-each-ref", "--format=%(refname)", "refs/mohio/checkpoints"],
+    { allowFailure: true },
+  );
+  const refNames = refs.stdout
     .trim()
     .split("\n")
-    .map((entry) => entry.trim())
+    .map((line) => line.trim())
     .filter(Boolean);
-}
 
-async function appendCheckpointRecord(workspacePath: string, record: CheckpointRecord): Promise<void> {
-  const metadataPath = getCheckpointMetadataPath(workspacePath);
-  await fs.mkdir(path.dirname(metadataPath), { recursive: true });
-  await fs.appendFile(metadataPath, `${JSON.stringify(record)}\n`, "utf8");
-}
-
-async function readCheckpointRecords(workspacePath: string): Promise<CheckpointRecord[]> {
-  const metadataPath = getCheckpointMetadataPath(workspacePath);
-  let content = "";
-
-  try {
-    content = await fs.readFile(metadataPath, "utf8");
-  } catch {
-    return [];
+  for (const refName of refNames) {
+    await runGit(workspacePath, ["update-ref", "-d", refName], { allowFailure: true });
   }
 
-  return content
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      try {
-        return JSON.parse(line) as CheckpointRecord;
-      } catch {
-        return null;
-      }
-    })
-    .filter((value): value is CheckpointRecord => Boolean(value));
-}
-
-function getCheckpointMetadataPath(workspacePath: string): string {
-  return path.join(workspacePath, ".git", "mohio", "checkpoints.jsonl");
-}
-
-function mapCheckpointRecord(record: CheckpointRecord): CheckpointSummary {
-  return {
-    id: record.id,
-    createdAt: record.createdAt,
-    reason: record.reason,
-    trigger: record.trigger,
-    commit: record.commit,
-    ref: record.ref,
-    touchedDocuments: record.touchedDocuments,
-  };
+  await fs.rm(path.join(workspacePath, ".git", "mohio"), { recursive: true, force: true });
 }
 
 async function getUpstreamBranch(workspacePath: string): Promise<string | null> {

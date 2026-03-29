@@ -209,10 +209,42 @@ button {
   color: var(--text-secondary);
 }
 
+.sidebar-tab__icon {
+  width: 14px;
+  height: 14px;
+}
+
 .sidebar-tab--active {
   border-color: rgba(37, 99, 235, 0.25);
   background: var(--accent-blue-soft);
   color: var(--accent-blue);
+}
+
+.sidebar-tabs--full-width {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.sidebar-tab--full-width {
+  flex: 1;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.sidebar-tab--full-width + .sidebar-tab--full-width {
+  border-left: 1px solid var(--border);
+}
+
+.sidebar-tab--full-width.sidebar-tab--active {
+  border-color: transparent;
+  background: var(--accent-blue-soft);
 }
 
 .sidebar-tab__badge {
@@ -228,8 +260,7 @@ button {
   font-weight: 700;
 }
 
-.sidebar__title,
-.assistant-panel__label {
+.sidebar__title {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
@@ -897,11 +928,6 @@ button {
   color: var(--text-primary);
 }
 
-.assistant-panel__new-chat {
-  padding: 0;
-  font-size: 0;
-}
-
 .assistant-panel__text-icon-button {
   display: inline-flex;
   align-items: center;
@@ -919,11 +945,6 @@ button {
 .assistant-panel__icon {
   width: 16px;
   height: 16px;
-}
-
-.assistant-panel__icon--new-chat {
-  width: 18px;
-  height: 18px;
 }
 
 .assistant-panel__menu {
@@ -1030,8 +1051,7 @@ button {
   padding-right: 2px;
 }
 
-.history-commit-list,
-.history-checkpoint-list {
+.history-commit-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1046,17 +1066,14 @@ button {
 .history-commit-list__items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .history-commit-list__item {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  padding: 8px 10px;
+  padding: 8px 0;
 }
 
 .history-commit-list__subject,
@@ -1073,74 +1090,6 @@ button {
   margin-top: 4px;
   font-size: 11px;
   color: var(--text-muted);
-}
-
-.history-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.history-timeline__item {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--background);
-  padding: 10px;
-}
-
-.history-timeline__reason,
-.history-timeline__meta {
-  margin: 0;
-}
-
-.history-timeline__reason {
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-.history-timeline__meta {
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.history-timeline__revert-button {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  padding: 4px 8px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.history-compare {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 8px;
-}
-
-.history-compare__label {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.history-compare__select {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  padding: 8px 10px;
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-.history-compare__button {
-  align-self: flex-start;
-  margin-top: 4px;
 }
 
 .history-diff-output {

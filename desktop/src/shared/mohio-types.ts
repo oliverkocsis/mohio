@@ -77,7 +77,7 @@ export interface PublishSummary {
   unpublishedTree: WorkspaceTreeNode[];
 }
 
-export type CheckpointTrigger =
+export type RiskyCommitTrigger =
   | "ai-change"
   | "document-switch"
   | "idle-burst"
@@ -90,21 +90,10 @@ export type CheckpointTrigger =
   | "manual"
   | "revert";
 
-export interface CreateCheckpointInput {
-  reason: string;
-  trigger: CheckpointTrigger;
+export interface RecordRiskyCommitInput {
+  trigger: RiskyCommitTrigger;
   force?: boolean;
   relativePath?: string;
-}
-
-export interface CheckpointSummary {
-  id: string;
-  createdAt: string;
-  reason: string;
-  trigger: CheckpointTrigger;
-  commit: string;
-  ref: string;
-  touchedDocuments: string[];
 }
 
 export interface CommitHistoryEntry {
@@ -112,6 +101,7 @@ export interface CommitHistoryEntry {
   shortSha: string;
   subject: string;
   authoredAt: string;
+  shortStat: string | null;
 }
 
 export interface UnpublishedDiffResult {
@@ -119,24 +109,6 @@ export interface UnpublishedDiffResult {
   hasRemoteVersion: boolean;
   patch: string;
   message: string | null;
-}
-
-export interface CheckpointDiffInput {
-  fromCheckpointId: string;
-  toCheckpointId: string;
-  relativePath: string;
-}
-
-export interface CheckpointDiff {
-  fromCheckpointId: string;
-  toCheckpointId: string;
-  relativePath: string;
-  patch: string;
-}
-
-export interface RevertToCheckpointInput {
-  checkpointId: string;
-  relativePath: string;
 }
 
 export interface PublishResult {
@@ -237,13 +209,10 @@ export interface MohioApi {
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
-  createCheckpoint: (input: CreateCheckpointInput) => Promise<CheckpointSummary | null>;
-  createAiChangeCheckpoint: (relativePath: string, reason: string) => Promise<CheckpointSummary | null>;
-  listCheckpoints: (relativePath: string | null) => Promise<CheckpointSummary[]>;
+  recordRiskyCommit: (input: RecordRiskyCommitInput) => Promise<boolean>;
+  recordAutoSaveCommit: () => Promise<boolean>;
   listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
   getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
-  getCheckpointDiff: (input: CheckpointDiffInput) => Promise<CheckpointDiff>;
-  revertToCheckpoint: (input: RevertToCheckpointInput) => Promise<void>;
   getPublishSummary: () => Promise<PublishSummary>;
   publishWorkspaceChanges: () => Promise<PublishResult>;
   syncIncomingChanges: (reason: string) => Promise<SyncState>;
