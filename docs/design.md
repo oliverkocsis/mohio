@@ -24,7 +24,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 
 ### Top Bar
 
-- Height: `56px`
+- Height: `48px`
 - Purpose: workspace selection and search placeholder
 - Rules:
   - keep the workspace selector prominent
@@ -56,7 +56,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Rules:
   - keep the panel visually secondary to the editor
   - start with a dedicated session-list screen instead of mixing history and transcript together
-  - keep the list-view header minimal and use one clear `New Chat` action
+  - keep the list-view header minimal (tab header only)
   - use a detail header with back navigation, thread title, and a compact overflow menu
   - keep header icon controls lightweight, without bordered icon chrome for back, new-chat, or chat-menu actions
   - avoid bubble chrome for assistant answers; render them as full-width left-aligned note-style responses
@@ -129,7 +129,8 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Only include actions that work today
 - Group controls by formatting type
 - Prefer compact icon buttons and short heading buttons over large segmented chrome
-- Use `lucide-react` consistently for shared shell and editor icons
+- Use `lucide-react` consistently for shared shell and editor icons.
+- Use only icons from [Lucide](https://lucide.dev/icons/) and do not add custom hand-authored SVG icon shapes in the renderer.
 
 ### Title Input
 
@@ -145,8 +146,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Assistant Panel
 
 - show Codex chats as a simple first-stage text list of selectable titles
-- use a single clear `New Chat` action in the list view instead of mode-heavy controls
-- use `message-square-plus` for the list-view `New Chat` action
+- do not show a separate `New Chat` button in list view; sending from footer starts a new thread automatically
 - when a thread is open, show back navigation and thread-level actions instead of the history list
 - keep the assistant footer pinned to the bottom of the right sidebar in both list and thread views
 - Keep user prompts compact, but render assistant answers as full-width left-aligned responses

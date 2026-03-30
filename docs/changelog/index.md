@@ -4,6 +4,7 @@ This section is developer-facing. It records Mohio's shipped changes, their cont
 
 ## Current Entries
 
+- [2026-03-28: Git-Backed Collaboration Workflow](feature-20260328-git-backed-collaboration-workflow.md)
 - [2026-03-26: Note and Document Management](feature-20260326-note-and-document-management.md)
 - [2026-03-22: Replace Quill with CodeMirror Markdown Editor](feature-20260322-replace-quill-with-codemirror-markdown-editor.md)
 - [2026-03-21: Workspace File System Integration](feature-20260321-workspace-file-system-integration.md)

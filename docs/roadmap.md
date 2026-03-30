@@ -93,6 +93,12 @@ Text based canvas for freeform note-taking, brainstorming, and visual organizati
 - Conflict resolution options: review changes side-by-side, keep one version, or manually combine them in the editor.
 - Explain conflicts in product language (what happened and what the options mean) without using technical Git terms.
 
+### Git v2
+- Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
+- When the user clicks on the Publish and there is not remote git repo, then prompt the user to connect a remote git repository (GitHub, GitLab, Bitbucket, or custom).
+- The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
+- The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
+
 
 ### 9. Collaboration and Change Awareness
 

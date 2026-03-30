@@ -40,6 +40,47 @@ describe("createMohioApi", () => {
       ...document,
       savedAt: "2026-03-21T00:00:00.000Z",
     });
+    const recordRiskyCommit = vi.fn().mockResolvedValue(false);
+    const recordAutoSaveCommit = vi.fn().mockResolvedValue(false);
+    const listCommitHistory = vi.fn().mockResolvedValue([]);
+    const getUnpublishedDiff = vi.fn().mockResolvedValue({
+      relativePath: "README.md",
+      hasRemoteVersion: true,
+      patch: "",
+      message: null,
+    });
+    const getPublishSummary = vi.fn().mockResolvedValue({
+      documents: [],
+      unpublishedCount: 0,
+      unpublishedTree: [],
+    });
+    const publishWorkspaceChanges = vi.fn().mockResolvedValue({
+      committed: false,
+      commitSha: null,
+      publishedAt: null,
+      message: "No unpublished Markdown changes were ready to publish.",
+    });
+    const syncIncomingChanges = vi.fn().mockResolvedValue({
+      status: "idle" as const,
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    const getSyncState = vi.fn().mockResolvedValue({
+      status: "idle" as const,
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    const resolveSyncConflict = vi.fn().mockResolvedValue({
+      status: "idle" as const,
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
     const watchDocument = vi.fn().mockResolvedValue(undefined);
     const listAssistantThreads = vi.fn().mockResolvedValue([
       {
@@ -104,6 +145,15 @@ describe("createMohioApi", () => {
       createDocument,
       deleteDocument,
       saveDocument,
+      recordRiskyCommit,
+      recordAutoSaveCommit,
+      listCommitHistory,
+      getUnpublishedDiff,
+      getPublishSummary,
+      publishWorkspaceChanges,
+      syncIncomingChanges,
+      getSyncState,
+      resolveSyncConflict,
       watchDocument,
       listAssistantThreads,
       createAssistantThread,
@@ -133,6 +183,52 @@ describe("createMohioApi", () => {
       titleMode: "h1-linked",
     });
     await expect(api.deleteDocument("README.md")).resolves.toBeUndefined();
+    await expect(api.recordRiskyCommit({
+      trigger: "manual",
+    })).resolves.toBe(false);
+    await expect(api.recordAutoSaveCommit()).resolves.toBe(false);
+    await expect(api.listCommitHistory("README.md")).resolves.toEqual([]);
+    await expect(api.getUnpublishedDiff("README.md")).resolves.toEqual({
+      relativePath: "README.md",
+      hasRemoteVersion: true,
+      patch: "",
+      message: null,
+    });
+    await expect(api.getPublishSummary()).resolves.toEqual({
+      documents: [],
+      unpublishedCount: 0,
+      unpublishedTree: [],
+    });
+    await expect(api.publishWorkspaceChanges()).resolves.toEqual({
+      committed: false,
+      commitSha: null,
+      publishedAt: null,
+      message: "No unpublished Markdown changes were ready to publish.",
+    });
+    await expect(api.syncIncomingChanges("manual")).resolves.toEqual({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    await expect(api.getSyncState()).resolves.toEqual({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
+    await expect(api.resolveSyncConflict({
+      relativePath: "README.md",
+      resolution: "keep-local",
+    })).resolves.toEqual({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    });
     await expect(api.saveDocument({
       relativePath: "README.md",
       title: "README",
@@ -207,6 +303,20 @@ describe("createMohioApi", () => {
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
     expect(deleteDocument).toHaveBeenCalledWith("README.md");
+    expect(recordRiskyCommit).toHaveBeenCalledWith({
+      trigger: "manual",
+    });
+    expect(recordAutoSaveCommit).toHaveBeenCalledTimes(1);
+    expect(listCommitHistory).toHaveBeenCalledWith("README.md");
+    expect(getUnpublishedDiff).toHaveBeenCalledWith("README.md");
+    expect(getPublishSummary).toHaveBeenCalledTimes(1);
+    expect(publishWorkspaceChanges).toHaveBeenCalledTimes(1);
+    expect(syncIncomingChanges).toHaveBeenCalledWith("manual");
+    expect(getSyncState).toHaveBeenCalledTimes(1);
+    expect(resolveSyncConflict).toHaveBeenCalledWith({
+      relativePath: "README.md",
+      resolution: "keep-local",
+    });
     expect(saveDocument).toHaveBeenCalledWith({
       relativePath: "README.md",
       title: "README",

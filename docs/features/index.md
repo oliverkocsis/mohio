@@ -10,3 +10,5 @@ This section is developer-facing. It documents Mohio's current implementation an
   - Electron shell, preload bridge, workspace selection, and workspace tree behavior
 - [Document Editing and Persistence](document-editing-and-persistence.md)
   - Markdown parsing, rich-text editing, autosave, and file-change handling
+- [Review, History, Publish, and Sync](review-history-publish-and-sync.md)
+  - Git-backed checkpoints, publish visibility, and incoming-change conflict guidance

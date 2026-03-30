@@ -61,6 +61,47 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     saveDocument: async () => {
       throw new Error("No document");
     },
+    recordRiskyCommit: async () => false,
+    recordAutoSaveCommit: async () => false,
+    listCommitHistory: async () => [],
+    getUnpublishedDiff: async (relativePath) => ({
+      relativePath,
+      hasRemoteVersion: true,
+      patch: "",
+      message: null,
+    }),
+    getPublishSummary: async () => ({
+      documents: [],
+      unpublishedCount: 0,
+      unpublishedTree: [],
+    }),
+    publishWorkspaceChanges: async () => ({
+      committed: false,
+      commitSha: null,
+      publishedAt: null,
+      message: "",
+    }),
+    syncIncomingChanges: async () => ({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    }),
+    getSyncState: async () => ({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    }),
+    resolveSyncConflict: async () => ({
+      status: "idle",
+      lastCheckedAt: null,
+      lastAppliedAt: null,
+      message: null,
+      conflicts: [],
+    }),
     watchDocument: async () => undefined,
     listAssistantThreads: async () => [],
     createAssistantThread: async () => createAssistantThread("thread-1"),
@@ -104,17 +145,15 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Open Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New Note" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Heading 1" })).not.toBeInTheDocument();
-    expect(screen.getByText("Assistant")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Assistant" })).toBeInTheDocument();
     expect(screen.getByText("Open a workspace to chat with the assistant")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New Chat" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "New Chat" })).not.toBeInTheDocument();
     expect(screen.queryByText("Codex chat")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Open a workspace to start chatting with Codex inside Mohio."),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Summarize this note" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Assistant composer")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send message" })).not.toBeInTheDocument();
   });
 
   it("renders the workspace tree, switches workspaces, and loads note assistant state", async () => {
@@ -945,7 +984,7 @@ describe("App", () => {
 
       expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture Overview");
       expect(getAssistantThread).not.toHaveBeenCalled();
-      expect(screen.getByRole("button", { name: "New Chat" })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: "New Chat" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Architecture follow-up/ })).toBeInTheDocument();
 
       await act(async () => {
@@ -961,7 +1000,7 @@ describe("App", () => {
         fireEvent.change(screen.getByTestId("assistant-composer-input"), {
           target: { value: "What changed here?" },
         });
-        fireEvent.click(screen.getByRole("button", { name: "Send" }));
+        fireEvent.click(screen.getByRole("button", { name: "Send message" }));
       });
 
       expect(sendAssistantMessage).toHaveBeenCalledWith({
@@ -973,8 +1012,6 @@ describe("App", () => {
       });
       expect(await screen.findByText("What changed here?")).toBeInTheDocument();
       expect(screen.getByText("Thinking...")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Summarize this note" })).toBeDisabled();
 
       await act(async () => {
         onAssistantEventListener?.({
@@ -1042,7 +1079,6 @@ describe("App", () => {
 
       expect(screen.getByText("Here is the streamed answer. It stays visible.")).toBeInTheDocument();
       expect(screen.queryByText("Thinking...")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
 
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: "Back to chats" }));
@@ -1101,7 +1137,10 @@ describe("App", () => {
       expect(screen.getByRole("heading", { name: "New Chat" })).toBeInTheDocument();
 
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Summarize this note" }));
+        fireEvent.change(screen.getByTestId("assistant-composer-input"), {
+          target: { value: "Summarize this note" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Send message" }));
       });
 
       expect(sendAssistantMessage).toHaveBeenLastCalledWith({
@@ -1189,11 +1228,13 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByLabelText("Document title")).toHaveValue("Architecture Overview");
-    expect(screen.getByRole("button", { name: "Summarize this note" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Summarize this note" }));
+      fireEvent.change(screen.getByTestId("assistant-composer-input"), {
+        target: { value: "Summarize this note" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Send message" }));
     });
 
     expect(createAssistantThreadMock).toHaveBeenCalledTimes(1);
@@ -1214,7 +1255,7 @@ describe("App", () => {
       fireEvent.change(screen.getByTestId("assistant-composer-input"), {
         target: { value: "Draft a short summary." },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+      fireEvent.click(screen.getByRole("button", { name: "Send message" }));
     });
 
     expect(createAssistantThreadMock).toHaveBeenCalledTimes(2);

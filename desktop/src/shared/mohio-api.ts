@@ -2,14 +2,21 @@ import type {
   AssistantEvent,
   AssistantThread,
   AssistantThreadSummary,
+  CommitHistoryEntry,
+  UnpublishedDiffResult,
+  RecordRiskyCommitInput,
   AppInfo,
   CreateDocumentInput,
   DocumentChangedEvent,
   MohioApi,
+  PublishResult,
+  PublishSummary,
+  ResolveConflictInput,
   RenameAssistantThreadInput,
   SendAssistantMessageInput,
   SaveDocumentInput,
   SaveDocumentResult,
+  SyncState,
   WorkspaceDocument,
   WorkspaceSummary,
 } from "./mohio-types";
@@ -21,6 +28,15 @@ export const MOHIO_CHANNELS = {
   createDocument: "mohio:document:create",
   deleteDocument: "mohio:document:delete",
   saveDocument: "mohio:document:save",
+  recordRiskyCommit: "mohio:commit:record-risky",
+  recordAutoSaveCommit: "mohio:commit:record-auto-save",
+  listCommitHistory: "mohio:history:commits",
+  getUnpublishedDiff: "mohio:history:unpublished-diff",
+  getPublishSummary: "mohio:publish:summary",
+  publishWorkspaceChanges: "mohio:publish:changes",
+  syncIncomingChanges: "mohio:sync:incoming",
+  getSyncState: "mohio:sync:state",
+  resolveSyncConflict: "mohio:sync:resolve-conflict",
   watchDocument: "mohio:document:watch",
   listAssistantThreads: "mohio:assistant:list-threads",
   createAssistantThread: "mohio:assistant:create-thread",
@@ -42,6 +58,15 @@ interface CreateMohioApiOptions {
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;
   saveDocument: (input: SaveDocumentInput) => Promise<SaveDocumentResult>;
+  recordRiskyCommit: (input: RecordRiskyCommitInput) => Promise<boolean>;
+  recordAutoSaveCommit: () => Promise<boolean>;
+  listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
+  getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
+  getPublishSummary: () => Promise<PublishSummary>;
+  publishWorkspaceChanges: () => Promise<PublishResult>;
+  syncIncomingChanges: (reason: string) => Promise<SyncState>;
+  getSyncState: () => Promise<SyncState>;
+  resolveSyncConflict: (input: ResolveConflictInput) => Promise<SyncState>;
   watchDocument: (relativePath: string | null) => Promise<void>;
   listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
   createAssistantThread: () => Promise<AssistantThread>;
@@ -69,6 +94,15 @@ export function createMohioApi({
   createDocument,
   deleteDocument,
   saveDocument,
+  recordRiskyCommit,
+  recordAutoSaveCommit,
+  listCommitHistory,
+  getUnpublishedDiff,
+  getPublishSummary,
+  publishWorkspaceChanges,
+  syncIncomingChanges,
+  getSyncState,
+  resolveSyncConflict,
   watchDocument,
   listAssistantThreads,
   createAssistantThread,
@@ -89,6 +123,15 @@ export function createMohioApi({
     createDocument,
     deleteDocument,
     saveDocument,
+    recordRiskyCommit,
+    recordAutoSaveCommit,
+    listCommitHistory,
+    getUnpublishedDiff,
+    getPublishSummary,
+    publishWorkspaceChanges,
+    syncIncomingChanges,
+    getSyncState,
+    resolveSyncConflict,
     watchDocument,
     listAssistantThreads,
     createAssistantThread,

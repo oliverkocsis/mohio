@@ -18,7 +18,7 @@ This document covers the current shell and workspace flow in `desktop/`.
   - top bar
   - left workspace sidebar
   - center editor panel
-  - right assistant sidebar
+  - right sidebar with assistant and history tabs
 - The renderer is implemented in `React` and `TypeScript`.
 - The right sidebar hosts the live Codex assistant panel.
 
@@ -41,6 +41,16 @@ Current API surface:
 - `createDocument({ directoryRelativePath })`
 - `deleteDocument(relativePath)`
 - `saveDocument(input)`
+- `createCheckpoint(input)`
+- `createAiChangeCheckpoint(relativePath, reason)`
+- `listCheckpoints(relativePath | null)`
+- `getCheckpointDiff(input)`
+- `revertToCheckpoint(input)`
+- `getPublishSummary()`
+- `publishWorkspaceChanges()`
+- `syncIncomingChanges(reason)`
+- `getSyncState()`
+- `resolveSyncConflict(input)`
 - `watchDocument(relativePath | null)`
 - `listAssistantThreads()`
 - `createAssistantThread()`
@@ -70,7 +80,9 @@ Current API surface:
 
 ## Workspace Tree Behavior
 
-- The left sidebar renders a nested tree of directories and documents.
+- The left sidebar renders tabbed views:
+  - `Documents` for full tree
+  - `Unpublished` for non-published documents only
 - The `New Note` action creates a markdown note in the selected note folder.
 - If no note is selected, `New Note` creates the note at workspace root.
 - Directories are expanded by default after a workspace loads.
@@ -98,7 +110,8 @@ Current API surface:
 - The selected document loads into the editor panel.
 - Newly created notes are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
-- The assistant sidebar shows a note-scoped Codex conversation for the selected note.
+- The top bar shows explicit `Publish` and `Sync` actions.
+- The right sidebar supports both assistant chat and checkpoint history flows.
 
 ## Security Boundary
 
@@ -108,10 +121,10 @@ Current API surface:
 
 ## Current Limitations
 
-- No rename-note UI
+- No rename-note UI beyond title-driven file rename
 - No search implementation behind the search field
 - No recent-note or pinned-note behavior yet
-- Assistant history is not persisted across restarts
+- History diff is rendered as raw patch text rather than a rich split diff
 
 ## Code Anchors
 

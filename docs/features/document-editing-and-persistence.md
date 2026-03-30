@@ -110,6 +110,8 @@ On save, Mohio rebuilds the file with:
 - Autosave runs after `1000ms` of idle time when the draft differs from the last saved snapshot.
 - Saving updates the selected document path if the title changed the filename.
 - Save failures are surfaced in the editor panel as a local error state.
+- After successful non-rename saves, Mohio records an `auto-save` Git commit when there is material Markdown diff.
+- When the title edit is likely to rename or move the file, Mohio records a forced `checkpoint` commit before saving.
 
 ## External File Changes
 
@@ -117,18 +119,25 @@ On save, Mohio rebuilds the file with:
 - If the file changes on disk, Mohio reloads the current workspace summary and current document.
 - If the file disappears, the renderer clears the document and selects the next available document when possible.
 - If the incoming version is safe to apply, the renderer refreshes the visible title and body automatically.
+- Opening a document also triggers an incoming-change sync check through the collaboration service.
+
+## Commit Hooks in Editing Flow
+
+- Mohio tracks recent material local edits and records a background `checkpoint` commit after about 60 seconds of idle time.
+- Switching documents after recent local edits triggers a pre-switch `checkpoint` commit.
+- Deleting a note triggers a pre-delete `checkpoint` commit.
+- Opening a document also triggers auto-save commit attempt + incoming sync check.
 
 ## Current Limitations
 
-- No explicit save history or checkpoint UI yet
 - No rendered preview or split-view editor yet
 - No in-app rename action outside editing the title of an existing file
-- No publish workflow
 - No search workflow in the UI yet
 
 ## Code Anchors
 
 - Main process document reads and saves: `desktop/src/main/document-store.ts`
+- Main process collaboration service and commit hooks: `desktop/src/main/git-collaboration.ts`
 - Shared document formats: `desktop/src/shared/document-format.ts`
 - Renderer editor shell: `desktop/src/renderer/App.tsx`
 - Markdown editor implementation: `desktop/src/renderer/markdown-editor.tsx`

@@ -89,7 +89,7 @@ flowchart LR
 - `React` for renderer composition
 - `CodeMirror` for Markdown-source editing
 - `yaml` for frontmatter parsing and serialization
-- `lucide-react` for shared shell, assistant, and editor toolbar icons
+- `lucide-react` for shared shell, assistant, and editor toolbar icons (source set: [lucide.dev/icons](https://lucide.dev/icons/); no custom SVG icon drawings)
 - `codex` CLI and `codex app-server` for assistant conversations and session history
 
 ## Current Architectural Constraints
@@ -98,7 +98,9 @@ flowchart LR
 - Search UI exists as a placeholder input only; it is not wired to workspace querying.
 - Assistant history browsing is limited to Codex threads whose `cwd` exactly matches the open workspace path.
 - The assistant can chat about the workspace, but it cannot apply edits through Mohio yet.
-- Note creation, rename UI, delete UI, publish flow, checkpoints, and rendered preview are not implemented yet in the renderer.
+- History is commit-list based (message/date/stats) rather than a visual side-by-side diff/restore workflow.
+- Publish and sync currently target Markdown documents only (`.md`, `.markdown`, `.mdx`).
+- There is still no rendered preview or split-view Markdown mode.
 
 ## When To Update This Document
 
