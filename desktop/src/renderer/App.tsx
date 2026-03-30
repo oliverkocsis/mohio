@@ -6,7 +6,6 @@ import {
   Ellipsis,
   History as HistoryIcon,
   MessageSquare,
-  RefreshCw,
   SquarePen,
   Trash2,
 } from "lucide-react";
@@ -14,7 +13,6 @@ import type {
   AssistantThread,
   AssistantThreadSummary,
   CommitHistoryEntry,
-  DocumentPublishStatus,
   PublishSummary,
   SyncConflict,
   SyncState,
@@ -330,6 +328,7 @@ export function App() {
 
     previousSelectedDocumentIdRef.current = selectedDocumentId;
     if (selectedDocumentId) {
+      void window.mohio.recordAutoSaveCommit().catch(() => undefined);
       void triggerSync("document-open");
     }
     void loadCommitHistory();
@@ -345,6 +344,7 @@ export function App() {
     }
 
     const intervalId = window.setInterval(() => {
+      void window.mohio.recordAutoSaveCommit().catch(() => undefined);
       void triggerSync("workspace-interval");
     }, SYNC_INTERVAL_MS);
 
@@ -990,11 +990,14 @@ export function App() {
   };
 
   const handleSelectDocument = (documentId: string) => {
-    setSelectedDocumentId(documentId);
+    void (async () => {
+      await window.mohio.recordAutoSaveCommit().catch(() => undefined);
+      setSelectedDocumentId(documentId);
 
-    if (leftSidebarTab === "unpublished") {
-      setRightSidebarTab("history");
-    }
+      if (leftSidebarTab === "unpublished") {
+        setRightSidebarTab("history");
+      }
+    })();
   };
 
   const handleCreateAssistantThread = async () => {
@@ -1041,6 +1044,7 @@ export function App() {
     setAssistantError(null);
 
     try {
+      await window.mohio.recordAutoSaveCommit().catch(() => undefined);
       const shouldStartNewThread = assistantViewRef.current === "list";
       const currentThread = shouldStartNewThread
         ? await handleCreateAssistantThread()
@@ -1164,19 +1168,11 @@ export function App() {
     !assistantIsBusy &&
     assistantComposerValue.trim().length > 0;
   const showAssistantFooter = assistantIsDetailView || Boolean(workspace);
-  const publishStatusesByPath = useMemo(
-    () => new Map((publishSummary?.documents ?? []).map((status) => [status.relativePath, status])),
-    [publishSummary?.documents],
-  );
   const leftSidebarNodes = leftSidebarTab === "documents"
     ? (workspace?.documents ?? [])
     : (publishSummary?.unpublishedTree ?? []);
   const leftSidebarDocumentCount = countWorkspaceDocuments(leftSidebarNodes);
   const unpublishedDocumentCount = publishSummary?.unpublishedCount ?? 0;
-  const selectedDocumentPublishStatus = selectedDocumentId
-    ? publishStatusesByPath.get(selectedDocumentId) ?? null
-    : null;
-  const activeSyncConflicts = syncState?.conflicts ?? [];
 
   return (
     <div className="app-shell">
@@ -1198,6 +1194,17 @@ export function App() {
               <ChevronDown aria-hidden="true" className="toolbar-chevron-icon" />
             </span>
           </button>
+          <button
+            aria-label="New Note"
+            className="top-bar__new-note"
+            disabled={!workspace}
+            onClick={() => {
+              void handleCreateDocument();
+            }}
+            type="button"
+          >
+            <SquarePen aria-hidden="true" className="top-bar__new-note-icon" />
+          </button>
         </div>
 
         <div className="top-bar__search">
@@ -1211,28 +1218,6 @@ export function App() {
         </div>
 
         <div className="top-bar__actions">
-          {syncState?.status === "conflict" ? (
-            <button
-              className="ghost-button top-bar__sync-button top-bar__sync-button--warning"
-              onClick={() => {
-                setRightSidebarTab("history");
-              }}
-              type="button"
-            >
-              Resolve incoming overlap ({activeSyncConflicts.length})
-            </button>
-          ) : null}
-          <button
-            className="ghost-button top-bar__sync-button"
-            disabled={!workspace}
-            onClick={() => {
-              void triggerSync("manual-refresh");
-            }}
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" className="top-bar__sync-icon" />
-            Sync
-          </button>
           <button
             className="primary-button top-bar__publish-button"
             disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
@@ -1253,26 +1238,11 @@ export function App() {
 
       <div className="workspace-shell">
         <aside className="sidebar sidebar--left" data-testid="workspace-sidebar">
-          <section className="sidebar__section">
-            <div className="assistant-panel-header__row">
-              <h2 className="sidebar__title">Workspace</h2>
-              <button
-                aria-label="New Note"
-                className="assistant-panel__text-icon-button workspace-panel__new-note"
-                disabled={!workspace}
-                onClick={() => {
-                  void handleCreateDocument();
-                }}
-                type="button"
-              >
-                <SquarePen aria-hidden="true" className="assistant-panel__icon" />
-              </button>
-            </div>
-
-            <div className="sidebar-tabs" role="tablist" aria-label="Workspace views">
+          <section className="sidebar__section sidebar__section--edge-tabs">
+            <div className="sidebar-tabs sidebar-tabs--full-width" role="tablist" aria-label="Workspace views">
               <button
                 aria-selected={leftSidebarTab === "documents"}
-                className={`sidebar-tab${leftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
+                className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
                 onClick={() => {
                   setLeftSidebarTab("documents");
                 }}
@@ -1283,7 +1253,7 @@ export function App() {
               </button>
               <button
                 aria-selected={leftSidebarTab === "unpublished"}
-                className={`sidebar-tab${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
+                className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
                 onClick={() => {
                   setLeftSidebarTab("unpublished");
                 }}
@@ -1296,7 +1266,9 @@ export function App() {
                 ) : null}
               </button>
             </div>
+          </section>
 
+          <section className="sidebar__section">
             {isWorkspaceLoading ? (
               <p className="workspace-panel__copy">Loading current workspace...</p>
             ) : workspace ? (
@@ -1339,19 +1311,9 @@ export function App() {
                 {publishError}
               </p>
             ) : null}
-            {selectedDocumentPublishStatus ? (
-              <p className="workspace-panel__copy" role="status">
-                {formatPublishStatus(selectedDocumentPublishStatus)}
-              </p>
-            ) : null}
             {syncError ? (
               <p className="workspace-panel__error" role="status">
                 {syncError}
-              </p>
-            ) : null}
-            {syncState?.message ? (
-              <p className="workspace-panel__copy" role="status">
-                {syncState.message}
               </p>
             ) : null}
 
@@ -1461,7 +1423,7 @@ export function App() {
               {assistantIsDetailView ? (
                 <>
                   <section className="sidebar__section assistant-panel-header assistant-panel-header--detail">
-                    <div className="assistant-panel-header__row">
+                    <div className="assistant-panel-header__bar">
                       <div className="assistant-panel-header__main">
                         <button
                           aria-label="Back to chats"
@@ -1571,19 +1533,12 @@ export function App() {
                 </>
               ) : (
                 <>
-                  <section className="sidebar__section assistant-panel-header">
-                    <div className="assistant-panel-header__row">
-                      <h2 className="assistant-panel__thread-title">Chats</h2>
-                    </div>
+                  <section className="sidebar__section assistant-thread-list-section">
                     {!workspace || !selectedDocumentId ? (
                       <p className="workspace-panel__copy">Open a workspace to chat with the assistant</p>
-                    ) : null}
-                  </section>
-
-                  <section className="sidebar__section assistant-thread-list-section">
-                    {isAssistantListLoading ? (
+                    ) : isAssistantListLoading ? (
                       <p className="workspace-panel__copy">Loading Codex chat history...</p>
-                    ) : !workspace ? null : assistantThreads.length > 0 ? (
+                    ) : assistantThreads.length > 0 ? (
                       <ul className="assistant-thread-list" data-testid="assistant-thread-list">
                         {assistantThreads.map((thread) => (
                           <li key={thread.id}>
@@ -1918,19 +1873,6 @@ function countWorkspaceDocuments(nodes: WorkspaceTreeNode[]): number {
 
     return count + countWorkspaceDocuments(node.children);
   }, 0);
-}
-
-function formatPublishStatus(status: DocumentPublishStatus): string {
-  const label = status.state === "published"
-    ? "Published"
-    : status.state === "unpublished-changes"
-      ? "Unpublished changes"
-      : "Never published";
-  const lastPublishedLabel = status.lastPublishedAt
-    ? `Last published ${new Date(status.lastPublishedAt).toLocaleString()}`
-    : "Last published not available";
-
-  return `${label} · ${lastPublishedLabel}`;
 }
 
 function getExpandedDirectoryIds(workspace: WorkspaceSummary | null): Set<string> {

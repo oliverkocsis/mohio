@@ -190,6 +190,7 @@ function registerMohioHandlers() {
       throw new Error("Open a workspace before loading documents.");
     }
 
+    void gitCollaboration.recordAutoSaveCommit(currentWorkspacePath).catch(() => undefined);
     void gitCollaboration.syncIncomingChanges(currentWorkspacePath, "document-open").catch(() => undefined);
     return readDocument(currentWorkspacePath, relativePath);
   });
@@ -219,14 +220,22 @@ function registerMohioHandlers() {
       throw new Error("Open a workspace before recording a commit.");
     }
 
-    return gitCollaboration.recordRiskyCommit(currentWorkspacePath, input);
+    try {
+      return await gitCollaboration.recordRiskyCommit(currentWorkspacePath, input);
+    } catch {
+      return false;
+    }
   });
   ipcMain.handle(MOHIO_CHANNELS.recordAutoSaveCommit, async () => {
     if (!currentWorkspacePath) {
       throw new Error("Open a workspace before recording a commit.");
     }
 
-    return gitCollaboration.recordAutoSaveCommit(currentWorkspacePath);
+    try {
+      return await gitCollaboration.recordAutoSaveCommit(currentWorkspacePath);
+    } catch {
+      return false;
+    }
   });
   ipcMain.handle(MOHIO_CHANNELS.listCommitHistory, async (_event, relativePath: string | null) => {
     if (!currentWorkspacePath) {

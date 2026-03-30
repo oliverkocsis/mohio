@@ -170,8 +170,20 @@ export function createGitCollaborationService() {
 
   const writeCommit = async (
     workspacePath: string,
-    options: { force?: boolean; message: "auto-save" | "checkpoint"; minLineDelta: number },
+    options: {
+      force?: boolean;
+      message: "auto-save" | "checkpoint";
+      minLineDelta: number;
+      syncBeforeCommit?: boolean;
+    },
   ): Promise<boolean> => {
+    if (options.syncBeforeCommit !== false) {
+      const syncState = await syncIncomingChanges(workspacePath, "before-commit");
+      if (syncState.status === "conflict" || syncState.status === "error") {
+        return false;
+      }
+    }
+
     const material = await getMaterialChanges(workspacePath);
     if (!material.hasChanges) {
       return false;
@@ -263,6 +275,7 @@ export function createGitCollaborationService() {
     }
 
     const shaResult = await runGit(workspacePath, ["rev-parse", "HEAD"]);
+    const publishedAt = new Date().toISOString();
 
     return {
       committed,
@@ -318,9 +331,11 @@ export function createGitCollaborationService() {
       message: `Applying ${behindCount} incoming update${behindCount === 1 ? "" : "s"}.`,
     });
 
-    await recordRiskyCommit(workspacePath, {
-      trigger: "sync-before",
+    await writeCommit(workspacePath, {
       force: true,
+      message: "checkpoint",
+      minLineDelta: 0,
+      syncBeforeCommit: false,
     });
 
     const mergeResult = await runGit(workspacePath, ["merge", "--no-ff", "--no-commit", upstream], {
@@ -482,7 +497,7 @@ async function ensureGitWorkspace(workspacePath: string): Promise<void> {
 async function getMaterialChanges(
   workspacePath: string,
 ): Promise<{ hasChanges: boolean; lineDelta: number; fingerprint: string; changedPaths: string[] }> {
-  const status = await runGit(workspacePath, ["status", "--porcelain", "--", ...MARKDOWN_PATHS]);
+  const status = await runGit(workspacePath, ["status", "--porcelain", "-z", "--", ...MARKDOWN_PATHS]);
   const fingerprint = status.stdout.trim();
 
   if (!fingerprint) {
@@ -494,20 +509,28 @@ async function getMaterialChanges(
     };
   }
 
-  const changedPaths = status.stdout
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .filter(Boolean)
-    .map((line) => line.slice(3).trim())
-    .map((pathspec) => {
-      if (!pathspec.includes(" -> ")) {
-        return pathspec;
-      }
-
-      const [, nextPath] = pathspec.split(" -> ");
-      return (nextPath ?? pathspec).trim();
-    })
+  const statusEntries = status.stdout
+    .split("\0")
     .filter(Boolean);
+  const changedPaths: string[] = [];
+
+  for (let index = 0; index < statusEntries.length; index += 1) {
+    const entry = statusEntries[index];
+    if (!entry || entry.length < 4) {
+      continue;
+    }
+
+    const statusCode = entry.slice(0, 2);
+    const filePath = entry.slice(3);
+    if (filePath) {
+      changedPaths.push(filePath);
+    }
+
+    // In porcelain -z output, rename/copy entries include an extra NUL-separated source path.
+    if (statusCode.includes("R") || statusCode.includes("C")) {
+      index += 1;
+    }
+  }
 
   const diff = await runGit(workspacePath, ["diff", "--numstat", "HEAD", "--", ...MARKDOWN_PATHS]);
   const lineDelta = diff.stdout
@@ -525,7 +548,7 @@ async function getMaterialChanges(
     hasChanges: true,
     lineDelta,
     fingerprint,
-    changedPaths,
+    changedPaths: Array.from(new Set(changedPaths)),
   };
 }
 
