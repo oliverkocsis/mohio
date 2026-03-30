@@ -59,7 +59,7 @@ button {
 .top-bar__actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 24px;
 }
 
 .top-bar__context {
@@ -69,7 +69,7 @@ button {
 .top-bar__context-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
 }
 
 .top-bar__search {
@@ -149,6 +149,7 @@ button {
   border-radius: 4px;
   background: var(--background);
   padding: 11px 12px;
+  font-family: inherit;
   font-size: 14px;
   color: var(--text-muted);
 }
@@ -1336,38 +1337,48 @@ button {
 
 .assistant-composer {
   display: block;
+  width: 100%;
 }
 
 .assistant-composer__field {
   position: relative;
+  width: 100%;
 }
 
-.assistant-composer__input {
-  min-height: 42px;
-  resize: none;
-  padding: 10px 44px 10px 12px;
-  line-height: 1.45;
+.assistant-composer__field > .chat-composer {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  line-height: 1.4;
+  padding: 9px 44px 9px 12px;
 }
 
 .assistant-composer__send-button {
   position: absolute;
   right: 8px;
-  bottom: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   width: 28px;
   height: 28px;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 6px;
-  background: var(--accent-blue);
-  color: #ffffff;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
   padding: 0;
-  transition: background-color 120ms ease;
+  transition: color 120ms ease;
+}
+
+.assistant-composer__field--multiline .assistant-composer__send-button {
+  top: auto;
+  bottom: 8px;
+  transform: none;
 }
 
 .assistant-composer__send-button:hover:not(:disabled) {
-  background: var(--accent-blue-hover);
+  color: var(--text-primary);
 }
 
 .assistant-composer__send-button:focus-visible {

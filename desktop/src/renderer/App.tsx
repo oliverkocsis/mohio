@@ -71,6 +71,7 @@ export function App() {
   const [isAssistantListLoading, setIsAssistantListLoading] = useState(false);
   const [isAssistantThreadLoading, setIsAssistantThreadLoading] = useState(false);
   const [showAssistantThinking, setShowAssistantThinking] = useState(false);
+  const [assistantComposerIsMultiline, setAssistantComposerIsMultiline] = useState(false);
   const [publishSummary, setPublishSummary] = useState<PublishSummary | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -1173,9 +1174,11 @@ export function App() {
     const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
     const maxHeight = lineHeight * 5 + paddingTop + paddingBottom;
     const nextHeight = Math.min(composerElement.scrollHeight, maxHeight);
+    const singleLineHeight = lineHeight + paddingTop + paddingBottom;
 
     composerElement.style.height = `${nextHeight}px`;
     composerElement.style.overflowY = composerElement.scrollHeight > maxHeight ? "auto" : "hidden";
+    setAssistantComposerIsMultiline(composerElement.scrollHeight > singleLineHeight + 1);
   }, [assistantComposerValue]);
 
   return (
@@ -1619,11 +1622,11 @@ export function App() {
                       void handleSendAssistantMessage(assistantComposerValue);
                     }}
                   >
-                    <div className="assistant-composer__field">
+                    <div className={`assistant-composer__field${assistantComposerIsMultiline ? " assistant-composer__field--multiline" : ""}`}>
                       <textarea
                         ref={assistantComposerRef}
                         aria-label="Assistant composer"
-                        className="chat-composer assistant-composer__input"
+                        className="chat-composer"
                         data-testid="assistant-composer-input"
                         disabled={!assistantHasContext || assistantIsBusy}
                         onChange={(event) => {

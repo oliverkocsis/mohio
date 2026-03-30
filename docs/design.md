@@ -129,7 +129,8 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Only include actions that work today
 - Group controls by formatting type
 - Prefer compact icon buttons and short heading buttons over large segmented chrome
-- Use `lucide-react` consistently for shared shell and editor icons
+- Use `lucide-react` consistently for shared shell and editor icons.
+- Use only icons from [Lucide](https://lucide.dev/icons/) and do not add custom hand-authored SVG icon shapes in the renderer.
 
 ### Title Input
 

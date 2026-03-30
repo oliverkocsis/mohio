@@ -89,7 +89,7 @@ flowchart LR
 - `React` for renderer composition
 - `CodeMirror` for Markdown-source editing
 - `yaml` for frontmatter parsing and serialization
-- `lucide-react` for shared shell, assistant, and editor toolbar icons
+- `lucide-react` for shared shell, assistant, and editor toolbar icons (source set: [lucide.dev/icons](https://lucide.dev/icons/); no custom SVG icon drawings)
 - `codex` CLI and `codex app-server` for assistant conversations and session history
 
 ## Current Architectural Constraints

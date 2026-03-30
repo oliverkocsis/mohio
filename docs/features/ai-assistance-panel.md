@@ -66,16 +66,15 @@ Assistant thread shape:
 ## Renderer Behavior
 
 - The sidebar starts in a session-list view for the current workspace.
-- The list view shows a minimal `Assistant` header, a `New Chat` action, and a simple workspace-filtered title list of Codex chats.
-- The list-view `New Chat` action uses a `message-square-plus` icon.
+- The list view shows a simple workspace-filtered title list of Codex chats and no dedicated `New Chat` button.
 - Opening a chat switches the sidebar into a dedicated thread view.
 - A newly created chat stays in the dedicated thread view even before Codex includes it in the workspace history list.
 - The thread view header includes:
   - a back action to return to the session list
   - the current Codex thread title
   - a menu with `New Chat`, `Rename Chat`, and `Delete Chat`
-- The list-view `New Chat` control, the thread-view back control, and the `...` menu trigger use simple unframed icon buttons.
-- Assistant panel icons use `lucide-react`, matching the rest of the desktop shell.
+- The thread-view back control and the `...` menu trigger use simple unframed icon buttons.
+- Assistant panel icons use `lucide-react` from [Lucide](https://lucide.dev/icons/), matching the rest of the desktop shell, and Mohio does not use custom hand-authored SVG icon shapes.
 - Mohio does not show a separate empty helper paragraph inside a brand new chat before the first message.
 - Users can switch between existing Codex chats without changing the selected note.
 - The transcript renders only in the active thread view.
@@ -84,16 +83,15 @@ Assistant thread shape:
 - Mohio keeps streamed assistant text visible once it appears and never replaces it with a placeholder.
 - While a Codex run is active and no new assistant text has arrived yet, Mohio shows a muted animated `Thinking...` line as the last row in the transcript.
 - Mohio hides that `Thinking...` line while fresh assistant text is actively streaming, and shows it again only if the run is still active but the stream goes quiet.
-- Quick actions send:
-  - `Summarize this note`
-  - `Organize this note`
-  - `Suggest related notes from this workspace`
+- The composer is a full-width textarea that auto-grows with typed content, up to five visible lines.
+- The send control is an icon-only button inside the right side of the composer and stays anchored to the bottom-right when the composer grows.
+- Pressing `Enter` sends the prompt; `Shift+Enter` inserts a newline.
 - The composer is disabled when no workspace is open, no note is selected, or the active Codex thread is already running.
 - Sending from the list view footer always starts a fresh chat automatically before dispatching the prompt.
 - If no Codex thread is active in thread view, sending a message starts a new one first.
 - If the user opens an existing Codex chat from history, Mohio resumes that thread with Codex before starting the next turn.
 - If Codex rejects turn startup on a freshly created thread because no rollout exists yet, Mohio resumes the thread and retries turn startup with bounded backoff before surfacing an error.
-- The cancel button stops the active Codex thread.
+- The composer does not render a `Cancel` button.
 - `Delete Chat` maps to Codex thread archive behavior and removes the thread from Mohio's visible workspace list.
 
 ## Current Limitations
