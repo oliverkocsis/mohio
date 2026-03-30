@@ -4,10 +4,13 @@ import {
   ChevronDown,
   ChevronRight,
   Ellipsis,
+  FileText,
   History as HistoryIcon,
   MessageSquare,
+  SendHorizontal,
   SquarePen,
   Trash2,
+  Upload,
 } from "lucide-react";
 import type {
   AssistantThread,
@@ -30,12 +33,6 @@ type LeftSidebarTab = "documents" | "unpublished";
 type RightSidebarTab = "assistant" | "history";
 const THINKING_LABEL_DELAY_MS = 900;
 const SYNC_INTERVAL_MS = 60_000;
-
-const ASSISTANT_QUICK_ACTIONS = [
-  "Summarize this note",
-  "Organize this note",
-  "Suggest related notes from this workspace",
-] as const;
 
 interface DocumentSnapshot {
   markdown: string;
@@ -107,6 +104,7 @@ export function App() {
   const lastMaterialEditAtRef = useRef<number | null>(null);
   const hasRecentMaterialEditRef = useRef(false);
   const previousSelectedDocumentIdRef = useRef<string | null>(null);
+  const assistantComposerRef = useRef<HTMLTextAreaElement | null>(null);
 
   selectedDocumentIdRef.current = selectedDocumentId;
   activeAssistantThreadIdRef.current = activeAssistantThreadId;
@@ -1070,18 +1068,6 @@ export function App() {
     }
   };
 
-  const handleCancelAssistantRun = async () => {
-    if (!activeAssistantThreadId) {
-      return;
-    }
-
-    try {
-      await window.mohio.cancelAssistantRun(activeAssistantThreadId);
-    } catch {
-      setAssistantError("Mohio could not stop the current Codex run.");
-    }
-  };
-
   const handleOpenAssistantThread = (threadId: string) => {
     setAssistantError(null);
     setIsAssistantMenuOpen(false);
@@ -1174,6 +1160,24 @@ export function App() {
   const leftSidebarDocumentCount = countWorkspaceDocuments(leftSidebarNodes);
   const unpublishedDocumentCount = publishSummary?.unpublishedCount ?? 0;
 
+  useEffect(() => {
+    const composerElement = assistantComposerRef.current;
+    if (!composerElement) {
+      return;
+    }
+
+    composerElement.style.height = "auto";
+    const computedStyle = window.getComputedStyle(composerElement);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 20;
+    const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
+    const maxHeight = lineHeight * 5 + paddingTop + paddingBottom;
+    const nextHeight = Math.min(composerElement.scrollHeight, maxHeight);
+
+    composerElement.style.height = `${nextHeight}px`;
+    composerElement.style.overflowY = composerElement.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [assistantComposerValue]);
+
   return (
     <div className="app-shell">
       <header className="top-bar" data-testid="top-bar">
@@ -1194,17 +1198,35 @@ export function App() {
               <ChevronDown aria-hidden="true" className="toolbar-chevron-icon" />
             </span>
           </button>
-          <button
-            aria-label="New Note"
-            className="top-bar__new-note"
-            disabled={!workspace}
-            onClick={() => {
-              void handleCreateDocument();
-            }}
-            type="button"
-          >
-            <SquarePen aria-hidden="true" className="top-bar__new-note-icon" />
-          </button>
+          <div className="top-bar__context-actions">
+            <button
+              aria-label="Quick New Note"
+              className="top-bar__icon-action"
+              disabled={!workspace}
+              onClick={() => {
+                void handleCreateDocument();
+              }}
+              type="button"
+            >
+              <SquarePen aria-hidden="true" className="top-bar__icon-action-icon" />
+            </button>
+            <button
+              aria-label="Quick Publish"
+              className="top-bar__icon-action"
+              disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
+              onClick={() => {
+                void handlePublishWorkspaceChanges();
+              }}
+              type="button"
+            >
+              <Upload aria-hidden="true" className="top-bar__icon-action-icon" />
+              {unpublishedDocumentCount > 0 ? (
+                <span className="top-bar__icon-badge" aria-label={`${unpublishedDocumentCount} unpublished documents`}>
+                  {unpublishedDocumentCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
         </div>
 
         <div className="top-bar__search">
@@ -1217,23 +1239,7 @@ export function App() {
           />
         </div>
 
-        <div className="top-bar__actions">
-          <button
-            className="primary-button top-bar__publish-button"
-            disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
-            onClick={() => {
-              void handlePublishWorkspaceChanges();
-            }}
-            type="button"
-          >
-            Publish
-            {unpublishedDocumentCount > 0 ? (
-              <span className="top-bar__badge" aria-label={`${unpublishedDocumentCount} unpublished documents`}>
-                {unpublishedDocumentCount}
-              </span>
-            ) : null}
-          </button>
-        </div>
+        <div className="top-bar__actions" />
       </header>
 
       <div className="workspace-shell">
@@ -1249,6 +1255,7 @@ export function App() {
                 role="tab"
                 type="button"
               >
+                <FileText aria-hidden="true" className="sidebar-tab__icon" />
                 Documents
               </button>
               <button
@@ -1260,6 +1267,7 @@ export function App() {
                 role="tab"
                 type="button"
               >
+                <Upload aria-hidden="true" className="sidebar-tab__icon" />
                 Unpublished
                 {unpublishedDocumentCount > 0 ? (
                   <span className="sidebar-tab__badge">{unpublishedDocumentCount}</span>
@@ -1268,78 +1276,113 @@ export function App() {
             </div>
           </section>
 
-          <section className="sidebar__section">
-            {isWorkspaceLoading ? (
-              <p className="workspace-panel__copy">Loading current workspace...</p>
-            ) : workspace ? (
-              <>
-                {leftSidebarDocumentCount === 0 ? (
-                  <p className="workspace-panel__copy">
-                    {leftSidebarTab === "documents"
-                      ? "No Markdown documents found."
-                      : "No unpublished documents in this workspace."}
-                  </p>
-                ) : (
-                  <ul className="workspace-tree" role="tree">
-                    {leftSidebarNodes.map((node) =>
-                      renderWorkspaceNode({
-                        node,
-                        selectedDocumentId,
-                        expandedDirectoryIds,
-                        depth: 0,
-                        onSelect: handleSelectDocument,
-                        onOpenDocumentContextMenu: (input) => {
-                          setDocumentContextMenu(input);
-                        },
-                        onToggleDirectory: toggleDirectory,
-                      }),
-                    )}
-                  </ul>
-                )}
-              </>
-            ) : (
-              <p className="workspace-panel__copy">No workspace is open.</p>
-            )}
+          <section className="sidebar__section workspace-panel">
+            <div className="workspace-panel__scroll">
+              {isWorkspaceLoading ? (
+                <p className="workspace-panel__copy">Loading current workspace...</p>
+              ) : workspace ? (
+                <>
+                  {leftSidebarDocumentCount === 0 ? (
+                    <p className="workspace-panel__copy">
+                      {leftSidebarTab === "documents"
+                        ? "No Markdown documents found."
+                        : "No unpublished documents in this workspace."}
+                    </p>
+                  ) : (
+                    <ul className="workspace-tree" role="tree">
+                      {leftSidebarNodes.map((node) =>
+                        renderWorkspaceNode({
+                          node,
+                          selectedDocumentId,
+                          expandedDirectoryIds,
+                          depth: 0,
+                          onSelect: handleSelectDocument,
+                          onOpenDocumentContextMenu: (input) => {
+                            setDocumentContextMenu(input);
+                          },
+                          onToggleDirectory: toggleDirectory,
+                        }),
+                      )}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <p className="workspace-panel__copy">No workspace is open.</p>
+              )}
 
-            {workspaceError ? (
-              <p className="workspace-panel__error" role="status">
-                {workspaceError}
-              </p>
-            ) : null}
-            {publishError ? (
-              <p className="workspace-panel__error" role="status">
-                {publishError}
-              </p>
-            ) : null}
-            {syncError ? (
-              <p className="workspace-panel__error" role="status">
-                {syncError}
-              </p>
-            ) : null}
+              {workspaceError ? (
+                <p className="workspace-panel__error" role="status">
+                  {workspaceError}
+                </p>
+              ) : null}
+              {publishError ? (
+                <p className="workspace-panel__error" role="status">
+                  {publishError}
+                </p>
+              ) : null}
+              {syncError ? (
+                <p className="workspace-panel__error" role="status">
+                  {syncError}
+                </p>
+              ) : null}
 
-            {documentContextMenu ? (
-              <div
-                ref={documentContextMenuRef}
-                className="workspace-document-menu"
-                role="menu"
-                style={{
-                  left: `${Math.max(8, documentContextMenu.x)}px`,
-                  top: `${Math.max(8, documentContextMenu.y)}px`,
-                }}
-              >
-                <button
-                  className="workspace-document-menu__item workspace-document-menu__item--danger"
-                  onClick={() => {
-                    void handleDeleteDocument(documentContextMenu.documentId);
+              {documentContextMenu ? (
+                <div
+                  ref={documentContextMenuRef}
+                  className="workspace-document-menu"
+                  role="menu"
+                  style={{
+                    left: `${Math.max(8, documentContextMenu.x)}px`,
+                    top: `${Math.max(8, documentContextMenu.y)}px`,
                   }}
-                  role="menuitem"
+                >
+                  <button
+                    className="workspace-document-menu__item workspace-document-menu__item--danger"
+                    onClick={() => {
+                      void handleDeleteDocument(documentContextMenu.documentId);
+                    }}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <Trash2 aria-hidden="true" className="workspace-document-menu__icon" />
+                    <span>Delete Note</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="workspace-panel__footer-action">
+              {leftSidebarTab === "documents" ? (
+                <button
+                  aria-label="New Note"
+                  className="primary-button workspace-panel__footer-button"
+                  disabled={!workspace}
+                  onClick={() => {
+                    void handleCreateDocument();
+                  }}
                   type="button"
                 >
-                  <Trash2 aria-hidden="true" className="workspace-document-menu__icon" />
-                  <span>Delete Note</span>
+                  <SquarePen aria-hidden="true" className="workspace-panel__footer-button-icon" />
+                  <span>New Note</span>
                 </button>
-              </div>
-            ) : null}
+              ) : (
+                <button
+                  aria-label="Publish"
+                  className="primary-button workspace-panel__footer-button"
+                  disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
+                  onClick={() => {
+                    void handlePublishWorkspaceChanges();
+                  }}
+                  type="button"
+                >
+                  <Upload aria-hidden="true" className="workspace-panel__footer-button-icon" />
+                  <span>Publish</span>
+                  {unpublishedDocumentCount > 0 ? (
+                    <span className="workspace-panel__footer-badge">{unpublishedDocumentCount}</span>
+                  ) : null}
+                </button>
+              )}
+            </div>
           </section>
         </aside>
 
@@ -1563,25 +1606,6 @@ export function App() {
 
               {showAssistantFooter ? (
                 <div className="assistant-panel__footer">
-                  <section className="sidebar__section">
-                    <ul className="action-list">
-                      {ASSISTANT_QUICK_ACTIONS.map((action) => (
-                        <li key={action}>
-                          <button
-                            className="assistant-action-chip"
-                            disabled={!assistantHasContext || assistantIsBusy}
-                            onClick={() => {
-                              void handleSendAssistantMessage(action);
-                            }}
-                            type="button"
-                          >
-                            {action}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-
                   {assistantError ? (
                     <p className="workspace-panel__error" role="status">
                       {assistantError}
@@ -1595,40 +1619,39 @@ export function App() {
                       void handleSendAssistantMessage(assistantComposerValue);
                     }}
                   >
-                    <input
-                      aria-label="Assistant composer"
-                      className="chat-composer"
-                      data-testid="assistant-composer-input"
-                      disabled={!assistantHasContext || assistantIsBusy}
-                      onChange={(event) => {
-                        setAssistantComposerValue(event.target.value);
-                      }}
-                      placeholder={
-                        assistantHasContext
-                          ? "Ask Codex about this note or workspace"
-                          : "Select a note to chat with Codex"
-                      }
-                      type="text"
-                      value={assistantComposerValue}
-                    />
-
-                    <div className="assistant-composer__actions">
-                      <button
-                        className="ghost-button"
-                        disabled={!assistantIsBusy}
-                        onClick={() => {
-                          void handleCancelAssistantRun();
+                    <div className="assistant-composer__field">
+                      <textarea
+                        ref={assistantComposerRef}
+                        aria-label="Assistant composer"
+                        className="chat-composer assistant-composer__input"
+                        data-testid="assistant-composer-input"
+                        disabled={!assistantHasContext || assistantIsBusy}
+                        onChange={(event) => {
+                          setAssistantComposerValue(event.target.value);
                         }}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                            event.preventDefault();
+                            if (canSendAssistantMessage) {
+                              void handleSendAssistantMessage(assistantComposerValue);
+                            }
+                          }
+                        }}
+                        placeholder={
+                          assistantHasContext
+                            ? "Ask Codex about this note or workspace"
+                            : "Select a note to chat with Codex"
+                        }
+                        rows={1}
+                        value={assistantComposerValue}
+                      />
                       <button
-                        className="primary-button"
+                        aria-label="Send message"
+                        className="assistant-composer__send-button"
                         disabled={!canSendAssistantMessage}
                         type="submit"
                       >
-                        Send
+                        <SendHorizontal aria-hidden="true" className="assistant-composer__send-icon" />
                       </button>
                     </div>
                   </form>
