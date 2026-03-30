@@ -83,8 +83,14 @@ Assistant thread shape:
 - Mohio keeps streamed assistant text visible once it appears and never replaces it with a placeholder.
 - While a Codex run is active and no new assistant text has arrived yet, Mohio shows a muted animated `Thinking...` line as the last row in the transcript.
 - Mohio hides that `Thinking...` line while fresh assistant text is actively streaming, and shows it again only if the run is still active but the stream goes quiet.
+- Quick-action pills render above the composer:
+  - `Summarize this note`
+  - `Organize this note`
+  - `Suggest related notes from this workspace`
 - The composer is a full-width textarea that auto-grows with typed content, up to five visible lines.
-- The send control is an icon-only button inside the right side of the composer and stays anchored to the bottom-right when the composer grows.
+- The send control is an icon-only button inside the right side of the composer.
+- For single-line composer height, the send icon is vertically centered.
+- Once the composer grows to multiple lines, the send icon stays anchored to the bottom-right.
 - Pressing `Enter` sends the prompt; `Shift+Enter` inserts a newline.
 - The composer is disabled when no workspace is open, no note is selected, or the active Codex thread is already running.
 - Sending from the list view footer always starts a fresh chat automatically before dispatching the prompt.

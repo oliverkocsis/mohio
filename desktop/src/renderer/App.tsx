@@ -33,6 +33,11 @@ type LeftSidebarTab = "documents" | "unpublished";
 type RightSidebarTab = "assistant" | "history";
 const THINKING_LABEL_DELAY_MS = 900;
 const SYNC_INTERVAL_MS = 60_000;
+const ASSISTANT_QUICK_ACTIONS = [
+  "Summarize this note",
+  "Organize this note",
+  "Suggest related notes from this workspace",
+] as const;
 
 interface DocumentSnapshot {
   markdown: string;
@@ -1614,6 +1619,25 @@ export function App() {
                       {assistantError}
                     </p>
                   ) : null}
+
+                  <section className="sidebar__section">
+                    <ul className="action-list">
+                      {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                        <li key={action}>
+                          <button
+                            className="assistant-action-chip"
+                            disabled={!assistantHasContext || assistantIsBusy}
+                            onClick={() => {
+                              void handleSendAssistantMessage(action);
+                            }}
+                            type="button"
+                          >
+                            {action}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
 
                   <form
                     className="assistant-composer"

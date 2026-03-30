@@ -1,12 +1,12 @@
 # Review, History, Publish, and Sync
 
-This document describes Mohio's current checkpointing, publish-state visibility, and incoming-change sync behavior.
+This document describes Mohio's current Git-backed commit history, publish-state visibility, and incoming-change sync behavior.
 
 ## Scope
 
-- Git-backed automatic checkpoints
+- commit-only safety history (`checkpoint` + `auto-save` commits)
 - publish-state tracking and explicit publish action
-- right-panel history timeline, diff comparison, and checkpoint restore
+- right-panel history commit list and unpublished remote-vs-local diff
 - automatic incoming-change sync checks and guided conflict resolution
 
 ## Collaboration Service
@@ -15,52 +15,50 @@ Main-process collaboration behavior is implemented in `desktop/src/main/git-coll
 
 The service wraps Git operations for:
 
-- creating hidden checkpoints via `git stash create` + `refs/mohio/checkpoints/*`
-- storing checkpoint metadata in `.git/mohio/checkpoints.jsonl`
+- writing automatic local commits for safety/history
 - computing publish states per document
-- publishing Markdown updates with explicit commit + push
-- fetching/merging incoming updates and detecting overlaps
+- publishing Markdown updates with explicit push semantics
+- fetching and merging incoming updates with conflict detection
 - applying per-file conflict decisions
 
-## Checkpoints
+## Commit-Only Safety Points
 
-### Where Checkpoints Are Stored
+Mohio does not store custom checkpoint refs or `.git/mohio` metadata anymore.
 
-- Hidden refs: `refs/mohio/checkpoints/<checkpoint-id>`
-- Metadata: `.git/mohio/checkpoints.jsonl`
+History and safety points are regular Git commits with default messages:
 
-Each checkpoint record includes:
+- risky transitions: `checkpoint`
+- regular saves: `auto-save`
 
-- `id`
-- `createdAt`
-- `reason`
-- `trigger`
-- `commit`
-- `ref`
-- `touchedDocuments`
+Legacy custom checkpoint artifacts are cleaned up automatically when the collaboration service initializes.
 
-### Checkpoint Triggers
+### Material-Change Guard
 
-Mohio currently creates or attempts checkpoints for:
+Mohio only writes commits when there is real Markdown diff material:
 
-- idle editing bursts (~60 seconds idle after material Markdown edits)
-- document switch after recent local edits
-- rename/move risk before title-driven path changes
-- delete risk before removing a note
-- publish flow before staging/committing/pushing
-- sync flow before and after incoming updates
-- history restore before writing checkpoint content back to disk
-- AI apply hook endpoint (`createAiChangeCheckpoint`) for future assistant-apply flows
+- changed Markdown paths present in `git status --porcelain -z -- *.md *.markdown *.mdx`
+- non-empty staged Markdown result after `git add`
+- fingerprint differs from the last committed fingerprint
+- risky commits additionally apply a minimum line-delta threshold when not forced
 
-### Material-Change Heuristic
+### Commit Triggers
 
-For non-forced checkpoints, Mohio requires:
+Risky `checkpoint` commit triggers include:
 
-- Markdown changes present in `git status --porcelain`
-- line delta threshold (`>= 3`) from `git diff --numstat HEAD -- ...`
-- changed-state fingerprint different from the latest checkpoint fingerprint
+- before publish
+- before rename/move save
+- before delete
+- after an idle editing burst (~60s)
+- on document switch after a recent material edit burst
+- before incoming merge application
+- when finishing safe incoming merge commits or conflict resolution commits
 
-This avoids checkpoint spam on trivial or duplicate states.
+Non-risk `auto-save` commit triggers include:
+
+- after successful regular document save (non-rename path)
+- when a document is opened
+- every 60 seconds while the workspace is open
+- before assistant message dispatch
 
 ## Publish Visibility and Explicit Publish
 
@@ -72,46 +70,48 @@ Each document can be:
 - `unpublished-changes`
 - `never-published`
 
-Mohio also provides `lastPublishedAt` when it can resolve upstream history for the document.
+Mohio also returns `lastPublishedAt` when upstream history for the document exists.
 
 ### UI Surface
 
-- top bar `Publish` button with unpublished document badge
+- top bar quick publish icon control (with unpublished badge)
 - left sidebar tabs:
   - `Documents`
-  - `Unpublished` (same hierarchy and sorting, filtered to non-published docs)
-- per-selected-document status copy in workspace sidebar
+  - `Unpublished` (same hierarchy/sorting, filtered to non-published docs)
+- left sidebar bottom action:
+  - `New Note` in `Documents`
+  - `Publish` in `Unpublished`
 
 ### Publish Flow
 
 When `Publish` is clicked:
 
-1. create a pre-publish checkpoint
-2. stage Markdown files (`*.md`, `*.markdown`, `*.mdx`)
-3. commit with a publish message when staged Markdown changes exist
-4. push to upstream (or `origin <current-branch>` with `-u` when no upstream is set)
-5. refresh publish summary and history views
+1. attempt a forced risky `checkpoint` commit
+2. verify there are local commits ahead of upstream
+3. push local commits (`git push` or first-time upstream setup)
+4. refresh publish summary and history views
 
-Editing and autosave do not publish automatically.
+Editing and autosave never publish implicitly.
 
 ## Incoming Changes and Conflict Workflow
 
 ### Automatic Sync Triggers
 
-Renderer-driven sync checks run:
+Sync checks run:
 
 - when a workspace opens
 - every 60 seconds while the workspace stays open
 - when a document is opened
+- before every automatic local commit attempt
 
 ### Safe Apply Path
 
 When incoming commits exist and merge cleanly:
 
-- pre-sync checkpoint
-- merge incoming updates
-- post-sync checkpoint
-- UI status update (`Incoming updates were applied successfully.`)
+- pre-merge `checkpoint` commit attempt
+- merge incoming updates (`--no-ff --no-commit`)
+- finalize with a `checkpoint` merge commit
+- update sync state to idle with success message
 
 ### Overlap Path
 
@@ -122,9 +122,9 @@ When incoming and local edits overlap:
 - options per file:
   - `Keep local`
   - `Keep incoming`
-  - `Combine manually` (editable textarea)
+  - `Combine manually`
 
-After all files are resolved, Mohio finalizes the merge commit and updates state back to `idle`.
+After all files are resolved, Mohio finalizes with a `checkpoint` commit and returns sync state to `idle`.
 
 ## History Panel
 
@@ -135,21 +135,23 @@ Right sidebar tabs:
 
 History panel capabilities for the selected document:
 
-- commit list from Git history for the selected document
 - remote-vs-local diff output for files selected from the `Unpublished` view
-- checkpoint timeline with reason, trigger, and timestamp
-- compare any two checkpoints and render Git patch output
-- restore any checkpoint with a pre-restore safety checkpoint
+- commit list from `git log -- <path>`
+- each row shows:
+  - commit message
+  - localized date/time
+  - Git short stats (`--shortstat`)
+
+Checkpoint compare/restore UI is intentionally removed; commits are the only history unit.
 
 ## API Surface
 
-`window.mohio` now includes collaboration methods:
+`window.mohio` collaboration methods include:
 
-- `createCheckpoint(input)`
-- `createAiChangeCheckpoint(relativePath, reason)`
-- `listCheckpoints(relativePath | null)`
-- `getCheckpointDiff(input)`
-- `revertToCheckpoint(input)`
+- `recordRiskyCommit(input)`
+- `recordAutoSaveCommit()`
+- `listCommitHistory(relativePath | null)`
+- `getUnpublishedDiff(relativePath)`
 - `getPublishSummary()`
 - `publishWorkspaceChanges()`
 - `syncIncomingChanges(reason)`
@@ -158,9 +160,9 @@ History panel capabilities for the selected document:
 
 ## Current Limitations
 
-- conflict copy and labels are product-friendly but still minimal in guidance depth
-- history diff is raw Git patch text (no structured visual split view yet)
-- publish currently stages Markdown-only patterns and excludes non-Markdown assets
+- History currently renders commit metadata and patch text, not a visual side-by-side diff UI.
+- Sync conflict guidance uses clear product copy but remains compact and utilitarian.
+- Publish currently tracks Markdown files only (`.md`, `.markdown`, `.mdx`).
 
 ## Code Anchors
 

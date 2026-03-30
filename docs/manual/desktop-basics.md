@@ -47,28 +47,31 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 - Mohio saves your changes automatically after a short pause.
 - You do not need to click a save button.
 - Changing the title can also rename the file on disk.
-- Mohio creates background recovery checkpoints after meaningful editing bursts and before higher-risk actions (publish, rename/move, delete, restore).
+- Mohio records local Git safety commits in the background:
+  - regular edits: `auto-save`
+  - higher-risk moments: `checkpoint`
 
 ## Publish Shared Changes
 
 - Publishing is explicit.
-- The top bar `Publish` button appears with a badge when there are unpublished notes.
-- Click `Publish` to send your local Markdown updates to the shared branch.
+- A quick `Publish` icon appears next to the workspace name and shows an unpublished badge.
+- The left sidebar `Unpublished` tab also has a full-width `Publish` action at the bottom.
+- Click either `Publish` action to send your local Markdown updates to the shared branch.
 - Each note can show status such as:
   - `Published`
   - `Unpublished changes`
   - `Never published`
 - Mohio also shows `Last published` timing when available.
 
-## History and Restore
+## History
 
 - Open the right sidebar `History` tab while a note is selected.
 - If you selected the note from `Unpublished`, Mohio shows the remote-versus-local diff first.
 - Review the commit list for that note.
-- Review the checkpoint timeline for that note.
-- Compare any two checkpoints to inspect their diff.
-- Use `Restore` on a checkpoint to roll the current note back to that state.
-- Mohio creates a safety checkpoint before restoring.
+- Each history row shows:
+  - commit message
+  - date/time
+  - Git short stats (files/lines changed)
 
 ## If a File Changes Outside Mohio
 
@@ -92,7 +95,7 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 - Open a workspace and select a note.
 - Use the right sidebar `Assistant` tab to browse Codex chats for the current workspace.
 - The assistant opens in a chat-list view first.
-- Click an existing chat to open it, or click `New Chat` to start another parallel conversation.
+- Click an existing chat to open it.
 - The quick actions and composer stay at the bottom of the sidebar while you browse the chat list.
 - If you trigger a quick action or send a message from the list view, Mohio automatically starts a new chat first.
 - When a chat is open, use the back button to return to the list.
@@ -103,9 +106,10 @@ If no note is selected yet, `New Note` creates the file at workspace root.
   - summarize the note
   - organize the note
   - suggest related notes from the current workspace
+- The composer is a growing text area (up to 5 lines) with an icon-only send control inside the field.
+- Press `Enter` to send, or `Shift+Enter` to insert a new line.
 - Mohio sends the current note content along with the wider workspace context for that run.
 - The selected note stays the main context for what you send, but the chat history itself comes from Codex and is not tied to one note inside Mohio.
-- Use `Cancel` if you want to stop the current assistant response.
 
 ## Current Limits
 
