@@ -11,6 +11,7 @@ import type {
   MohioApi,
   PublishResult,
   PublishSummary,
+  RelatedDocument,
   ResolveConflictInput,
   RenameAssistantThreadInput,
   SendAssistantMessageInput,
@@ -18,12 +19,15 @@ import type {
   SaveDocumentResult,
   SyncState,
   WorkspaceDocument,
+  WorkspaceSearchMatch,
   WorkspaceSummary,
 } from "./mohio-types";
 
 export const MOHIO_CHANNELS = {
   getCurrentWorkspace: "mohio:workspace:get-current",
   openWorkspace: "mohio:workspace:open",
+  searchWorkspace: "mohio:workspace:search",
+  getRelatedDocuments: "mohio:workspace:related",
   readDocument: "mohio:document:read",
   createDocument: "mohio:document:create",
   deleteDocument: "mohio:document:delete",
@@ -54,6 +58,8 @@ interface CreateMohioApiOptions {
   appInfo: AppInfo;
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
+  searchWorkspace: (query: string) => Promise<WorkspaceSearchMatch[]>;
+  getRelatedDocuments: (relativePath: string) => Promise<RelatedDocument[]>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;
@@ -90,6 +96,8 @@ export function createMohioApi({
   appInfo,
   getCurrentWorkspace,
   openWorkspace,
+  searchWorkspace,
+  getRelatedDocuments,
   readDocument,
   createDocument,
   deleteDocument,
@@ -119,6 +127,8 @@ export function createMohioApi({
     getAppInfo: () => appInfo,
     getCurrentWorkspace,
     openWorkspace,
+    searchWorkspace,
+    getRelatedDocuments,
     readDocument,
     createDocument,
     deleteDocument,

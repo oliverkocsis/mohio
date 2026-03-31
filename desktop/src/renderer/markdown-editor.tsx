@@ -34,6 +34,10 @@ interface MarkdownEditResult {
   text: string;
 }
 
+interface InternalLinkSelection {
+  target: string;
+}
+
 const hiddenSyntax = Decoration.replace({});
 const strongMark = Decoration.mark({ class: "cm-md-strong" });
 const emphasisMark = Decoration.mark({ class: "cm-md-emphasis" });
@@ -73,13 +77,19 @@ export function RichTextEditor({
   dataTestId,
   markdown,
   onChange,
+  onInternalLinkOpen,
+  onSurfaceFocus,
   onTitleChange,
+  sourceRelativePath,
   title,
 }: {
   dataTestId?: string;
   markdown: string;
   onChange: (markdown: string) => void;
+  onInternalLinkOpen?: (selection: InternalLinkSelection) => void;
+  onSurfaceFocus?: () => void;
   onTitleChange: (title: string) => void;
+  sourceRelativePath?: string;
   title: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -122,6 +132,35 @@ export function RichTextEditor({
             const nextMarkdown = update.state.doc.toString();
             latestMarkdownRef.current = nextMarkdown;
             onChangeRef.current(nextMarkdown);
+          }),
+          EditorView.domEventHandlers({
+            focus: () => {
+              onSurfaceFocus?.();
+            },
+            mousedown: (event, view) => {
+              if (!(event.metaKey || event.ctrlKey) || !onInternalLinkOpen || !sourceRelativePath) {
+                return false;
+              }
+
+              const position = view.posAtCoords({
+                x: event.clientX,
+                y: event.clientY,
+              });
+
+              if (position === null) {
+                return false;
+              }
+
+              const selection = getInternalLinkAtPosition(view.state.doc.toString(), position);
+
+              if (!selection) {
+                return false;
+              }
+
+              event.preventDefault();
+              onInternalLinkOpen(selection);
+              return true;
+            },
           }),
         ],
       }),
@@ -286,6 +325,55 @@ export function RichTextEditor({
       </div>
     </section>
   );
+}
+
+export function getInternalLinkAtPosition(
+  markdown: string,
+  position: number,
+): InternalLinkSelection | null {
+  const markdownPattern = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu;
+  const wikiPattern = /\[\[([^[\]]+)\]\]/gu;
+
+  for (const match of markdown.matchAll(markdownPattern)) {
+    const fullMatch = match[0];
+    const label = match[1] ?? "";
+    const target = match[2]?.trim();
+    const matchStart = match.index ?? 0;
+    const labelStart = matchStart + 1;
+    const labelEnd = labelStart + label.length;
+
+    if (target && position >= labelStart && position <= labelEnd) {
+      return { target };
+    }
+
+    if (position >= matchStart && position <= matchStart + fullMatch.length && target) {
+      return { target };
+    }
+  }
+
+  for (const match of markdown.matchAll(wikiPattern)) {
+    const fullMatch = match[0];
+    const rawValue = match[1]?.trim();
+    const matchStart = match.index ?? 0;
+    const innerStart = matchStart + 2;
+    const innerEnd = innerStart + (rawValue?.length ?? 0);
+
+    if (!rawValue || position < innerStart || position > innerEnd) {
+      continue;
+    }
+
+    const [target] = rawValue.split("|", 1);
+
+    if (target?.trim()) {
+      return { target: target.trim() };
+    }
+
+    if (position <= matchStart + fullMatch.length) {
+      return { target: rawValue };
+    }
+  }
+
+  return null;
 }
 
 function resizeTitleInput(element: HTMLTextAreaElement | null) {

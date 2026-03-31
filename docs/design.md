@@ -25,10 +25,10 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Top Bar
 
 - Height: `48px`
-- Purpose: workspace selection and search placeholder
+- Purpose: workspace selection, discovery search, and panel visibility controls
 - Rules:
   - keep the workspace selector prominent
-  - keep search visually secondary until it is functional
+  - keep panel collapse/reopen controls icon-only and edge-aligned (left toggle on the left, right toggle on the right)
 
 ### Left Sidebar
 
@@ -43,8 +43,11 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Center Panel
 
 - Flexible width with readable content around `768px`
-- Purpose: title editing and rich-text editing
+- Purpose: tabbed title editing and rich-text editing
 - Rules:
+  - keep document tabs in a dedicated header row above the formatting toolbar
+  - align the main tab-header row with left and right panel tab-header rows
+  - use the same tab visual language as side-panel tabs, with document-specific close affordances (`X`)
   - content stays visually central
   - title and body should feel like one editing surface
   - toolbar remains compact and utility-focused
@@ -52,7 +55,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Right Sidebar
 
 - Width target: `384px`
-- Purpose: support assistant-driven note and workspace conversations
+- Purpose: support assistant, history, and related-note workflows
 - Rules:
   - keep the panel visually secondary to the editor
   - start with a dedicated session-list screen instead of mixing history and transcript together
@@ -123,6 +126,8 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Show display titles when available instead of raw filenames
 - Keep nesting readable with indentation, not heavy borders
 - Show a lightweight `New Note` icon control in the workspace header, using the same unframed icon-button treatment as the assistant panel
+- Document rows should support single-click current-tab open and double-click new-tab open
+- Document context menu should expose open actions (`new tab`, `split view`) alongside delete
 
 ### Editor Toolbar
 
@@ -161,12 +166,14 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 
 - Opening a workspace should update the shell immediately.
 - Selecting a document should feel instant and should not expose raw IPC or filesystem concepts.
+- Search should be live and return both filename/path and content matches.
 - Saving should be automatic and mostly invisible.
 - Error messages should be brief and local to the affected panel.
 - Assistant UI should remain secondary to the document even when live.
 - Switching chats should not change the selected note.
 - Switching notes should keep the active Codex chat, but future prompts should use the newly selected note as primary context.
 - Assistant runs should stream text into the panel instead of waiting for a full-page transition.
+- Side panel collapse controls must always remain visible in the top bar so collapsed panels can be reopened in one click.
 
 ## Responsive Guidance
 

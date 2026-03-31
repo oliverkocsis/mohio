@@ -15,7 +15,11 @@ import {
   saveDocument,
 } from "./document-store";
 import { buildAppMenuTemplate } from "./menu";
-import { getWorkspaceSummary } from "./workspace";
+import {
+  getRelatedDocuments,
+  getWorkspaceSummary,
+  searchWorkspace,
+} from "./workspace";
 
 let currentWorkspacePath: string | null = null;
 const assistantRuntime = createAssistantRuntime();
@@ -25,6 +29,7 @@ const activeDocumentWatches = new Map<number, {
   listener: (currentStats: Stats, previousStats: Stats) => void;
   relativePath: string;
 }>();
+const recentDocumentsByWorkspacePath = new Map<string, string[]>();
 
 function createMainWindow(): BrowserWindow {
   const appPath = app.getAppPath();
@@ -125,6 +130,16 @@ function clearDocumentWatches() {
   }
 }
 
+function recordRecentDocument(workspacePath: string, relativePath: string) {
+  const currentRecentDocuments = recentDocumentsByWorkspacePath.get(workspacePath) ?? [];
+  const nextRecentDocuments = [
+    relativePath,
+    ...currentRecentDocuments.filter((pathEntry) => pathEntry !== relativePath),
+  ].slice(0, 30);
+
+  recentDocumentsByWorkspacePath.set(workspacePath, nextRecentDocuments);
+}
+
 function watchDocumentForEventSender(
   event: IpcMainInvokeEvent,
   relativePath: string | null,
@@ -185,6 +200,21 @@ async function openWorkspace(browserWindow?: BaseWindow) {
 function registerMohioHandlers() {
   ipcMain.handle(MOHIO_CHANNELS.getCurrentWorkspace, () => loadCurrentWorkspace());
   ipcMain.handle(MOHIO_CHANNELS.openWorkspace, (_event) => openWorkspace());
+  ipcMain.handle(MOHIO_CHANNELS.searchWorkspace, async (_event, query: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before searching.");
+    }
+
+    return searchWorkspace(currentWorkspacePath, query);
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getRelatedDocuments, async (_event, relativePath: string) => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a workspace before loading related documents.");
+    }
+
+    const recentRelativePaths = recentDocumentsByWorkspacePath.get(currentWorkspacePath) ?? [];
+    return getRelatedDocuments(currentWorkspacePath, relativePath, recentRelativePaths);
+  });
   ipcMain.handle(MOHIO_CHANNELS.readDocument, async (_event, relativePath: string) => {
     if (!currentWorkspacePath) {
       throw new Error("Open a workspace before loading documents.");
@@ -192,14 +222,18 @@ function registerMohioHandlers() {
 
     void gitCollaboration.recordAutoSaveCommit(currentWorkspacePath).catch(() => undefined);
     void gitCollaboration.syncIncomingChanges(currentWorkspacePath, "document-open").catch(() => undefined);
-    return readDocument(currentWorkspacePath, relativePath);
+    const document = await readDocument(currentWorkspacePath, relativePath);
+    recordRecentDocument(currentWorkspacePath, document.relativePath);
+    return document;
   });
   ipcMain.handle(MOHIO_CHANNELS.createDocument, async (_event, input) => {
     if (!currentWorkspacePath) {
       throw new Error("Open a workspace before creating documents.");
     }
 
-    return createDocument(currentWorkspacePath, input);
+    const document = await createDocument(currentWorkspacePath, input);
+    recordRecentDocument(currentWorkspacePath, document.relativePath);
+    return document;
   });
   ipcMain.handle(MOHIO_CHANNELS.deleteDocument, async (_event, relativePath: string) => {
     if (!currentWorkspacePath) {
@@ -213,7 +247,9 @@ function registerMohioHandlers() {
       throw new Error("Open a workspace before saving documents.");
     }
 
-    return saveDocument(currentWorkspacePath, input);
+    const savedDocument = await saveDocument(currentWorkspacePath, input);
+    recordRecentDocument(currentWorkspacePath, savedDocument.relativePath);
+    return savedDocument;
   });
   ipcMain.handle(MOHIO_CHANNELS.recordRiskyCommit, async (_event, input) => {
     if (!currentWorkspacePath) {

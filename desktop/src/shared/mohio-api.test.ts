@@ -27,6 +27,22 @@ describe("createMohioApi", () => {
 
     const getCurrentWorkspace = vi.fn().mockResolvedValue(workspace);
     const openWorkspace = vi.fn().mockResolvedValue(workspace);
+    const searchWorkspace = vi.fn().mockResolvedValue([
+      {
+        relativePath: "README.md",
+        displayTitle: "README",
+        matchType: "title" as const,
+        snippet: null,
+      },
+    ]);
+    const getRelatedDocuments = vi.fn().mockResolvedValue([
+      {
+        relativePath: "ROADMAP.md",
+        displayTitle: "ROADMAP",
+        relationTypes: ["backlink"] as const,
+        score: 120,
+      },
+    ]);
     const readDocument = vi.fn().mockResolvedValue(document);
     const createDocument = vi.fn().mockResolvedValue({
       relativePath: "Untitled.md",
@@ -141,6 +157,8 @@ describe("createMohioApi", () => {
       },
       getCurrentWorkspace,
       openWorkspace,
+      searchWorkspace,
+      getRelatedDocuments,
       readDocument,
       createDocument,
       deleteDocument,
@@ -174,6 +192,22 @@ describe("createMohioApi", () => {
     });
     await expect(api.getCurrentWorkspace()).resolves.toEqual(workspace);
     await expect(api.openWorkspace()).resolves.toEqual(workspace);
+    await expect(api.searchWorkspace("readme")).resolves.toEqual([
+      {
+        relativePath: "README.md",
+        displayTitle: "README",
+        matchType: "title",
+        snippet: null,
+      },
+    ]);
+    await expect(api.getRelatedDocuments("README.md")).resolves.toEqual([
+      {
+        relativePath: "ROADMAP.md",
+        displayTitle: "ROADMAP",
+        relationTypes: ["backlink"],
+        score: 120,
+      },
+    ]);
     await expect(api.readDocument("README.md")).resolves.toEqual(document);
     await expect(api.createDocument({ directoryRelativePath: null })).resolves.toEqual({
       relativePath: "Untitled.md",
@@ -300,6 +334,8 @@ describe("createMohioApi", () => {
     expect(api.onAssistantEvent(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
+    expect(searchWorkspace).toHaveBeenCalledWith("readme");
+    expect(getRelatedDocuments).toHaveBeenCalledWith("README.md");
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
     expect(deleteDocument).toHaveBeenCalledWith("README.md");

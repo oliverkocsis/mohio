@@ -17,8 +17,9 @@ This document covers the current shell and workspace flow in `desktop/`.
 - The shell layout has:
   - top bar
   - left workspace sidebar
-  - center editor panel
+  - center editor panel with tabbed document workspaces
   - right sidebar with assistant and history tabs
+- Both side panels can be collapsed and reopened from icon controls in the top bar.
 - The renderer is implemented in `React` and `TypeScript`.
 - The right sidebar hosts the live Codex assistant panel.
 
@@ -37,15 +38,12 @@ Current API surface:
 - `getAppInfo()`
 - `getCurrentWorkspace()`
 - `openWorkspace()`
+- `searchWorkspace(query)`
+- `getRelatedDocuments(relativePath)`
 - `readDocument(relativePath)`
 - `createDocument({ directoryRelativePath })`
 - `deleteDocument(relativePath)`
 - `saveDocument(input)`
-- `createCheckpoint(input)`
-- `createAiChangeCheckpoint(relativePath, reason)`
-- `listCheckpoints(relativePath | null)`
-- `getCheckpointDiff(input)`
-- `revertToCheckpoint(input)`
 - `getPublishSummary()`
 - `publishWorkspaceChanges()`
 - `syncIncomingChanges(reason)`
@@ -83,6 +81,10 @@ Current API surface:
 - The left sidebar renders tabbed views:
   - `Documents` for full tree
   - `Unpublished` for non-published documents only
+- Tree document open behavior:
+  - single-click opens in the current active tab
+  - double-click opens in a new tab
+  - right-click includes `Open in New Tab` and `Open in Split View`
 - The `New Note` action creates a markdown note in the selected note folder.
 - If no note is selected, `New Note` creates the note at workspace root.
 - Directories are expanded by default after a workspace loads.
@@ -107,11 +109,24 @@ Current API surface:
 
 ### Workspace With Documents
 
-- The selected document loads into the editor panel.
+- The selected document loads into the active editor tab.
+- The main panel supports document tabs and two-pane split editing.
+- Main document tabs are rendered above the formatting toolbar.
 - Newly created notes are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
 - The top bar shows explicit `Publish` and `Sync` actions.
-- The right sidebar supports both assistant chat and checkpoint history flows.
+- The right sidebar supports assistant, history, and related-note flows.
+
+### Search and Discovery
+
+- Top-bar search is live and queries:
+  - file/path matches
+  - content matches with snippets
+- Internal Markdown and wiki links can be opened directly from the editor with `Cmd/Ctrl+Click`.
+- The right sidebar `Related` tab shows ranked related notes from:
+  - outgoing links
+  - backlinks
+  - recent notes
 
 ## Security Boundary
 
@@ -121,9 +136,9 @@ Current API surface:
 
 ## Current Limitations
 
-- No rename-note UI beyond title-driven file rename
-- No search implementation behind the search field
-- No recent-note or pinned-note behavior yet
+- No dedicated rename-note action beyond title-driven file rename
+- Panel collapse state is session-local (not persisted across restart)
+- Related-note ranking is heuristic and session-scoped
 - History diff is rendered as raw patch text rather than a rich split diff
 
 ## Code Anchors

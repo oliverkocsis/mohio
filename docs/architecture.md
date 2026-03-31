@@ -30,7 +30,7 @@ flowchart LR
 
 - `Electron main`: window, menu, folder picker, filesystem access, file watching, Codex app-server client
 - `Preload`: typed `window.mohio` bridge
-- `Renderer`: React UI for workspace tree, editor, assistant history, and transcript
+- `Renderer`: React UI for workspace tree, search, tabbed/split editor panes, related-note navigation, assistant history, and transcript
 - `Workspace`: local folder with `.md`, `.markdown`, and `.mdx` files
 
 ## Data Flow
@@ -48,6 +48,14 @@ flowchart LR
 2. Main resolves that path inside the active workspace.
 3. The Markdown file is read and parsed.
 4. Renderer loads the parsed title and body into the editor.
+
+### Search and Related Discovery
+
+1. Renderer sends a search query or selected-note path through preload.
+2. Main scans workspace markdown files and builds discovery data on demand:
+   - title/path/content matches for search
+   - outgoing link graph, backlinks, and recents for related notes
+3. Renderer renders ranked search/related results and opens notes into tabs or split panes.
 
 ### Save Document
 
@@ -74,6 +82,12 @@ flowchart LR
 6. Main starts the turn, streams assistant deltas back to renderer through assistant events, and refreshes the workspace-filtered thread list when Codex thread state changes.
 7. Renderer updates the right sidebar transcript and history list while the run is active.
 
+### Internal Link Activation
+
+1. User `Cmd/Ctrl+Click`s an internal link in the editor.
+2. Renderer resolves target path (markdown/wiki/anchor forms) against current workspace documents.
+3. Renderer opens the resolved note in the current pane tab context.
+
 ## Security and Trust Boundaries
 
 - The renderer runs with `contextIsolation: true`.
@@ -95,12 +109,12 @@ flowchart LR
 ## Current Architectural Constraints
 
 - The app is single-window and desktop-only today.
-- Search UI exists as a placeholder input only; it is not wired to workspace querying.
+- Search and related discovery are computed from workspace files on demand, without persistent indexing.
 - Assistant history browsing is limited to Codex threads whose `cwd` exactly matches the open workspace path.
 - The assistant can chat about the workspace, but it cannot apply edits through Mohio yet.
 - History is commit-list based (message/date/stats) rather than a visual side-by-side diff/restore workflow.
 - Publish and sync currently target Markdown documents only (`.md`, `.markdown`, `.mdx`).
-- There is still no rendered preview or split-view Markdown mode.
+- There is no rendered preview mode for Markdown yet.
 
 ## When To Update This Document
 

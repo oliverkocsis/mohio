@@ -26,21 +26,42 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 
 - Folders appear before documents.
 - Click a folder row to expand or collapse it.
-- Click a document row to open it.
+- Click a document row to open it in the current active tab.
+- Double-click a document row to open it in a new tab.
 - If a document has a visible title, Mohio shows that title in the sidebar.
-- Right-click a document row to open the context menu and choose `Delete Note`.
+- Right-click a document row to open the context menu:
+  - `Open in New Tab`
+  - `Open in Split View`
+  - `Delete Note`
 - Use the left sidebar tabs:
   - `Documents` to browse all notes
   - `Unpublished` to focus on notes that are not fully published yet
 
+## Search and Discover Related Notes
+
+- Use the top-bar search field to find notes by:
+  - file name/path
+  - note content
+- Search results appear in the left sidebar while searching.
+- Use the right sidebar `Related` tab to explore linked/backlinked/recent notes for the currently active note.
+
 ## Edit a Document
 
 - Select a document from the left sidebar.
+- Use document tabs at the top of the main panel to switch between open notes.
+- Click the split-view toggle in the tab row to compare notes side by side.
 - Edit the title at the top of the page.
   - If the note starts with a linked first H1 (`# ...`) that matches the filename, the title reflects that H1.
   - If the first H1 is missing or mismatched, the title reflects the filename instead.
 - Edit the body in the main editor, which displays Markdown as formatted text while still saving Markdown source underneath.
 - Use the toolbar for headings, lists, quotes, links, images, code, and other basic formatting.
+- Hold `Cmd/Ctrl` and click an internal link in the editor to open that linked note directly.
+
+## Collapse and Reopen Side Panels
+
+- Use the top-left panel icon to collapse/reopen the left workspace panel.
+- Use the top-right panel icon to collapse/reopen the right panel.
+- The center editor expands automatically when a side panel is collapsed.
 
 ## How Saving Works
 
@@ -114,7 +135,6 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 ## Current Limits
 
 - You cannot rename notes from a dedicated sidebar action yet.
-- Search is not active yet.
 - Mohio only shows Codex chats whose working folder matches the open workspace.
 - The assistant can chat about your workspace, but it cannot apply note edits through Mohio yet.
-- There is no rendered preview or split view for Markdown yet.
+- There is no rendered preview mode for Markdown yet.

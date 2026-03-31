@@ -76,6 +76,20 @@ button {
   width: 100%;
 }
 
+.search-input-wrap {
+  position: relative;
+}
+
+.search-input-wrap__icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  width: 13px;
+  height: 13px;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
 .top-bar__actions {
   justify-content: flex-end;
   justify-self: end;
@@ -160,7 +174,7 @@ button {
 
 .search-input--top-bar {
   background: var(--muted-surface);
-  padding: 8px 10px;
+  padding: 8px 10px 8px 30px;
   font-size: 13px;
 }
 
@@ -174,6 +188,18 @@ button {
   min-height: 0;
   grid-template-columns: 320px minmax(0, 1fr) 384px;
   overflow: hidden;
+}
+
+.workspace-shell--left-collapsed {
+  grid-template-columns: minmax(0, 1fr) 384px;
+}
+
+.workspace-shell--right-collapsed {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
+.workspace-shell--left-collapsed.workspace-shell--right-collapsed {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar {
@@ -401,6 +427,14 @@ button {
   word-break: break-word;
 }
 
+.workspace-search-results__snippet {
+  margin: 2px 0 8px;
+  padding-inline: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .workspace-panel__footer-action {
   margin-top: 12px;
   border-top: 1px solid var(--border);
@@ -609,6 +643,87 @@ button {
   width: min(100%, 832px);
   flex-direction: column;
   overflow: hidden;
+}
+
+.editor-panel__split {
+  display: grid;
+  width: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.editor-panel__split--active {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.editor-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--background);
+}
+
+.editor-panel__split--active .editor-pane:first-child {
+  border-right: 1px solid var(--border);
+}
+
+.editor-pane__tabs-row {
+  display: flex;
+  height: var(--chrome-height);
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-surface);
+}
+
+.editor-pane__tabs-scroll {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.editor-pane__tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 164px;
+  max-width: 290px;
+  justify-content: flex-start;
+  gap: 8px;
+  border-left: 1px solid var(--border);
+  padding: 0 10px;
+}
+
+.editor-pane__tab:first-child {
+  border-left: none;
+}
+
+.editor-pane__tab-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-pane__tab-close {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.editor-pane__tab-close:hover {
+  color: var(--text-primary);
+}
+
+.editor-pane__tab-close-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.editor-pane__split-toggle {
+  flex: 0 0 auto;
+  width: 44px;
+  height: var(--chrome-height);
+  border-left: 1px solid var(--border);
 }
 
 .editor-toolbar {
@@ -1145,6 +1260,46 @@ button {
   color: currentColor;
 }
 
+.related-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.related-list__button {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.related-list__button:hover {
+  border-color: var(--border);
+  background: var(--background);
+}
+
+.related-list__title {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text-primary);
+}
+
+.related-list__meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
 .assistant-panel__body {
   display: flex;
   min-height: 0;
@@ -1455,5 +1610,13 @@ button {
 @media (max-width: 1200px) {
   .workspace-shell {
     grid-template-columns: 280px minmax(0, 1fr) 320px;
+  }
+
+  .workspace-shell--left-collapsed {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .workspace-shell--right-collapsed {
+    grid-template-columns: 280px minmax(0, 1fr);
   }
 }
