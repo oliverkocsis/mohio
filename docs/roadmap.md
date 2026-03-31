@@ -25,7 +25,22 @@ Planned focus areas:
 - explicit publish flow for shared updates
 - contextual navigation between related pages
 
-### Notes and Documents
+### Navigation and Discovery
+
+- Switch between notes quickly from the workspace browser.
+- Search by file name.
+- Search by note content.
+- Recognize internal Markdown links between documents.
+- Open linked notes directly from the editor.
+- Support contextual navigation between related pages over time.
+
+### Git v2
+- Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
+- When the user clicks on the Publish and there is not remote git repo, then prompt the user to connect a remote git repository (GitHub, GitLab, Bitbucket, or custom).
+- The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
+- The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
+
+## Phase: Notes and Documents
 
 - Seperate notes and documents
 - Notes are used to capture quick thoughts, ideas.
@@ -41,98 +56,25 @@ Planned focus areas:
 - The documents can be ordered by name or modified time. The user can switch between the two sorting options. (A-Z or Z-A)
 - Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 This is the first h1 if the note`).
 
-### Apps
-
-Create internal tools with AI assistance that are grounded in the team's existing knowledge and documentation.
-- Create tools that can be opened in the main editor page and have access to the workspace context.
-- Text based database is used
-- 
-
-### Canvas
+## Phase: Canvas
 
 Text based canvas for freeform note-taking, brainstorming, and visual organization.
 - support for basic shapes, connectors, and text boxes
 - fixed grid layout with drag-and-drop positioning
 - fixed sized elements and spacing for simplicity
 
-### Navigation and Discovery
 
-- Switch between notes quickly from the workspace browser.
-- Search by file name.
-- Search by note content.
-- Recognize internal Markdown links between documents.
-- Open linked notes directly from the editor.
-- Support contextual navigation between related pages over time.
+## Phase: Real Time Collaboration
 
-### Review, History, and Checkpoints
-- Under the hood, Mohio uses Git for version history and collaboration (users should not need to interact with Git directly).
-- Create automatic checkpoints in the background to help users recover from mistakes without learning Git concepts.
-- Create a checkpoint before applying any AI-generated change.
-- Create a checkpoint after a meaningful local editing burst followed by a pause (not on a fixed short timer).
-- Use a safer heuristic than a simple 60-second idle rule:
-  Create a checkpoint only when there were material document changes and the user has been idle for ~60 seconds.
-- Create a checkpoint when the user switches between documents.
-- Create checkpoints before high-risk transitions (publish, rename/move, delete, bulk edits).
-- Keep checkpoints primarily as a recovery and safety mechanism rather than a visible workflow step.
-- Preserve visible, page-level history over time.
-- Support reviewable diffs before important shared changes are accepted.
-- Add a right-panel `History` tab with a clear timeline and a diff viewer (compare any two checkpoints).
-- Make reverting to a previous checkpoint a simple, non-technical action.
+Real Time collaboration and change awareness features to support team workflows.
+- real-time collaborative editing with presence indicators
+- inline comments and discussions
+- change notifications and activity feed
+- version history and rollback
+- user mentions and notifications
+- shared editing sessions and live cursors
 
-
-### Publishing and Shared Knowledge
-- When there are local changes that haven’t been published yet, show a `Publish` button in the top bar with a badge indicating the number of documents with unpublished changes.
-- Add a left-panel view (tab or filter) that lists all documents with unpublished changes in the same folder hierarchy and sorting as the main Documents view.
-- Make publishing state visible and understandable at a glance (e.g. `Published`, `Unpublished changes`, `Never published`, plus a `Last published` timestamp).
-- Keep publishing an explicit action (editing should not silently publish shared knowledge).
-
-### Pull Changes
-- Automatically check for and sync incoming changes when the workspace is opened, at regular intervals while it stays open, and when a document is opened.
-- Apply incoming changes automatically when it’s safe, and merge automatically when changes don’t overlap (checkpoint before/after applying them).
-- When a conflict is detected, show a clear notification and a guided resolution flow that doesn’t require Git knowledge.
-- Conflict resolution options: review changes side-by-side, keep one version, or manually combine them in the editor.
-- Explain conflicts in product language (what happened and what the options mean) without using technical Git terms.
-
-### Git v2
-- Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
-- When the user clicks on the Publish and there is not remote git repo, then prompt the user to connect a remote git repository (GitHub, GitLab, Bitbucket, or custom).
-- The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
-- The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
-
-
-### 9. Collaboration and Change Awareness
-
-These are planned feature areas beyond the earliest core workspace milestone:
-
-- Page comments and lightweight review flows.
-- Mentions and basic notifications.
-- Better visibility into recent changes on relevant pages.
-- Guided conflict resolution in product language.
-- Clearer signals for draft, published, and incoming changes.
-
-### 10. Mobile and Companion Workflows
-
-These are planned after the desktop-first core workflow is stable:
-
-- Mobile capture for new notes and ideas.
-- Mobile reading for shared team documentation.
-- Lightweight proposal review on smaller screens.
-- Faster discovery of related knowledge away from the main workspace.
-
-
-## Phase 2: Collaboration and Change Awareness
-
-Once the core workflow is stable, the next priority is improving team coordination.
-
-Planned focus areas:
-
-- page comments and lightweight review flows
-- mentions and basic notifications
-- better visibility into recent changes on relevant pages
-- guided conflict resolution in product language
-- clearer signals for draft, published, and incoming changes
-
-## Phase 3: Internal Tools From Documented Knowledge
+## Phase: Internal Tools From Documented Knowledge
 
 Once the core workspace and collaboration workflows are stable, Mohio should grow beyond ad-hoc AI code generation into a dependable internal-tool builder for small teams.
 
@@ -145,7 +87,7 @@ Planned focus areas:
 - support minimal IT teams with safer iteration, validation, and handoff workflows
 - make internal tools easy to version, review, and distribute through Mohio and the existing Git ecosystem
 
-## Phase 4: Mobile and Workflow Expansion
+## Phase: Mobile and Workflow Expansion
 
 After the desktop-first experience is solid, Mohio can expand the companion workflows that matter most away from the main workspace.
 
@@ -156,7 +98,7 @@ Planned focus areas:
 - lightweight proposal review on smaller screens
 - faster discovery of related knowledge and backlinks
 
-## Phase 5: Shared Storage and Workspace Connectivity
+## Phase: Shared Storage and Workspace Connectivity
 
 Once the core local-first workflows are mature, Mohio can expand to support shared storage providers for teams that already organize documents in external file platforms.
 
