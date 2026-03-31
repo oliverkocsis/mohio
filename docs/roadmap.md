@@ -33,6 +33,8 @@ Planned focus areas:
 - Recognize internal Markdown links between documents.
 - Open linked notes directly from the editor.
 - Support contextual navigation between related pages over time.
+- Support multiple document tabs for easy switching between related content.
+- Support side by side document view for easy comparison of related content.
 
 ### Git v2
 - Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
