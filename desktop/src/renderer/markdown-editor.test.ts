@@ -112,4 +112,26 @@ describe("markdown editor toolbar transforms", () => {
     expect(content?.textContent).not.toContain("`inline`");
   });
 
+  it("highlights search matches in the visible document text", () => {
+    const { container, rerender } = render(createElement(RichTextEditor, {
+      highlightQuery: "alpha",
+      markdown: "Alpha beta alpha",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-search-highlight").length).toBeGreaterThanOrEqual(2);
+
+    rerender(createElement(RichTextEditor, {
+      highlightQuery: "",
+      markdown: "Alpha beta alpha",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-search-highlight")).toHaveLength(0);
+  });
+
 });

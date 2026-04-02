@@ -74,12 +74,12 @@ Mohio also returns `lastPublishedAt` when upstream history for the document exis
 
 ### UI Surface
 
-- top bar quick publish icon control (with unpublished badge)
 - left sidebar tabs:
   - `Documents`
+  - `Search`
   - `Unpublished` (same hierarchy/sorting, filtered to non-published docs)
+- top bar quick note icon control (`New Note`)
 - left sidebar bottom action:
-  - `New Note` in `Documents`
   - `Publish` in `Unpublished`
 
 ### Publish Flow

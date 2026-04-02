@@ -5,7 +5,6 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
-  getRelatedDocuments,
   getWorkspaceSummary,
   searchWorkspace,
 } from "./workspace";
@@ -124,37 +123,5 @@ describe("searchWorkspace", () => {
       matchType: "content",
     });
     expect(contentMatches[0]?.snippet).toContain("Roadmap");
-  });
-});
-
-describe("getRelatedDocuments", () => {
-  it("returns backlink, outgoing, and recent related notes", async () => {
-    const workspacePath = await mkdtemp(path.join(os.tmpdir(), "mohio-workspace-"));
-    tempDirectories.push(workspacePath);
-
-    await mkdir(path.join(workspacePath, "docs"), { recursive: true });
-    await writeFile(path.join(workspacePath, "README.md"), "# README\n\nSee [Plan](docs/Plan.md).\n");
-    await writeFile(path.join(workspacePath, "docs", "Plan.md"), "# Plan\n\nSee [[README]].\n");
-    await writeFile(path.join(workspacePath, "docs", "Notes.md"), "# Notes\n\nExtra details.\n");
-
-    const related = await getRelatedDocuments(workspacePath, "README.md", [
-      path.join("docs", "Notes.md"),
-      path.join("docs", "Plan.md"),
-    ]);
-
-    expect(related).toEqual([
-      {
-        relativePath: path.join("docs", "Plan.md").replace(/\\/gu, "/"),
-        displayTitle: "Plan",
-        relationTypes: ["backlink", "outgoing", "recent"],
-        score: 304,
-      },
-      {
-        relativePath: path.join("docs", "Notes.md").replace(/\\/gu, "/"),
-        displayTitle: "Notes",
-        relationTypes: ["recent"],
-        score: 70,
-      },
-    ]);
   });
 });

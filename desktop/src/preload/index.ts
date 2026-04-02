@@ -11,7 +11,6 @@ const mohioApi = createMohioApi({
   getCurrentWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.getCurrentWorkspace),
   openWorkspace: () => ipcRenderer.invoke(MOHIO_CHANNELS.openWorkspace),
   searchWorkspace: (query) => ipcRenderer.invoke(MOHIO_CHANNELS.searchWorkspace, query),
-  getRelatedDocuments: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.getRelatedDocuments, relativePath),
   readDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.readDocument, relativePath),
   createDocument: (input) => ipcRenderer.invoke(MOHIO_CHANNELS.createDocument, input),
   deleteDocument: (relativePath) => ipcRenderer.invoke(MOHIO_CHANNELS.deleteDocument, relativePath),

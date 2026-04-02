@@ -12,7 +12,7 @@ Mohio's first desktop shell was still static. It needed a real local-first workf
 
 - Added local workspace selection in the Electron main process, including directory picking and Markdown file-tree enumeration for `.md`, `.markdown`, and `.mdx` documents.
 - Added a shared typed workspace contract between the main process, preload bridge, and renderer so the app can load the current workspace, open a workspace, and react to workspace changes from both UI actions and the `File` menu.
-- Added a `File > Open Workspace...` menu item with the `CmdOrCtrl+O` shortcut and wired it so menu-based workspace changes refresh the renderer immediately.
+- Added a `File > Open Folder...` menu item with the `CmdOrCtrl+O` shortcut and wired it so menu-based workspace changes refresh the renderer immediately.
 - Replaced the static left sidebar with a real workspace browser that lists Markdown files in a nested folder tree.
 - Added expandable and collapsible folder rows with chevrons that point right when collapsed and down when expanded.
 - Tightened the workspace tree spacing into a denser, more Notion-like left-navigation rhythm for faster scanning.

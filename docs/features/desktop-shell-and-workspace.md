@@ -17,7 +17,7 @@ This document covers the current shell and workspace flow in `desktop/`.
 - The shell layout has:
   - top bar
   - left workspace sidebar
-  - center editor panel with tabbed document workspaces
+  - center editor panel with a single active document surface
   - right sidebar with assistant and history tabs
 - Both side panels can be collapsed and reopened from icon controls in the top bar.
 - The renderer is implemented in `React` and `TypeScript`.
@@ -25,7 +25,7 @@ This document covers the current shell and workspace flow in `desktop/`.
 
 ## Menu and Native Entry Points
 
-- `File > Open Workspace...` opens the native folder picker.
+- `File > Open Folder...` opens the native folder picker.
 - Shortcut: `CmdOrCtrl+O`
 - The top-bar workspace button triggers the same workspace-opening flow.
 
@@ -39,7 +39,6 @@ Current API surface:
 - `getCurrentWorkspace()`
 - `openWorkspace()`
 - `searchWorkspace(query)`
-- `getRelatedDocuments(relativePath)`
 - `readDocument(relativePath)`
 - `createDocument({ directoryRelativePath })`
 - `deleteDocument(relativePath)`
@@ -80,11 +79,11 @@ Current API surface:
 
 - The left sidebar renders tabbed views:
   - `Documents` for full tree
+  - `Search` for live note search
   - `Unpublished` for non-published documents only
 - Tree document open behavior:
-  - single-click opens in the current active tab
-  - double-click opens in a new tab
-  - right-click includes `Open in New Tab` and `Open in Split View`
+  - single-click opens the document in the main editor surface
+  - right-click includes `Delete Note`
 - The `New Note` action creates a markdown note in the selected note folder.
 - If no note is selected, `New Note` creates the note at workspace root.
 - Directories are expanded by default after a workspace loads.
@@ -98,9 +97,9 @@ Current API surface:
 
 ### No Workspace Open
 
-- Left sidebar shows `No workspace is open.`
+- Left and right sidebars keep tab structure visible without workspace-empty placeholder copy.
 - Center panel shows a single CTA to choose a folder.
-- Search remains visible but is read-only.
+- Search tab remains visible; its input is disabled until a folder is open.
 
 ### Workspace With No Markdown Documents
 
@@ -109,24 +108,21 @@ Current API surface:
 
 ### Workspace With Documents
 
-- The selected document loads into the active editor tab.
-- The main panel supports document tabs and two-pane split editing.
-- Main document tabs are rendered above the formatting toolbar.
+- The selected document loads into the single editor surface.
 - Newly created notes are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
-- The top bar shows explicit `Publish` and `Sync` actions.
-- The right sidebar supports assistant, history, and related-note flows.
+- The top bar keeps quick `New Note` and panel visibility controls.
+- The right sidebar supports assistant and history flows.
 
 ### Search and Discovery
 
-- Top-bar search is live and queries:
+- Left-sidebar `Search` tab includes a dedicated full-width input.
+- Search is live and queries:
   - file/path matches
   - content matches with snippets
+- Active query text is highlighted in the open editor with yellow in-document marks.
+- Search input includes an inline `X` clear control on the right side.
 - Internal Markdown and wiki links can be opened directly from the editor with `Cmd/Ctrl+Click`.
-- The right sidebar `Related` tab shows ranked related notes from:
-  - outgoing links
-  - backlinks
-  - recent notes
 
 ## Security Boundary
 
@@ -138,7 +134,6 @@ Current API surface:
 
 - No dedicated rename-note action beyond title-driven file rename
 - Panel collapse state is session-local (not persisted across restart)
-- Related-note ranking is heuristic and session-scoped
 - History diff is rendered as raw patch text rather than a rich split diff
 
 ## Code Anchors

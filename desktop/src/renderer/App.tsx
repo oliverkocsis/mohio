@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  Columns2,
   FileText,
   History as HistoryIcon,
   MessageSquare,
@@ -22,7 +21,6 @@ import type {
   AssistantThreadSummary,
   CommitHistoryEntry,
   PublishSummary,
-  RelatedDocument,
   SyncState,
   UnpublishedDiffResult,
   WorkspaceDocument,
@@ -33,14 +31,8 @@ import type {
 import { RichTextEditor } from "./markdown-editor";
 
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
-type LeftSidebarTab = "documents" | "unpublished";
-type PaneId = "primary" | "secondary";
-type RightSidebarTab = "assistant" | "history" | "related";
-
-interface PaneTabsState {
-  activePath: string | null;
-  paths: string[];
-}
+type LeftSidebarTab = "documents" | "search" | "unpublished";
+type RightSidebarTab = "assistant" | "history";
 
 interface DocumentContextMenuState {
   documentId: string;
@@ -65,6 +57,17 @@ interface DocumentEditorSession {
   setDraftMarkdown: (value: string) => void;
   setDraftTitle: (value: string) => void;
 }
+
+const ASSISTANT_QUICK_ACTIONS = [
+  {
+    label: "Summarize this note",
+    prompt: "Summarize this note in concise bullets.",
+  },
+  {
+    label: "Organize this note",
+    prompt: "Organize this note into clear sections with concise headings and next steps.",
+  },
+] as const;
 
 function useDocumentEditorSession({
   onRelativePathChange,
@@ -233,10 +236,7 @@ export function App() {
   const [rightSidebarTab, setRightSidebarTab] = useState<RightSidebarTab>("assistant");
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [isSplitView, setIsSplitView] = useState(false);
-  const [activePaneId, setActivePaneId] = useState<PaneId>("primary");
-  const [primaryTabs, setPrimaryTabs] = useState<PaneTabsState>({ activePath: null, paths: [] });
-  const [secondaryTabs, setSecondaryTabs] = useState<PaneTabsState>({ activePath: null, paths: [] });
+  const [activeDocumentPath, setActiveDocumentPath] = useState<string | null>(null);
   const [documentContextMenu, setDocumentContextMenu] = useState<DocumentContextMenuState | null>(null);
 
   const [publishSummary, setPublishSummary] = useState<PublishSummary | null>(null);
@@ -255,77 +255,20 @@ export function App() {
   const [searchResults, setSearchResults] = useState<WorkspaceSearchMatch[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
 
-  const [relatedDocuments, setRelatedDocuments] = useState<RelatedDocument[]>([]);
-  const [isRelatedLoading, setIsRelatedLoading] = useState(false);
-  const [relatedError, setRelatedError] = useState<string | null>(null);
-
   const [assistantThreads, setAssistantThreads] = useState<AssistantThreadSummary[]>([]);
   const [assistantThread, setAssistantThread] = useState<AssistantThread | null>(null);
   const [assistantComposerValue, setAssistantComposerValue] = useState("");
   const [assistantError, setAssistantError] = useState<string | null>(null);
 
-  const updatePanePath = (paneId: PaneId, nextPath: string | null) => {
-    if (paneId === "primary") {
-      setPrimaryTabs((current) => {
-        const nextPaths = current.paths.includes(nextPath ?? "")
-          ? current.paths
-          : nextPath
-            ? [nextPath, ...current.paths.filter((entry) => entry !== nextPath)]
-            : current.paths;
-
-        return {
-          activePath: nextPath,
-          paths: nextPaths,
-        };
-      });
-      return;
-    }
-
-    setSecondaryTabs((current) => {
-      const nextPaths = current.paths.includes(nextPath ?? "")
-        ? current.paths
-        : nextPath
-          ? [nextPath, ...current.paths.filter((entry) => entry !== nextPath)]
-          : current.paths;
-
-      return {
-        activePath: nextPath,
-        paths: nextPaths,
-      };
-    });
-  };
-
-  const primaryEditor = useDocumentEditorSession({
-    relativePath: primaryTabs.activePath,
+  const editor = useDocumentEditorSession({
+    relativePath: activeDocumentPath,
     onRelativePathChange: (nextRelativePath) => {
-      setPrimaryTabs((current) => ({
-        activePath: nextRelativePath,
-        paths: current.paths.map((relativePath) => (
-          relativePath === current.activePath ? nextRelativePath : relativePath
-        )),
-      }));
+      setActiveDocumentPath(nextRelativePath);
     },
   });
-
-  const secondaryEditor = useDocumentEditorSession({
-    relativePath: secondaryTabs.activePath,
-    onRelativePathChange: (nextRelativePath) => {
-      setSecondaryTabs((current) => ({
-        activePath: nextRelativePath,
-        paths: current.paths.map((relativePath) => (
-          relativePath === current.activePath ? nextRelativePath : relativePath
-        )),
-      }));
-    },
-  });
-
-  const activeEditor = activePaneId === "secondary" && isSplitView
-    ? secondaryEditor
-    : primaryEditor;
-  const activeDocumentPath = activeEditor.relativePath;
-  const activeDocument = activeEditor.document;
-  const activeDraftTitle = activeEditor.draftTitle;
-  const activeDraftMarkdown = activeEditor.draftMarkdown;
+  const activeDocument = editor.document;
+  const activeDraftTitle = editor.draftTitle;
+  const activeDraftMarkdown = editor.draftMarkdown;
 
   const refreshWorkspaceSummary = async () => {
     try {
@@ -336,45 +279,16 @@ export function App() {
       setIsWorkspaceLoading(false);
 
       if (!nextWorkspace) {
-        setPrimaryTabs({ activePath: null, paths: [] });
-        setSecondaryTabs({ activePath: null, paths: [] });
+        setActiveDocumentPath(null);
         return;
       }
 
       const availablePaths = new Set(collectDocumentIds(nextWorkspace.documents));
-
-      setPrimaryTabs((current) => {
-        const filteredPaths = current.paths.filter((relativePath) => availablePaths.has(relativePath));
-        const fallbackPath = getPreferredDocumentId(nextWorkspace);
-        const nextActivePath = (
-          current.activePath && availablePaths.has(current.activePath)
-            ? current.activePath
-            : filteredPaths[0] ?? fallbackPath
-        ) ?? null;
-
-        return {
-          activePath: nextActivePath,
-          paths: filteredPaths.length > 0
-            ? filteredPaths
-            : nextActivePath
-              ? [nextActivePath]
-              : [],
-        };
-      });
-
-      setSecondaryTabs((current) => {
-        const filteredPaths = current.paths.filter((relativePath) => availablePaths.has(relativePath));
-        const nextActivePath = (
-          current.activePath && availablePaths.has(current.activePath)
-            ? current.activePath
-            : filteredPaths[0] ?? null
-        );
-
-        return {
-          activePath: nextActivePath,
-          paths: filteredPaths,
-        };
-      });
+      setActiveDocumentPath((current) => (
+        current && availablePaths.has(current)
+          ? current
+          : getPreferredDocumentId(nextWorkspace)
+      ));
     } catch {
       setWorkspaceError("Mohio could not load the current workspace.");
       setIsWorkspaceLoading(false);
@@ -482,8 +396,10 @@ export function App() {
   }, [activeDocumentPath, workspace?.path]);
 
   useEffect(() => {
-    if (!workspace || searchQuery.trim().length === 0) {
-      setSearchResults([]);
+    if (!workspace || leftSidebarTab !== "search" || searchQuery.trim().length === 0) {
+      if (!workspace || searchQuery.trim().length === 0) {
+        setSearchResults([]);
+      }
       setIsSearchLoading(false);
       return;
     }
@@ -506,35 +422,7 @@ export function App() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [searchQuery, workspace?.path]);
-
-  useEffect(() => {
-    if (!workspace || !activeDocumentPath) {
-      setRelatedDocuments([]);
-      setRelatedError(null);
-      setIsRelatedLoading(false);
-      return;
-    }
-
-    if (rightSidebarTab !== "related") {
-      return;
-    }
-
-    setIsRelatedLoading(true);
-
-    void window.mohio.getRelatedDocuments(activeDocumentPath).then(
-      (results) => {
-        setRelatedDocuments(results);
-        setRelatedError(null);
-        setIsRelatedLoading(false);
-      },
-      () => {
-        setRelatedDocuments([]);
-        setRelatedError("Mohio could not load related notes.");
-        setIsRelatedLoading(false);
-      },
-    );
-  }, [activeDocumentPath, rightSidebarTab, workspace?.path]);
+  }, [leftSidebarTab, searchQuery, workspace?.path]);
 
   useEffect(() => {
     if (!workspace) {
@@ -558,7 +446,9 @@ export function App() {
   const unpublishedDocumentCount = publishSummary?.unpublishedCount ?? 0;
   const leftSidebarNodes = leftSidebarTab === "documents"
     ? (workspace?.documents ?? [])
-    : (publishSummary?.unpublishedTree ?? []);
+    : leftSidebarTab === "unpublished"
+      ? (publishSummary?.unpublishedTree ?? [])
+      : [];
   const leftSidebarDocumentCount = countWorkspaceDocuments(leftSidebarNodes);
 
   const handleOpenWorkspace = async () => {
@@ -570,16 +460,7 @@ export function App() {
       setWorkspaceError(null);
 
       const preferredPath = getPreferredDocumentId(nextWorkspace);
-      setPrimaryTabs({
-        activePath: preferredPath,
-        paths: preferredPath ? [preferredPath] : [],
-      });
-      setSecondaryTabs({
-        activePath: null,
-        paths: [],
-      });
-      setIsSplitView(false);
-      setActivePaneId("primary");
+      setActiveDocumentPath(preferredPath);
       setSearchQuery("");
     } catch {
       setWorkspaceError("Mohio could not open that folder as a workspace.");
@@ -589,146 +470,13 @@ export function App() {
     }
   };
 
-  const openDocumentInPane = async ({
-    newTab,
-    paneId,
-    relativePath,
-  }: {
-    newTab: boolean;
-    paneId: PaneId;
-    relativePath: string;
-  }) => {
-    const editor = paneId === "secondary" ? secondaryEditor : primaryEditor;
+  const openDocument = async (documentId: string) => {
     await editor.saveNow().catch(() => undefined);
-
-    if (paneId === "primary") {
-      setPrimaryTabs((current) => {
-        if (newTab) {
-          if (current.paths.includes(relativePath)) {
-            return {
-              activePath: relativePath,
-              paths: current.paths,
-            };
-          }
-
-          return {
-            activePath: relativePath,
-            paths: [...current.paths, relativePath],
-          };
-        }
-
-        if (!current.activePath) {
-          return {
-            activePath: relativePath,
-            paths: [relativePath],
-          };
-        }
-
-        const nextPaths = current.paths.map((pathEntry) => (
-          pathEntry === current.activePath ? relativePath : pathEntry
-        ));
-
-        return {
-          activePath: relativePath,
-          paths: nextPaths.includes(relativePath)
-            ? nextPaths
-            : [relativePath, ...nextPaths],
-        };
-      });
-      setActivePaneId("primary");
-      return;
-    }
-
-    setSecondaryTabs((current) => {
-      if (newTab) {
-        if (current.paths.includes(relativePath)) {
-          return {
-            activePath: relativePath,
-            paths: current.paths,
-          };
-        }
-
-        return {
-          activePath: relativePath,
-          paths: [...current.paths, relativePath],
-        };
-      }
-
-      if (!current.activePath) {
-        return {
-          activePath: relativePath,
-          paths: [relativePath],
-        };
-      }
-
-      const nextPaths = current.paths.map((pathEntry) => (
-        pathEntry === current.activePath ? relativePath : pathEntry
-      ));
-
-      return {
-        activePath: relativePath,
-        paths: nextPaths.includes(relativePath)
-          ? nextPaths
-          : [relativePath, ...nextPaths],
-      };
-    });
-    setActivePaneId("secondary");
+    setActiveDocumentPath(documentId);
   };
 
-  const openDocumentInSplit = async (relativePath: string) => {
-    setIsSplitView(true);
-
-    await openDocumentInPane({
-      relativePath,
-      paneId: "secondary",
-      newTab: secondaryTabs.activePath !== null,
-    });
-  };
-
-  const closePaneTab = (paneId: PaneId, relativePath: string) => {
-    if (paneId === "primary") {
-      setPrimaryTabs((current) => {
-        const nextPaths = current.paths.filter((pathEntry) => pathEntry !== relativePath);
-        const nextActivePath = current.activePath === relativePath
-          ? nextPaths[nextPaths.length - 1] ?? getPreferredDocumentId(workspace)
-          : current.activePath;
-
-        return {
-          activePath: nextActivePath,
-          paths: nextPaths.length > 0
-            ? nextPaths
-            : nextActivePath
-              ? [nextActivePath]
-              : [],
-        };
-      });
-      return;
-    }
-
-    setSecondaryTabs((current) => {
-      const nextPaths = current.paths.filter((pathEntry) => pathEntry !== relativePath);
-      const nextActivePath = current.activePath === relativePath
-        ? nextPaths[nextPaths.length - 1] ?? null
-        : current.activePath;
-
-      return {
-        activePath: nextActivePath,
-        paths: nextPaths,
-      };
-    });
-
-    if (secondaryTabs.paths.length <= 1) {
-      setIsSplitView(false);
-      setActivePaneId("primary");
-    }
-  };
-
-  const handleSelectDocument = (documentId: string, newTab = false) => {
-    void openDocumentInPane({
-      relativePath: documentId,
-      paneId: activePaneId,
-      newTab,
-    });
+  const handleSelectDocument = (documentId: string) => {
+    void openDocument(documentId);
 
     if (leftSidebarTab === "unpublished") {
       setRightSidebarTab("history");
@@ -740,21 +488,15 @@ export function App() {
       return;
     }
 
-    const targetPath = activePaneId === "secondary" && isSplitView
-      ? secondaryTabs.activePath
-      : primaryTabs.activePath;
+    const targetPath = activeDocumentPath;
     const directoryRelativePath = getDocumentDirectoryRelativePath(targetPath);
 
     try {
+      await editor.saveNow().catch(() => undefined);
       const nextDocument = await window.mohio.createDocument({ directoryRelativePath });
       await refreshWorkspaceSummary();
       await refreshPublishSummary();
-
-      await openDocumentInPane({
-        relativePath: nextDocument.relativePath,
-        paneId: activePaneId,
-        newTab: true,
-      });
+      setActiveDocumentPath(nextDocument.relativePath);
     } catch {
       setWorkspaceError("Mohio could not create a new note.");
     }
@@ -777,30 +519,6 @@ export function App() {
       await window.mohio.deleteDocument(relativePath);
       await refreshWorkspaceSummary();
       await refreshPublishSummary();
-
-      setPrimaryTabs((current) => {
-        const nextPaths = current.paths.filter((entry) => entry !== relativePath);
-        const nextActivePath = current.activePath === relativePath
-          ? nextPaths[0] ?? getPreferredDocumentId(workspace)
-          : current.activePath;
-
-        return {
-          activePath: nextActivePath,
-          paths: nextPaths,
-        };
-      });
-
-      setSecondaryTabs((current) => {
-        const nextPaths = current.paths.filter((entry) => entry !== relativePath);
-        const nextActivePath = current.activePath === relativePath
-          ? nextPaths[0] ?? null
-          : current.activePath;
-
-        return {
-          activePath: nextActivePath,
-          paths: nextPaths,
-        };
-      });
     } catch {
       setWorkspaceError("Mohio could not delete that note.");
     }
@@ -822,8 +540,8 @@ export function App() {
     }
   };
 
-  const handleSendAssistantMessage = async () => {
-    const trimmedMessage = assistantComposerValue.trim();
+  const handleSendAssistantMessage = async (messageOverride?: string) => {
+    const trimmedMessage = (messageOverride ?? assistantComposerValue).trim();
 
     if (!workspace || !activeDocumentPath || !activeDocument || trimmedMessage.length === 0) {
       return;
@@ -860,22 +578,18 @@ export function App() {
     }
   };
 
-  const openRelativePathFromLink = (rawTarget: string, paneId: PaneId) => {
+  const openRelativePathFromLink = (rawTarget: string) => {
     if (!workspace) {
       return;
     }
 
-    const sourcePath = paneId === "secondary"
-      ? secondaryTabs.activePath
-      : primaryTabs.activePath;
-
-    if (!sourcePath) {
+    if (!activeDocumentPath) {
       return;
     }
 
     const resolvedPath = resolveInternalLinkPath({
       rawTarget,
-      sourceRelativePath: sourcePath,
+      sourceRelativePath: activeDocumentPath,
       workspace,
     });
 
@@ -883,11 +597,7 @@ export function App() {
       return;
     }
 
-    void openDocumentInPane({
-      paneId,
-      relativePath: resolvedPath,
-      newTab: false,
-    });
+    void openDocument(resolvedPath);
   };
 
   const workspaceShellClassName = `workspace-shell${isLeftPanelOpen ? "" : " workspace-shell--left-collapsed"}${isRightPanelOpen ? "" : " workspace-shell--right-collapsed"}`;
@@ -918,7 +628,7 @@ export function App() {
             }}
             type="button"
           >
-            <span className="workspace-label__name">{workspace?.name ?? "Open Workspace"}</span>
+            <span className="workspace-label__name">{workspace?.name ?? "Open Folder"}</span>
             <span className="workspace-label__chevron" aria-hidden="true">
               <ChevronDown aria-hidden="true" className="toolbar-chevron-icon" />
             </span>
@@ -936,38 +646,6 @@ export function App() {
             >
               <SquarePen aria-hidden="true" className="top-bar__icon-action-icon" />
             </button>
-            <button
-              aria-label="Quick Publish"
-              className="top-bar__icon-action"
-              disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
-              onClick={() => {
-                void handlePublishWorkspaceChanges();
-              }}
-              type="button"
-            >
-              <Upload aria-hidden="true" className="top-bar__icon-action-icon" />
-              {unpublishedDocumentCount > 0 ? (
-                <span className="top-bar__icon-badge" aria-label={`${unpublishedDocumentCount} unpublished documents`}>
-                  {unpublishedDocumentCount}
-                </span>
-              ) : null}
-            </button>
-          </div>
-        </div>
-
-        <div className="top-bar__search">
-          <div className="search-input-wrap">
-            <Search aria-hidden="true" className="search-input-wrap__icon" />
-            <input
-              aria-label="Search workspace"
-              className="search-input search-input--top-bar"
-              onChange={(event) => {
-                setSearchQuery(event.target.value);
-              }}
-              placeholder={workspace ? `Search ${workspace.name}` : "Search workspace"}
-              type="search"
-              value={searchQuery}
-            />
           </div>
         </div>
 
@@ -1005,6 +683,18 @@ export function App() {
                   Documents
                 </button>
                 <button
+                  aria-selected={leftSidebarTab === "search"}
+                  className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "search" ? " sidebar-tab--active" : ""}`}
+                  onClick={() => {
+                    setLeftSidebarTab("search");
+                  }}
+                  role="tab"
+                  type="button"
+                >
+                  <Search aria-hidden="true" className="sidebar-tab__icon" />
+                  Search
+                </button>
+                <button
                   aria-selected={leftSidebarTab === "unpublished"}
                   className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
                   onClick={() => {
@@ -1024,48 +714,79 @@ export function App() {
 
             <section className="sidebar__section workspace-panel">
               <div className="workspace-panel__scroll">
-                {isWorkspaceLoading ? (
+                {leftSidebarTab === "search" ? (
+                  <section className="workspace-search-panel" data-testid="workspace-search-panel">
+                    <div className="search-input-control">
+                      <input
+                        aria-label="Search notes"
+                        className="search-input workspace-search-panel__input"
+                        disabled={!workspace}
+                        onChange={(event) => {
+                          setSearchQuery(event.target.value);
+                        }}
+                        placeholder={workspace ? `Search ${workspace.name}` : "Search workspace"}
+                        type="search"
+                        value={searchQuery}
+                      />
+                      {searchQuery.length > 0 ? (
+                        <button
+                          aria-label="Clear search"
+                          className="search-input-control__clear"
+                          onClick={() => {
+                            setSearchQuery("");
+                          }}
+                          type="button"
+                        >
+                          <X aria-hidden="true" className="search-input-control__clear-icon" />
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {isWorkspaceLoading ? (
+                      <p className="workspace-panel__copy">Loading current workspace...</p>
+                    ) : !workspace ? null : searchQuery.trim().length === 0 ? (
+                      <p className="workspace-panel__copy">Search by file name, path, or note content.</p>
+                    ) : (
+                      <div className="workspace-search-results" data-testid="workspace-search-results">
+                        {isSearchLoading ? (
+                          <p className="workspace-panel__copy">Searching workspace...</p>
+                        ) : searchResults.length === 0 ? (
+                          <p className="workspace-panel__copy">No matching notes found.</p>
+                        ) : (
+                          <ul className="workspace-tree" role="list">
+                            {searchResults.map((result) => (
+                              <li className="tree-node" key={`${result.relativePath}-${result.matchType}`}>
+                                <button
+                                  className="tree-node__button"
+                                  onClick={() => {
+                                    handleSelectDocument(result.relativePath);
+                                  }}
+                                  onContextMenu={(event) => {
+                                    event.preventDefault();
+                                    setDocumentContextMenu({
+                                      documentId: result.relativePath,
+                                      x: event.clientX,
+                                      y: event.clientY,
+                                    });
+                                  }}
+                                  type="button"
+                                >
+                                  <span className="tree-node__label">{result.displayTitle}</span>
+                                </button>
+                                {result.snippet ? (
+                                  <p className="workspace-search-results__snippet">{result.snippet}</p>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                ) : isWorkspaceLoading ? (
                   <p className="workspace-panel__copy">Loading current workspace...</p>
                 ) : workspace ? (
-                  searchQuery.trim().length > 0 && leftSidebarTab === "documents" ? (
-                    <div className="workspace-search-results" data-testid="workspace-search-results">
-                      {isSearchLoading ? (
-                        <p className="workspace-panel__copy">Searching workspace...</p>
-                      ) : searchResults.length === 0 ? (
-                        <p className="workspace-panel__copy">No matching notes found.</p>
-                      ) : (
-                        <ul className="workspace-tree" role="list">
-                          {searchResults.map((result) => (
-                            <li className="tree-node" key={`${result.relativePath}-${result.matchType}`}>
-                              <button
-                                className="tree-node__button"
-                                onClick={() => {
-                                  handleSelectDocument(result.relativePath, false);
-                                }}
-                                onContextMenu={(event) => {
-                                  event.preventDefault();
-                                  setDocumentContextMenu({
-                                    documentId: result.relativePath,
-                                    x: event.clientX,
-                                    y: event.clientY,
-                                  });
-                                }}
-                                onDoubleClick={() => {
-                                  handleSelectDocument(result.relativePath, true);
-                                }}
-                                type="button"
-                              >
-                                <span className="tree-node__label">{result.displayTitle}</span>
-                              </button>
-                              {result.snippet ? (
-                                <p className="workspace-search-results__snippet">{result.snippet}</p>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ) : leftSidebarDocumentCount === 0 ? (
+                  leftSidebarDocumentCount === 0 ? (
                     <p className="workspace-panel__copy">
                       {leftSidebarTab === "documents"
                         ? "No Markdown documents found."
@@ -1080,10 +801,7 @@ export function App() {
                           expandedDirectoryIds,
                           depth: 0,
                           onSelect: (documentId) => {
-                            handleSelectDocument(documentId, false);
-                          },
-                          onDoubleSelect: (documentId) => {
-                            handleSelectDocument(documentId, true);
+                            handleSelectDocument(documentId);
                           },
                           onOpenDocumentContextMenu: (input) => {
                             setDocumentContextMenu(input);
@@ -1105,9 +823,7 @@ export function App() {
                       )}
                     </ul>
                   )
-                ) : (
-                  <p className="workspace-panel__copy">No workspace is open.</p>
-                )}
+                ) : null}
 
                 {workspaceError ? <p className="workspace-panel__error" role="status">{workspaceError}</p> : null}
                 {publishError ? <p className="workspace-panel__error" role="status">{publishError}</p> : null}
@@ -1123,28 +839,6 @@ export function App() {
                     }}
                   >
                     <button
-                      className="workspace-document-menu__item"
-                      onClick={() => {
-                        handleSelectDocument(documentContextMenu.documentId, true);
-                        setDocumentContextMenu(null);
-                      }}
-                      role="menuitem"
-                      type="button"
-                    >
-                      <span>Open in New Tab</span>
-                    </button>
-                    <button
-                      className="workspace-document-menu__item"
-                      onClick={() => {
-                        void openDocumentInSplit(documentContextMenu.documentId);
-                        setDocumentContextMenu(null);
-                      }}
-                      role="menuitem"
-                      type="button"
-                    >
-                      <span>Open in Split View</span>
-                    </button>
-                    <button
                       className="workspace-document-menu__item workspace-document-menu__item--danger"
                       onClick={() => {
                         void handleDeleteDocument(documentContextMenu.documentId);
@@ -1159,21 +853,8 @@ export function App() {
                 ) : null}
               </div>
 
-              <div className="workspace-panel__footer-action">
-                {leftSidebarTab === "documents" ? (
-                  <button
-                    aria-label="New Note"
-                    className="primary-button workspace-panel__footer-button"
-                    disabled={!workspace}
-                    onClick={() => {
-                      void handleCreateDocument();
-                    }}
-                    type="button"
-                  >
-                    <SquarePen aria-hidden="true" className="workspace-panel__footer-button-icon" />
-                    <span>New Note</span>
-                  </button>
-                ) : (
+              {leftSidebarTab === "unpublished" ? (
+                <div className="workspace-panel__footer-action">
                   <button
                     aria-label="Publish"
                     className="primary-button workspace-panel__footer-button"
@@ -1189,77 +870,23 @@ export function App() {
                       <span className="workspace-panel__footer-badge">{unpublishedDocumentCount}</span>
                     ) : null}
                   </button>
-                )}
-              </div>
+                </div>
+              ) : null}
             </section>
           </aside>
         ) : null}
 
         <main className="editor-panel">
-          <div className={`editor-panel__split${isSplitView ? " editor-panel__split--active" : ""}`}>
-            <EditorPane
-              canSplit={Boolean(workspace && primaryTabs.activePath)}
-              dataTestId="document-state-primary"
-              editor={primaryEditor}
-              isFocused={activePaneId === "primary"}
-              onCloseTab={(relativePath) => {
-                closePaneTab("primary", relativePath);
-              }}
-              onFocus={() => {
-                setActivePaneId("primary");
-              }}
-              onOpenInternalLink={(rawTarget) => {
-                openRelativePathFromLink(rawTarget, "primary");
-              }}
-              onSplitToggle={() => {
-                if (!isSplitView) {
-                  setIsSplitView(true);
-
-                  if (primaryTabs.activePath) {
-                    setSecondaryTabs((current) => ({
-                      activePath: current.activePath ?? primaryTabs.activePath,
-                      paths: current.paths.length > 0 ? current.paths : [primaryTabs.activePath!],
-                    }));
-                  }
-                  return;
-                }
-
-                setIsSplitView(false);
-                setActivePaneId("primary");
-              }}
-              paths={primaryTabs.paths}
-              setActivePath={(relativePath) => {
-                updatePanePath("primary", relativePath);
-              }}
-              showSplitToggle
-              splitActive={isSplitView}
-            />
-
-            {isSplitView ? (
-              <EditorPane
-                canSplit={false}
-                dataTestId="document-state-secondary"
-                editor={secondaryEditor}
-                isFocused={activePaneId === "secondary"}
-                onCloseTab={(relativePath) => {
-                  closePaneTab("secondary", relativePath);
-                }}
-                onFocus={() => {
-                  setActivePaneId("secondary");
-                }}
-                onOpenInternalLink={(rawTarget) => {
-                  openRelativePathFromLink(rawTarget, "secondary");
-                }}
-                onSplitToggle={() => undefined}
-                paths={secondaryTabs.paths}
-                setActivePath={(relativePath) => {
-                  updatePanePath("secondary", relativePath);
-                }}
-                showSplitToggle={false}
-                splitActive={isSplitView}
-              />
-            ) : null}
-          </div>
+          <EditorPane
+            dataTestId="document-state-primary"
+            editor={editor}
+            highlightQuery={searchQuery}
+            isWorkspaceOpening={isWorkspaceOpening}
+            onOpenWorkspace={() => {
+              void handleOpenWorkspace();
+            }}
+            onOpenInternalLink={openRelativePathFromLink}
+          />
         </main>
 
         {isRightPanelOpen ? (
@@ -1290,86 +917,94 @@ export function App() {
                   <HistoryIcon aria-hidden="true" className="sidebar-tab__icon" />
                   History
                 </button>
-                <button
-                  aria-selected={rightSidebarTab === "related"}
-                  className={`sidebar-tab sidebar-tab--full-width${rightSidebarTab === "related" ? " sidebar-tab--active" : ""}`}
-                  onClick={() => {
-                    setRightSidebarTab("related");
-                  }}
-                  role="tab"
-                  type="button"
-                >
-                  <FileText aria-hidden="true" className="sidebar-tab__icon" />
-                  Related
-                </button>
               </div>
             </section>
 
             {rightSidebarTab === "assistant" ? (
               <section className="sidebar__section assistant-panel">
-                {!workspace || !activeDocumentPath ? (
-                  <p className="workspace-panel__copy">Open a workspace and select a note to chat with Codex.</p>
+                {!workspace ? null : !activeDocumentPath ? (
+                  <p className="workspace-panel__copy">Select a note to chat with Codex.</p>
                 ) : (
                   <>
-                    <ul className="assistant-thread-list" data-testid="assistant-thread-list">
-                      {assistantThreads.map((thread) => (
-                        <li key={thread.id}>
-                          <button
-                            className="assistant-thread-list__button"
-                            onClick={() => {
-                              void window.mohio.getAssistantThread(thread.id).then((nextThread) => {
-                                setAssistantThread(nextThread);
-                              });
-                            }}
-                            type="button"
-                          >
-                            <span className="assistant-thread-list__title">{thread.title || "New Chat"}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {assistantThread?.messages?.length ? (
-                      <ol className="assistant-message-list" aria-live="polite" data-testid="assistant-transcript">
-                        {assistantThread.messages.map((message) => (
-                          <li className={`assistant-message assistant-message--${message.role}`} key={message.id}>
-                            <p className="assistant-message__role">{message.role === "assistant" ? "Codex" : "You"}</p>
-                            <p className="assistant-message__content">{message.content}</p>
+                    <div className="assistant-panel__body">
+                      <ul className="assistant-thread-list" data-testid="assistant-thread-list">
+                        {assistantThreads.map((thread) => (
+                          <li key={thread.id}>
+                            <button
+                              className="assistant-thread-list__button"
+                              onClick={() => {
+                                void window.mohio.getAssistantThread(thread.id).then((nextThread) => {
+                                  setAssistantThread(nextThread);
+                                });
+                              }}
+                              type="button"
+                            >
+                              <span className="assistant-thread-list__title">{thread.title || "New Chat"}</span>
+                            </button>
                           </li>
                         ))}
-                      </ol>
-                    ) : null}
+                      </ul>
 
-                    {assistantError ? <p className="workspace-panel__error" role="status">{assistantError}</p> : null}
+                      {assistantThread?.messages?.length ? (
+                        <ol className="assistant-message-list" aria-live="polite" data-testid="assistant-transcript">
+                          {assistantThread.messages.map((message) => (
+                            <li className={`assistant-message assistant-message--${message.role}`} key={message.id}>
+                              <p className="assistant-message__role">{message.role === "assistant" ? "Codex" : "You"}</p>
+                              <p className="assistant-message__content">{message.content}</p>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
 
-                    <form
-                      className="assistant-composer"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void handleSendAssistantMessage();
-                      }}
-                    >
-                      <div className="assistant-composer__field">
-                        <textarea
-                          aria-label="Assistant composer"
-                          className="chat-composer"
-                          data-testid="assistant-composer-input"
-                          onChange={(event) => {
-                            setAssistantComposerValue(event.target.value);
-                          }}
-                          placeholder="Ask Codex about this note or workspace"
-                          rows={1}
-                          value={assistantComposerValue}
-                        />
-                        <button
-                          aria-label="Send message"
-                          className="assistant-composer__send-button"
-                          type="submit"
-                        >
-                          <SendHorizontal aria-hidden="true" className="assistant-composer__send-icon" />
-                        </button>
-                      </div>
-                    </form>
+                      {assistantError ? <p className="workspace-panel__error" role="status">{assistantError}</p> : null}
+                    </div>
+
+                    <div className="assistant-panel__footer">
+                      <ul className="action-list">
+                        {ASSISTANT_QUICK_ACTIONS.map((action) => (
+                          <li key={action.label}>
+                            <button
+                              className="assistant-action-chip"
+                              onClick={() => {
+                                void handleSendAssistantMessage(action.prompt);
+                              }}
+                              type="button"
+                            >
+                              {action.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <form
+                        className="assistant-composer"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void handleSendAssistantMessage();
+                        }}
+                      >
+                        <div className="assistant-composer__field">
+                          <textarea
+                            aria-label="Assistant composer"
+                            className="chat-composer"
+                            data-testid="assistant-composer-input"
+                            onChange={(event) => {
+                              setAssistantComposerValue(event.target.value);
+                            }}
+                            placeholder="Ask Codex about this note or workspace"
+                            rows={1}
+                            value={assistantComposerValue}
+                          />
+                          <button
+                            aria-label="Send message"
+                            className="assistant-composer__send-button"
+                            type="submit"
+                          >
+                            <SendHorizontal aria-hidden="true" className="assistant-composer__send-icon" />
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </>
                 )}
               </section>
@@ -1377,9 +1012,7 @@ export function App() {
 
             {rightSidebarTab === "history" ? (
               <section className="sidebar__section history-panel">
-                {!workspace ? (
-                  <p className="workspace-panel__copy">Open a workspace to view history.</p>
-                ) : !activeDocumentPath ? (
+                {!workspace ? null : !activeDocumentPath ? (
                   <p className="workspace-panel__copy">Select a document to view commit history.</p>
                 ) : (
                   <>
@@ -1421,42 +1054,6 @@ export function App() {
                 {historyError ? <p className="workspace-panel__error" role="status">{historyError}</p> : null}
               </section>
             ) : null}
-
-            {rightSidebarTab === "related" ? (
-              <section className="sidebar__section related-panel" data-testid="related-panel">
-                {!workspace ? (
-                  <p className="workspace-panel__copy">Open a workspace to browse related notes.</p>
-                ) : !activeDocumentPath ? (
-                  <p className="workspace-panel__copy">Select a note to view related notes.</p>
-                ) : isRelatedLoading ? (
-                  <p className="workspace-panel__copy">Loading related notes...</p>
-                ) : relatedError ? (
-                  <p className="workspace-panel__error" role="status">{relatedError}</p>
-                ) : relatedDocuments.length === 0 ? (
-                  <p className="workspace-panel__copy">No related notes found yet.</p>
-                ) : (
-                  <ul className="related-list">
-                    {relatedDocuments.map((item) => (
-                      <li key={item.relativePath}>
-                        <button
-                          className="related-list__button"
-                          onClick={() => {
-                            handleSelectDocument(item.relativePath, false);
-                          }}
-                          onDoubleClick={() => {
-                            handleSelectDocument(item.relativePath, true);
-                          }}
-                          type="button"
-                        >
-                          <span className="related-list__title">{item.displayTitle}</span>
-                          <span className="related-list__meta">{item.relationTypes.join(" · ")}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ) : null}
           </aside>
         ) : null}
       </div>
@@ -1465,90 +1062,31 @@ export function App() {
 }
 
 function EditorPane({
-  canSplit,
   dataTestId,
   editor,
-  isFocused,
-  onCloseTab,
-  onFocus,
+  highlightQuery,
+  isWorkspaceOpening,
+  onOpenWorkspace,
   onOpenInternalLink,
-  onSplitToggle,
-  paths,
-  setActivePath,
-  showSplitToggle,
-  splitActive,
 }: {
-  canSplit: boolean;
   dataTestId: string;
   editor: DocumentEditorSession;
-  isFocused: boolean;
-  onCloseTab: (relativePath: string) => void;
-  onFocus: () => void;
+  highlightQuery: string;
+  isWorkspaceOpening: boolean;
+  onOpenWorkspace: () => void;
   onOpenInternalLink: (rawTarget: string) => void;
-  onSplitToggle: () => void;
-  paths: string[];
-  setActivePath: (relativePath: string) => void;
-  showSplitToggle: boolean;
-  splitActive: boolean;
 }) {
-  const activePath = editor.relativePath;
-
   return (
-    <section className={`editor-pane${isFocused ? " editor-pane--focused" : ""}`} data-testid={dataTestId}>
-      <div className="editor-pane__tabs-row" role="tablist" aria-label="Open document tabs">
-        <div className="editor-pane__tabs-scroll">
-          {paths.map((relativePath) => {
-            const isActive = relativePath === activePath;
-
-            return (
-              <button
-                aria-selected={isActive}
-                className={`sidebar-tab sidebar-tab--full-width editor-pane__tab${isActive ? " sidebar-tab--active" : ""}`}
-                key={relativePath}
-                onClick={() => {
-                  setActivePath(relativePath);
-                  onFocus();
-                }}
-                role="tab"
-                type="button"
-              >
-                <span className="editor-pane__tab-title">{getPathDisplayName(relativePath)}</span>
-                <span
-                  className="editor-pane__tab-close"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onCloseTab(relativePath);
-                  }}
-                >
-                  <X aria-hidden="true" className="editor-pane__tab-close-icon" />
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {showSplitToggle ? (
-          <button
-            aria-label={splitActive ? "Close split view" : "Open split view"}
-            className="top-bar__icon-action editor-pane__split-toggle"
-            disabled={!canSplit}
-            onClick={onSplitToggle}
-            type="button"
-          >
-            <Columns2 aria-hidden="true" className="top-bar__icon-action-icon" />
-          </button>
-        ) : null}
-      </div>
-
+    <section className="editor-pane editor-panel__inner" data-testid={dataTestId}>
       {editor.document ? (
         <RichTextEditor
           dataTestId={`${dataTestId}-editor`}
+          highlightQuery={highlightQuery}
           markdown={editor.draftMarkdown}
           onChange={editor.setDraftMarkdown}
           onInternalLinkOpen={(selection) => {
             onOpenInternalLink(selection.target);
           }}
-          onSurfaceFocus={onFocus}
           onTitleChange={editor.setDraftTitle}
           sourceRelativePath={editor.document.relativePath}
           title={editor.draftTitle}
@@ -1556,6 +1094,14 @@ function EditorPane({
       ) : (
         <section className="empty-workspace-state" data-testid={`${dataTestId}-empty`}>
           <p className="empty-workspace-state__copy">Choose a folder to open your Mohio workspace.</p>
+          <button
+            className="primary-button empty-workspace-state__button"
+            disabled={isWorkspaceOpening}
+            onClick={onOpenWorkspace}
+            type="button"
+          >
+            {isWorkspaceOpening ? "Opening Folder..." : "Open Folder"}
+          </button>
         </section>
       )}
     </section>
@@ -1568,7 +1114,6 @@ function renderWorkspaceNode({
   expandedDirectoryIds,
   depth,
   onSelect,
-  onDoubleSelect,
   onOpenDocumentContextMenu,
   onToggleDirectory,
 }: {
@@ -1577,7 +1122,6 @@ function renderWorkspaceNode({
   expandedDirectoryIds: Set<string>;
   depth: number;
   onSelect: (documentId: string) => void;
-  onDoubleSelect: (documentId: string) => void;
   onOpenDocumentContextMenu: (input: DocumentContextMenuState) => void;
   onToggleDirectory: (directoryId: string) => void;
 }) {
@@ -1618,7 +1162,6 @@ function renderWorkspaceNode({
                 expandedDirectoryIds,
                 depth: depth + 1,
                 onSelect,
-                onDoubleSelect,
                 onOpenDocumentContextMenu,
                 onToggleDirectory,
               }),
@@ -1646,9 +1189,6 @@ function renderWorkspaceNode({
         }}
         onClick={() => {
           onSelect(node.id);
-        }}
-        onDoubleClick={() => {
-          onDoubleSelect(node.id);
         }}
         style={rowStyle}
         type="button"

@@ -13,43 +13,41 @@ This guide covers the workflows that are currently available in the desktop app.
 You can open a workspace in either of these ways:
 
 - Click the workspace selector in the top bar.
-- Use `File > Open Workspace...`
+- Use `File > Open Folder...`
 - Use the shortcut `CmdOrCtrl+O`
 
 After you choose a folder, Mohio shows its Markdown documents in the left sidebar.
 
-When no workspace is open, the main empty-state button is labeled `Open Workspace`.
-When a workspace is open, the workspace sidebar `New Note` button creates a new note in the currently selected note folder.
+When no workspace is open, the main empty-state button is labeled `Open Folder`.
+When a workspace is open, the top-bar quick `New Note` action creates a new note in the currently selected note folder.
 If no note is selected yet, `New Note` creates the file at workspace root.
 
 ## Browse Documents
 
 - Folders appear before documents.
 - Click a folder row to expand or collapse it.
-- Click a document row to open it in the current active tab.
-- Double-click a document row to open it in a new tab.
+- Click a document row to open it in the editor.
 - If a document has a visible title, Mohio shows that title in the sidebar.
 - Right-click a document row to open the context menu:
-  - `Open in New Tab`
-  - `Open in Split View`
   - `Delete Note`
 - Use the left sidebar tabs:
   - `Documents` to browse all notes
+  - `Search` to run live workspace search
   - `Unpublished` to focus on notes that are not fully published yet
 
-## Search and Discover Related Notes
+## Search Notes
 
-- Use the top-bar search field to find notes by:
+- Open the left sidebar `Search` tab.
+- Use the full-width search field at the top of that tab to find notes by:
   - file name/path
   - note content
-- Search results appear in the left sidebar while searching.
-- Use the right sidebar `Related` tab to explore linked/backlinked/recent notes for the currently active note.
+- Results update while you type.
+- Matching text in the open note is highlighted in yellow while a search query is active.
+- Use the `X` control inside the search field to clear the query quickly.
 
 ## Edit a Document
 
 - Select a document from the left sidebar.
-- Use document tabs at the top of the main panel to switch between open notes.
-- Click the split-view toggle in the tab row to compare notes side by side.
 - Edit the title at the top of the page.
   - If the note starts with a linked first H1 (`# ...`) that matches the filename, the title reflects that H1.
   - If the first H1 is missing or mismatched, the title reflects the filename instead.
@@ -75,9 +73,8 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 ## Publish Shared Changes
 
 - Publishing is explicit.
-- A quick `Publish` icon appears next to the workspace name and shows an unpublished badge.
-- The left sidebar `Unpublished` tab also has a full-width `Publish` action at the bottom.
-- Click either `Publish` action to send your local Markdown updates to the shared branch.
+- Use the left sidebar `Unpublished` tab and its full-width `Publish` action at the bottom.
+- Click `Publish` to send your local Markdown updates to the shared branch.
 - Each note can show status such as:
   - `Published`
   - `Unpublished changes`
@@ -113,7 +110,7 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 
 ## Use the Assistant Panel
 
-- Open a workspace and select a note.
+- Open a folder and select a note.
 - Use the right sidebar `Assistant` tab to browse Codex chats for the current workspace.
 - The assistant opens in a chat-list view first.
 - Click an existing chat to open it.
@@ -126,7 +123,6 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 - You can type your own request or use the quick actions:
   - summarize the note
   - organize the note
-  - suggest related notes from the current workspace
 - The composer is a growing text area (up to 5 lines) with an icon-only send control inside the field.
 - Press `Enter` to send, or `Shift+Enter` to insert a new line.
 - Mohio sends the current note content along with the wider workspace context for that run.

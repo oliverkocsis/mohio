@@ -14,13 +14,13 @@ Mohio already had a three-panel desktop shell, but the right sidebar was only vi
 - Added assistant IPC methods and shared types for listing Codex chats, creating a new chat, loading a specific Codex thread, sending note-aware prompts into that thread, cancelling active runs, and receiving streamed assistant updates.
 - Implemented the right sidebar as a working Codex chat panel with a workspace-filtered history list, `New chat` action, parallel chat selection, transcript bubbles, quick actions, composer input, cancel behavior, and panel-local error handling.
 - Refined the assistant sidebar into a two-stage flow: a first screen for browsing Codex sessions, and a dedicated chat screen with back navigation plus per-thread `New chat`, rename, and delete actions.
-- Simplified the assistant empty-state copy to `Open a workspace to chat with the assistant`.
-- Normalized visible button labels to Title Case, including `Open Workspace`, `Open Folder`, `New Chat`, `Rename Chat`, `Delete Chat`, and the assistant quick actions.
+- Simplified the assistant empty-state copy to `Open a folder to chat with the assistant`.
+- Normalized visible button labels to Title Case, including `Open Folder`, `New Chat`, `Rename Chat`, `Delete Chat`, and the assistant quick actions.
 - Fixed two assistant chat regressions: new chats now stay open in the detail view before the first message, and existing Codex chats are resumed before Mohio starts a new turn on them.
 - Updated the chat presentation so back and new-chat controls use simple unframed icons, assistant replies render full-width without bubble chrome, and in-progress placeholder text uses a muted animated state.
 - Updated the `...` menu trigger to use the same unframed text-icon style as the other assistant header controls.
 - Kept assistant quick-action chips in sentence case as an intentional exception to the Title Case button rule.
-- Renamed the empty-workspace CTA from `Open Folder` to `Open Workspace`, removed the extra new-chat helper paragraph, switched the list-view action to a square-pen icon, and updated the chat back icon to a true left-arrow.
+- Updated the empty-workspace CTA wording during assistant polish, removed the extra new-chat helper paragraph, switched the list-view action to a square-pen icon, and updated the chat back icon to a true left-arrow.
 - Replaced the remaining hand-drawn app-shell icons with `lucide-react` so the assistant panel and shell use the same icon system as the editor toolbar.
 - Simplified the assistant session list into a plain text title list without card borders, backgrounds, or preview text.
 - Swapped the assistant `New Chat` control to `message-square-plus` and added a matching link-style `New Note` square-pen control to the workspace sidebar header.

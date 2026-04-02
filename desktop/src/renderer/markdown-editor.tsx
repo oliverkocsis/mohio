@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
-import { EditorSelection, EditorState, RangeSetBuilder } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, RangeSetBuilder } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown as markdownLanguage } from "@codemirror/lang-markdown";
 import {
@@ -45,6 +45,7 @@ const strikethroughMark = Decoration.mark({ class: "cm-md-strikethrough" });
 const inlineCodeMark = Decoration.mark({ class: "cm-md-inline-code" });
 const linkMark = Decoration.mark({ class: "cm-md-link" });
 const imageAltMark = Decoration.mark({ class: "cm-md-image-alt" });
+const searchHighlightMark = Decoration.mark({ class: "cm-search-highlight" });
 
 const markdownPresentation = ViewPlugin.fromClass(class {
   decorations: DecorationSet;
@@ -75,6 +76,7 @@ class HorizontalRuleWidget extends WidgetType {
 
 export function RichTextEditor({
   dataTestId,
+  highlightQuery,
   markdown,
   onChange,
   onInternalLinkOpen,
@@ -84,6 +86,7 @@ export function RichTextEditor({
   title,
 }: {
   dataTestId?: string;
+  highlightQuery?: string;
   markdown: string;
   onChange: (markdown: string) => void;
   onInternalLinkOpen?: (selection: InternalLinkSelection) => void;
@@ -98,6 +101,7 @@ export function RichTextEditor({
   const latestMarkdownRef = useRef(markdown);
   const isApplyingExternalUpdateRef = useRef(false);
   const onChangeRef = useRef(onChange);
+  const searchHighlightCompartmentRef = useRef(new Compartment());
 
   onChangeRef.current = onChange;
 
@@ -119,6 +123,7 @@ export function RichTextEditor({
           markdownLanguage(),
           EditorView.lineWrapping,
           markdownPresentation,
+          searchHighlightCompartmentRef.current.of(createSearchHighlightExtension(highlightQuery ?? "")),
           EditorView.contentAttributes.of({
             "aria-label": "Document body",
             "data-testid": "rich-text-editor",
@@ -195,6 +200,20 @@ export function RichTextEditor({
     isApplyingExternalUpdateRef.current = false;
     latestMarkdownRef.current = markdown;
   }, [markdown]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    view.dispatch({
+      effects: searchHighlightCompartmentRef.current.reconfigure(
+        createSearchHighlightExtension(highlightQuery ?? ""),
+      ),
+    });
+  }, [highlightQuery]);
 
   useEffect(() => {
     resizeTitleInput(titleInputRef.current);
@@ -484,6 +503,51 @@ function buildMarkdownDecorations(view: EditorView): DecorationSet {
       lineNumber < document.lines ? document.line(lineNumber + 1).text : null,
     );
     addInlineDecorations(builder, line.from, line.text);
+  }
+
+  return builder.finish();
+}
+
+function createSearchHighlightExtension(query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (normalizedQuery.length === 0) {
+    return [];
+  }
+
+  return ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = buildSearchHighlightDecorations(view.state.doc.toString(), normalizedQuery);
+    }
+
+    update(update: ViewUpdate) {
+      if (!update.docChanged && !update.viewportChanged) {
+        return;
+      }
+
+      this.decorations = buildSearchHighlightDecorations(update.view.state.doc.toString(), normalizedQuery);
+    }
+  }, {
+    decorations: (value) => value.decorations,
+  });
+}
+
+function buildSearchHighlightDecorations(markdown: string, normalizedQuery: string): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const normalizedMarkdown = markdown.toLowerCase();
+  let searchIndex = 0;
+
+  while (searchIndex < normalizedMarkdown.length) {
+    const matchIndex = normalizedMarkdown.indexOf(normalizedQuery, searchIndex);
+
+    if (matchIndex < 0) {
+      break;
+    }
+
+    builder.add(matchIndex, matchIndex + normalizedQuery.length, searchHighlightMark);
+    searchIndex = matchIndex + normalizedQuery.length;
   }
 
   return builder.finish();

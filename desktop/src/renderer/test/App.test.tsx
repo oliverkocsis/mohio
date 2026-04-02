@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type {
   MohioApi,
   WorkspaceSummary,
@@ -54,7 +54,6 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     getCurrentWorkspace: async () => null,
     openWorkspace: async () => null,
     searchWorkspace: async () => [],
-    getRelatedDocuments: async () => [],
     readDocument: async (relativePath) => ({
       relativePath,
       fileName: relativePath.split("/").at(-1) ?? relativePath,
@@ -173,8 +172,11 @@ describe("App", () => {
     expect(screen.getByTestId("top-bar")).toBeInTheDocument();
     expect(screen.getByLabelText("Collapse left panel")).toBeInTheDocument();
     expect(screen.getByLabelText("Collapse right panel")).toBeInTheDocument();
-    expect(screen.getByLabelText("Search workspace")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Search" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Search workspace")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Related" })).not.toBeInTheDocument();
     expect(await screen.findByTestId("document-state-primary-empty")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Folder" })).toBeInTheDocument();
   });
 
   it("collapses and reopens left and right panels from top bar controls", async () => {
@@ -207,7 +209,7 @@ describe("App", () => {
     expect(screen.getByTestId("assistant-sidebar")).toBeInTheDocument();
   });
 
-  it("uses current-tab on single-click and opens a new tab on double-click", async () => {
+  it("opens the clicked document in the single editor surface", async () => {
     const workspace = createWorkspace();
     window.mohio = createMohioMock({
       getCurrentWorkspace: async () => workspace,
@@ -223,7 +225,7 @@ describe("App", () => {
       fireEvent.click(architectureButton);
     });
 
-    expect(screen.getByRole("tab", { name: /Architecture/i })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Architecture")).toBeInTheDocument();
 
     const planButton = screen.getByRole("button", { name: "Plan" });
 
@@ -231,18 +233,11 @@ describe("App", () => {
       fireEvent.click(planButton);
     });
 
-    expect(screen.queryByRole("tab", { name: /Architecture/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Plan/i })).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.doubleClick(architectureButton);
-    });
-
-    expect(screen.getByRole("tab", { name: /Plan/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Architecture/i })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Plan")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Architecture")).not.toBeInTheDocument();
   });
 
-  it("renders document tabs above the editor toolbar", async () => {
+  it("does not render tab-strip or split-view controls in the main editor", async () => {
     const workspace = createWorkspace();
     window.mohio = createMohioMock({
       getCurrentWorkspace: async () => workspace,
@@ -250,13 +245,10 @@ describe("App", () => {
 
     render(<App />);
 
-    const pane = await screen.findByTestId("document-state-primary");
-    const tablist = within(pane).getByRole("tablist", { name: "Open document tabs" });
-    const toolbar = within(pane).getByRole("button", { name: "Heading 1" }).closest(".editor-toolbar");
+    await screen.findByTestId("document-state-primary");
 
-    expect(tablist).toBeInTheDocument();
-    expect(toolbar).toBeInTheDocument();
-    expect(tablist.compareDocumentPosition(toolbar as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("tablist", { name: "Open document tabs" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/split view/i)).not.toBeInTheDocument();
   });
 
   it("uses unified search results to open matching documents", async () => {
@@ -279,10 +271,18 @@ describe("App", () => {
     await screen.findByTestId("workspace-sidebar");
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText("Search workspace"), {
+      fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    });
+
+    const searchInput = await screen.findByLabelText("Search notes");
+
+    await act(async () => {
+      fireEvent.change(searchInput, {
         target: { value: "roadmap" },
       });
     });
+
+    const clearSearchButton = await screen.findByRole("button", { name: "Clear search" });
 
     const result = await screen.findByRole("button", { name: "Plan" });
 
@@ -291,36 +291,68 @@ describe("App", () => {
     });
 
     expect(searchWorkspace).toHaveBeenCalledWith("roadmap");
-    expect(screen.getByRole("tab", { name: /Plan/i })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Plan")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(clearSearchButton);
+    });
+
+    expect(searchInput).toHaveValue("");
+    expect(screen.queryByRole("button", { name: "Clear search" })).not.toBeInTheDocument();
   });
 
-  it("loads related notes in the right sidebar related tab", async () => {
+  it("renders assistant quick-action pills above the composer and sends quick prompts", async () => {
     const workspace = createWorkspace();
-    const getRelatedDocuments = vi.fn().mockResolvedValue([
-      {
-        relativePath: "docs/Plan.md",
-        displayTitle: "Plan",
-        relationTypes: ["backlink", "recent"],
-        score: 200,
-      },
-    ]);
+    const sendAssistantMessage = vi.fn().mockResolvedValue({
+      id: "thread-1",
+      workspacePath: "/workspaces/alpha",
+      title: "New Chat",
+      preview: "",
+      messages: [],
+      status: "running",
+      errorMessage: null,
+    });
 
     window.mohio = createMohioMock({
       getCurrentWorkspace: async () => workspace,
-      getRelatedDocuments,
+      sendAssistantMessage,
     });
 
     render(<App />);
 
     await screen.findByTestId("assistant-sidebar");
 
+    const quickAction = await screen.findByRole("button", { name: "Summarize this note" });
+    const composerInput = await screen.findByLabelText("Assistant composer");
+
+    expect(quickAction.compareDocumentPosition(composerInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
     await act(async () => {
-      fireEvent.click(screen.getByRole("tab", { name: "Related" }));
+      fireEvent.click(quickAction);
     });
 
-    const relatedPanel = await screen.findByTestId("related-panel");
-    expect(relatedPanel).toBeInTheDocument();
-    expect(within(relatedPanel).getByRole("button", { name: /Plan/ })).toBeInTheDocument();
-    expect(getRelatedDocuments).toHaveBeenCalled();
+    expect(sendAssistantMessage).toHaveBeenCalledWith(expect.objectContaining({
+      content: "Summarize this note in concise bullets.",
+    }));
   });
+
+  it("shows delete-only actions in the document context menu", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+    });
+
+    render(<App />);
+
+    const architectureButton = await screen.findByRole("button", { name: "Architecture" });
+
+    await act(async () => {
+      fireEvent.contextMenu(architectureButton);
+    });
+
+    expect(screen.getByRole("menuitem", { name: "Delete Note" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Open in New Tab" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Open in Split View" })).not.toBeInTheDocument();
+  });
+
 });

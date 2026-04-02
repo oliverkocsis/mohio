@@ -23,7 +23,6 @@ Planned focus areas:
 - reviewable diffs before shared content changes
 - snapshots and visible history for page-level changes
 - explicit publish flow for shared updates
-- contextual navigation between related pages
 
 ### Navigation and Discovery
 
@@ -32,9 +31,43 @@ Planned focus areas:
 - Search by note content.
 - Recognize internal Markdown links between documents.
 - Open linked notes directly from the editor.
-- Support contextual navigation between related pages over time.
-- Support multiple document tabs for easy switching between related content.
-- Support side by side document view for easy comparison of related content.
+
+### Publish
+
+- Auto-sync, always. No publish button. Changes propagate on save. If you need to solve the "draft vs. shared" problem, call it exactly that — a Draft toggle — not a publish/unpublished system.
+- Conflicts become a notification, not a workflow. "Someone else edited this while you were writing. Here's their version — yours is safe." One button: "Merge for me." The technical person handles edge cases.
+- History in human language. "You edited this 2 hours ago. Maria edited it yesterday." No commit messages unless explicitly expanded.
+- Zero Git vocabulary anywhere in the UI. Not even in error messages. If a push fails, the user sees "We couldn't sync your changes — try again or contact [technical person]." Done.
+
+
+Keep:
+Git-backed Markdown storage
+auto-save
+safety commits
+explicit share/publish boundary if that’s core to the model
+guided conflict recovery
+local-first robustness
+per-document history under the hood
+Hide or radically reframe
+checkpoint / auto-save terminology
+commit history as primary history
+local vs remote framing
+unpublished terminology
+sync language
+ahead/behind semantics
+merge-oriented conflict vocabulary
+What I’d make the product feel like
+
+If you’re serious about simplicity, the experience should feel like this:
+
+I open a note
+I type
+it is saved automatically
+I see whether my draft is just mine or already shared
+when ready, I click Share
+if someone else changed it, Mohio explains that plainly
+I can view older versions and restore one
+I never think about Git
 
 ### Git v2
 - Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
@@ -98,7 +131,7 @@ Planned focus areas:
 - mobile capture for new notes and ideas
 - mobile reading for team documentation
 - lightweight proposal review on smaller screens
-- faster discovery of related knowledge and backlinks
+- faster discovery of workspace knowledge
 
 ## Phase: Shared Storage and Workspace Connectivity
 
@@ -118,7 +151,6 @@ Planned focus areas:
 - When should a note update an existing page versus create a new one?
 - How much AI explanation is needed for users to trust a proposal?
 - What is the right balance between local navigation and global orientation?
-- How should related-page suggestions be ranked and displayed?
 - Which collaboration signals matter most early: comments, mentions, or change notifications?
 
 ## Out of Scope for the Initial Release

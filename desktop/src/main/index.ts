@@ -16,7 +16,6 @@ import {
 } from "./document-store";
 import { buildAppMenuTemplate } from "./menu";
 import {
-  getRelatedDocuments,
   getWorkspaceSummary,
   searchWorkspace,
 } from "./workspace";
@@ -29,7 +28,6 @@ const activeDocumentWatches = new Map<number, {
   listener: (currentStats: Stats, previousStats: Stats) => void;
   relativePath: string;
 }>();
-const recentDocumentsByWorkspacePath = new Map<string, string[]>();
 
 function createMainWindow(): BrowserWindow {
   const appPath = app.getAppPath();
@@ -130,16 +128,6 @@ function clearDocumentWatches() {
   }
 }
 
-function recordRecentDocument(workspacePath: string, relativePath: string) {
-  const currentRecentDocuments = recentDocumentsByWorkspacePath.get(workspacePath) ?? [];
-  const nextRecentDocuments = [
-    relativePath,
-    ...currentRecentDocuments.filter((pathEntry) => pathEntry !== relativePath),
-  ].slice(0, 30);
-
-  recentDocumentsByWorkspacePath.set(workspacePath, nextRecentDocuments);
-}
-
 function watchDocumentForEventSender(
   event: IpcMainInvokeEvent,
   relativePath: string | null,
@@ -176,7 +164,7 @@ function watchDocumentForEventSender(
 async function openWorkspace(browserWindow?: BaseWindow) {
   const parentWindow = browserWindow ?? BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
   const result = await dialog.showOpenDialog(parentWindow, {
-    buttonLabel: "Open Workspace",
+    buttonLabel: "Open Folder",
     properties: ["openDirectory"],
     title: "Open Mohio Workspace",
   });
@@ -202,58 +190,44 @@ function registerMohioHandlers() {
   ipcMain.handle(MOHIO_CHANNELS.openWorkspace, (_event) => openWorkspace());
   ipcMain.handle(MOHIO_CHANNELS.searchWorkspace, async (_event, query: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before searching.");
+      throw new Error("Open a folder before searching.");
     }
 
     return searchWorkspace(currentWorkspacePath, query);
   });
-  ipcMain.handle(MOHIO_CHANNELS.getRelatedDocuments, async (_event, relativePath: string) => {
-    if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading related documents.");
-    }
-
-    const recentRelativePaths = recentDocumentsByWorkspacePath.get(currentWorkspacePath) ?? [];
-    return getRelatedDocuments(currentWorkspacePath, relativePath, recentRelativePaths);
-  });
   ipcMain.handle(MOHIO_CHANNELS.readDocument, async (_event, relativePath: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading documents.");
+      throw new Error("Open a folder before loading documents.");
     }
 
     void gitCollaboration.recordAutoSaveCommit(currentWorkspacePath).catch(() => undefined);
     void gitCollaboration.syncIncomingChanges(currentWorkspacePath, "document-open").catch(() => undefined);
-    const document = await readDocument(currentWorkspacePath, relativePath);
-    recordRecentDocument(currentWorkspacePath, document.relativePath);
-    return document;
+    return readDocument(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.createDocument, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before creating documents.");
+      throw new Error("Open a folder before creating documents.");
     }
 
-    const document = await createDocument(currentWorkspacePath, input);
-    recordRecentDocument(currentWorkspacePath, document.relativePath);
-    return document;
+    return createDocument(currentWorkspacePath, input);
   });
   ipcMain.handle(MOHIO_CHANNELS.deleteDocument, async (_event, relativePath: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before deleting documents.");
+      throw new Error("Open a folder before deleting documents.");
     }
 
     return deleteDocument(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.saveDocument, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before saving documents.");
+      throw new Error("Open a folder before saving documents.");
     }
 
-    const savedDocument = await saveDocument(currentWorkspacePath, input);
-    recordRecentDocument(currentWorkspacePath, savedDocument.relativePath);
-    return savedDocument;
+    return saveDocument(currentWorkspacePath, input);
   });
   ipcMain.handle(MOHIO_CHANNELS.recordRiskyCommit, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before recording a commit.");
+      throw new Error("Open a folder before recording a commit.");
     }
 
     try {
@@ -264,7 +238,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.recordAutoSaveCommit, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before recording a commit.");
+      throw new Error("Open a folder before recording a commit.");
     }
 
     try {
@@ -275,34 +249,34 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.listCommitHistory, async (_event, relativePath: string | null) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading history.");
+      throw new Error("Open a folder before loading history.");
     }
 
     return gitCollaboration.listCommitHistory(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.getUnpublishedDiff, async (_event, relativePath: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading history.");
+      throw new Error("Open a folder before loading history.");
     }
 
     return gitCollaboration.getUnpublishedDiff(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.getPublishSummary, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading publish state.");
+      throw new Error("Open a folder before loading publish state.");
     }
 
     const workspace = await loadCurrentWorkspace();
 
     if (!workspace) {
-      throw new Error("Open a workspace before loading publish state.");
+      throw new Error("Open a folder before loading publish state.");
     }
 
     return gitCollaboration.getPublishSummary(currentWorkspacePath, workspace.documents);
   });
   ipcMain.handle(MOHIO_CHANNELS.publishWorkspaceChanges, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before publishing.");
+      throw new Error("Open a folder before publishing.");
     }
 
     const result = await gitCollaboration.publishWorkspaceChanges(currentWorkspacePath);
@@ -312,7 +286,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.syncIncomingChanges, async (_event, reason: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before syncing changes.");
+      throw new Error("Open a folder before syncing changes.");
     }
 
     const state = await gitCollaboration.syncIncomingChanges(currentWorkspacePath, reason);
@@ -322,14 +296,14 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.getSyncState, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before loading sync state.");
+      throw new Error("Open a folder before loading sync state.");
     }
 
     return gitCollaboration.getSyncState(currentWorkspacePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.resolveSyncConflict, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before resolving conflicts.");
+      throw new Error("Open a folder before resolving conflicts.");
     }
 
     const state = await gitCollaboration.resolveSyncConflict(currentWorkspacePath, input);
@@ -342,7 +316,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.listAssistantThreads, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before starting an assistant conversation.");
+      throw new Error("Open a folder before starting an assistant conversation.");
     }
 
     return assistantRuntime.listThreads({
@@ -351,7 +325,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.createAssistantThread, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before starting an assistant conversation.");
+      throw new Error("Open a folder before starting an assistant conversation.");
     }
 
     return assistantRuntime.createThread({
@@ -360,7 +334,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.getAssistantThread, async (_event, threadId: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before starting an assistant conversation.");
+      throw new Error("Open a folder before starting an assistant conversation.");
     }
 
     return assistantRuntime.getThread({
@@ -370,13 +344,13 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.sendAssistantMessage, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before starting an assistant conversation.");
+      throw new Error("Open a folder before starting an assistant conversation.");
     }
 
     const workspace = await loadCurrentWorkspace();
 
     if (!workspace) {
-      throw new Error("Open a workspace before starting an assistant conversation.");
+      throw new Error("Open a folder before starting an assistant conversation.");
     }
 
     return assistantRuntime.sendMessage({
@@ -397,7 +371,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.renameAssistantThread, async (_event, input) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before renaming an assistant conversation.");
+      throw new Error("Open a folder before renaming an assistant conversation.");
     }
 
     await assistantRuntime.renameThread({
@@ -408,7 +382,7 @@ function registerMohioHandlers() {
   });
   ipcMain.handle(MOHIO_CHANNELS.deleteAssistantThread, async (_event, threadId: string) => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a workspace before deleting an assistant conversation.");
+      throw new Error("Open a folder before deleting an assistant conversation.");
     }
 
     await assistantRuntime.deleteThread({

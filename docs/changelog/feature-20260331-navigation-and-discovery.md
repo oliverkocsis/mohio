@@ -6,44 +6,53 @@
 
 ## Context
 
-The desktop workspace shell already supported opening and editing Markdown notes, but navigation and discovery workflows were still limited to a single active document and a placeholder search field. There was no multi-tab workflow, no side-by-side note comparison, no contextual related-note view, and no way to collapse side panels when focusing on content.
+The desktop workspace shell already supported opening and editing Markdown notes, but navigation and discovery workflows were still limited by a placeholder search field and weak panel-level navigation controls.
 
 ## Change
 
-- Added unified workspace search (`filename/path/content`) through new IPC + shared API contracts:
+- Added unified workspace search (`filename/path/content`) through new IPC + shared API contract:
   - `searchWorkspace(query)`
-  - `getRelatedDocuments(relativePath)`
 - Implemented main-process discovery logic for:
   - ranked search results with snippets
-  - internal-link graph extraction from Markdown + wiki links
-  - related-note ranking from outgoing links, backlinks, and recents
 - Added internal-link navigation in the editor surface:
   - `Cmd/Ctrl+Click` on internal link text opens the target note
   - supports Markdown links, wiki links, and anchor-aware targets
-- Reworked the center panel into a pane-aware document workspace:
-  - document tabs in the main panel
-  - single-click uses current tab
-  - double-click opens new tab
-  - right-click document menu includes `Open in New Tab` and `Open in Split View`
-  - two-pane side-by-side split mode with editable notes in both panes
-  - closable document tabs with `X`
-- Moved main document tab headers above the formatting toolbar and aligned header rows with side panel tabs.
+- Kept document editing focused on a single active editor surface:
+  - removed multi-document tabs in the center panel
+  - removed side-by-side split view in the center panel
+  - removed document context-menu actions for `Open in New Tab` and `Open in Split View`
+  - single document selection now always opens directly in the main editor
 - Added top-bar panel controls:
   - left side uses `panel-left-close / panel-left` to collapse/reopen the left panel
   - right side uses `panel-right-close / panel-right` to collapse/reopen the right panel
-- Added right-sidebar `Related` tab showing ranked contextual notes.
+- Removed the third right-sidebar tab and its document-discovery API from the feature scope.
+- Moved workspace search into a dedicated left-sidebar `Search` tab:
+  - removed the top-bar search input
+  - added a full-width search input at the top of the `Search` tab
+  - added inline `X` clear control on the right side of search inputs
+  - moved live search results from `Documents` into `Search`
+  - kept realtime query behavior with debounce buffering
+  - highlighted active search matches in open documents with yellow in-editor marks
+- Refined assistant sidebar ergonomics:
+  - restored quick-action example pills above the composer input
+  - kept the composer region pinned to the bottom of the sidebar
+  - constrained thread-list titles to single-line ellipsis overflow
+- Simplified primary shell actions:
+  - removed the top-bar quick `Publish` button
+  - removed the `Documents`-tab bottom `New Note` button in the left panel
+  - kept explicit publish via the `Unpublished` tab footer action
+- Renamed workspace-opening UI labels to folder language for consistency:
+  - top-bar workspace selector fallback label: `Open Folder`
+  - center empty-state CTA: `Open Folder` / `Opening Folder...`
+  - file-menu entry: `File > Open Folder...`
 - Updated renderer styles for:
-  - aligned tab-header rows
-  - split-pane editor layout
-  - horizontal tab overflow
-  - related-note list and search snippets
+  - simplified single-editor layout
 - Replaced renderer integration tests to validate the new navigation model and panel controls.
 
 ## Decision
 
 Mohio now treats navigation and discovery as first-class workspace behavior in the desktop shell:
 
-- search, links, tabs, split-view, and related-note context are integrated into one consistent flow
+- search and links are integrated into a simpler single-document editing flow
 - panel visibility is user-controlled from persistent top-bar toggles
-- document tabs share a consistent visual language with side-panel tabs while preserving close affordances (`X`) specific to document workspaces
-- v1 keeps panel visibility and recents session-local while prioritizing predictable desktop editing ergonomics
+- v1 keeps panel visibility session-local while prioritizing predictable desktop editing ergonomics

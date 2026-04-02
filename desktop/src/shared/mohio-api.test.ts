@@ -35,14 +35,6 @@ describe("createMohioApi", () => {
         snippet: null,
       },
     ]);
-    const getRelatedDocuments = vi.fn().mockResolvedValue([
-      {
-        relativePath: "ROADMAP.md",
-        displayTitle: "ROADMAP",
-        relationTypes: ["backlink"] as const,
-        score: 120,
-      },
-    ]);
     const readDocument = vi.fn().mockResolvedValue(document);
     const createDocument = vi.fn().mockResolvedValue({
       relativePath: "Untitled.md",
@@ -158,7 +150,6 @@ describe("createMohioApi", () => {
       getCurrentWorkspace,
       openWorkspace,
       searchWorkspace,
-      getRelatedDocuments,
       readDocument,
       createDocument,
       deleteDocument,
@@ -198,14 +189,6 @@ describe("createMohioApi", () => {
         displayTitle: "README",
         matchType: "title",
         snippet: null,
-      },
-    ]);
-    await expect(api.getRelatedDocuments("README.md")).resolves.toEqual([
-      {
-        relativePath: "ROADMAP.md",
-        displayTitle: "ROADMAP",
-        relationTypes: ["backlink"],
-        score: 120,
       },
     ]);
     await expect(api.readDocument("README.md")).resolves.toEqual(document);
@@ -335,7 +318,6 @@ describe("createMohioApi", () => {
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
     expect(searchWorkspace).toHaveBeenCalledWith("readme");
-    expect(getRelatedDocuments).toHaveBeenCalledWith("README.md");
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
     expect(deleteDocument).toHaveBeenCalledWith("README.md");

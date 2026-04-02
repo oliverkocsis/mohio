@@ -38,15 +38,6 @@ export interface WorkspaceSearchMatch {
   snippet: string | null;
 }
 
-export type RelatedDocumentType = "backlink" | "outgoing" | "recent";
-
-export interface RelatedDocument {
-  relativePath: string;
-  displayTitle: string;
-  relationTypes: RelatedDocumentType[];
-  score: number;
-}
-
 export interface WorkspaceDocument {
   relativePath: string;
   fileName: string;
@@ -224,7 +215,6 @@ export interface MohioApi {
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
   searchWorkspace: (query: string) => Promise<WorkspaceSearchMatch[]>;
-  getRelatedDocuments: (relativePath: string) => Promise<RelatedDocument[]>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;

@@ -78,9 +78,7 @@ On save, Mohio rebuilds the file with:
 
 - Editor implementation: `CodeMirror`
 - Title field: auto-resizing textarea
-- Document workspaces support:
-  - document tabs in the main panel
-  - two-pane split editing with independent active tabs
+- Editing uses a single active document surface in the main panel.
 - Toolbar actions currently implemented:
   - H1
   - H2

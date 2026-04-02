@@ -67,6 +67,7 @@ Assistant thread shape:
 
 - The sidebar starts in a session-list view for the current workspace.
 - The list view shows a simple workspace-filtered title list of Codex chats and no dedicated `New Chat` button.
+- Thread titles in the list view are single-line and truncate with ellipsis on overflow.
 - Opening a chat switches the sidebar into a dedicated thread view.
 - A newly created chat stays in the dedicated thread view even before Codex includes it in the workspace history list.
 - The thread view header includes:
@@ -79,6 +80,7 @@ Assistant thread shape:
 - Users can switch between existing Codex chats without changing the selected note.
 - The transcript renders only in the active thread view.
 - The assistant footer stays pinned at the bottom of the right sidebar in both list and thread views, below the chat list when browsing sessions.
+- Quick-action pills render directly above the composer input in the sticky footer area.
 - User prompts remain compact, while assistant answers render as full-width left-aligned responses instead of chat bubbles.
 - Mohio keeps streamed assistant text visible once it appears and never replaces it with a placeholder.
 - While a Codex run is active and no new assistant text has arrived yet, Mohio shows a muted animated `Thinking...` line as the last row in the transcript.
@@ -86,7 +88,6 @@ Assistant thread shape:
 - Quick-action pills render above the composer:
   - `Summarize this note`
   - `Organize this note`
-  - `Suggest related notes from this workspace`
 - The composer is a full-width textarea that auto-grows with typed content, up to five visible lines.
 - The send control is an icon-only button inside the right side of the composer.
 - For single-line composer height, the send icon is vertically centered.

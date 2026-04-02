@@ -30,14 +30,14 @@ flowchart LR
 
 - `Electron main`: window, menu, folder picker, filesystem access, file watching, Codex app-server client
 - `Preload`: typed `window.mohio` bridge
-- `Renderer`: React UI for workspace tree, search, tabbed/split editor panes, related-note navigation, assistant history, and transcript
+- `Renderer`: React UI for workspace tree, search, single-document editor surface, assistant history, and transcript
 - `Workspace`: local folder with `.md`, `.markdown`, and `.mdx` files
 
 ## Data Flow
 
-### Open Workspace
+### Open Folder
 
-1. User opens a folder from the workspace button or `File > Open Workspace...`.
+1. User opens a folder from the workspace button or `File > Open Folder...`.
 2. Main opens the native directory picker.
 3. Main builds a `WorkspaceSummary`.
 4. Renderer refreshes the workspace tree and selects the first available document.
@@ -49,13 +49,13 @@ flowchart LR
 3. The Markdown file is read and parsed.
 4. Renderer loads the parsed title and body into the editor.
 
-### Search and Related Discovery
+### Search Discovery
 
-1. Renderer sends a search query or selected-note path through preload.
-2. Main scans workspace markdown files and builds discovery data on demand:
+1. User types in the left-sidebar `Search` tab input.
+2. Renderer sends the search query through preload.
+3. Main scans workspace markdown files and builds discovery data on demand:
    - title/path/content matches for search
-   - outgoing link graph, backlinks, and recents for related notes
-3. Renderer renders ranked search/related results and opens notes into tabs or split panes.
+4. Renderer renders ranked search results and opens notes into the active editor surface.
 
 ### Save Document
 
@@ -86,7 +86,7 @@ flowchart LR
 
 1. User `Cmd/Ctrl+Click`s an internal link in the editor.
 2. Renderer resolves target path (markdown/wiki/anchor forms) against current workspace documents.
-3. Renderer opens the resolved note in the current pane tab context.
+3. Renderer opens the resolved note in the active editor surface.
 
 ## Security and Trust Boundaries
 
@@ -109,7 +109,7 @@ flowchart LR
 ## Current Architectural Constraints
 
 - The app is single-window and desktop-only today.
-- Search and related discovery are computed from workspace files on demand, without persistent indexing.
+- Search discovery is computed from workspace files on demand, without persistent indexing.
 - Assistant history browsing is limited to Codex threads whose `cwd` exactly matches the open workspace path.
 - The assistant can chat about the workspace, but it cannot apply edits through Mohio yet.
 - History is commit-list based (message/date/stats) rather than a visual side-by-side diff/restore workflow.
