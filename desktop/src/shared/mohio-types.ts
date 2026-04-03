@@ -199,7 +199,7 @@ export type AssistantEvent =
 
 export interface SendAssistantMessageInput {
   threadId: string;
-  noteRelativePath: string;
+  documentRelativePath: string;
   content: string;
   documentTitle: string;
   documentMarkdown: string;

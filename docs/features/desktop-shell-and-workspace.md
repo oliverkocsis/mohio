@@ -79,17 +79,17 @@ Current API surface:
 
 - The left sidebar renders tabbed views:
   - `Documents` for full tree
-  - `Search` for live note search
+  - `Search` for live document search
   - `Unpublished` for non-published documents only
 - Tree document open behavior:
   - single-click opens the document in the main editor surface
-  - right-click includes `Delete Note`
-- The `New Note` action creates a markdown note in the selected note folder.
-- If no note is selected, `New Note` creates the note at workspace root.
+  - right-click includes `Delete Document`
+- The `New Document` action creates a markdown document in the selected document folder.
+- If no document is selected, `New Document` creates the document at workspace root.
 - Directories are expanded by default after a workspace loads.
 - Clicking a directory row toggles expansion.
 - Clicking a document row selects that document.
-- Right-clicking a document row opens a context menu with `Delete Note`.
+- Right-clicking a document row opens a context menu with `Delete Document`.
 - The first document in the tree becomes the default selection after workspace load.
 - Document rows display parsed titles when available.
 
@@ -109,9 +109,9 @@ Current API surface:
 ### Workspace With Documents
 
 - The selected document loads into the single editor surface.
-- Newly created notes are selected and opened immediately.
+- Newly created documents are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
-- The top bar keeps quick `New Note` and panel visibility controls.
+- The top bar keeps quick `New Document` and panel visibility controls.
 - The right sidebar supports assistant and history flows.
 
 ### Search and Discovery
@@ -121,7 +121,7 @@ Current API surface:
   - file/path matches
   - content matches with snippets
 - Active query text is highlighted in the open editor with yellow in-document marks.
-- Search input includes an inline `X` clear control on the right side.
+- Search input uses the native clear control provided by `type=\"search\"` (when available).
 - Internal Markdown and wiki links can be opened directly from the editor with `Cmd/Ctrl+Click`.
 
 ## Security Boundary
@@ -132,7 +132,7 @@ Current API surface:
 
 ## Current Limitations
 
-- No dedicated rename-note action beyond title-driven file rename
+- No dedicated rename-document action beyond title-driven file rename
 - Panel collapse state is session-local (not persisted across restart)
 - History diff is rendered as raw patch text rather than a rich split diff
 

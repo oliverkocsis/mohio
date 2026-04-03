@@ -18,14 +18,14 @@ Mohio's first desktop shell was still static. It needed a real local-first workf
 - Tightened the workspace tree spacing into a denser, more Notion-like left-navigation rhythm for faster scanning.
 - Simplified the empty workspace state into a single centered folder-selection CTA with minimal copy.
 - Removed duplicate workspace context from the left sidebar once the active workspace was already shown in the top bar.
-- Hid the `New note` action until a workspace is open.
+- Hid the `New document` action until a workspace is open.
 - Simplified the main document panel so the selected document title remains the primary visible identifier without showing the file path underneath.
 - Added or updated tests for workspace enumeration, menu behavior, shared API behavior, and renderer interaction around tree state and workspace loading.
 - Updated the architecture and design documentation to reflect the new workspace integration, collapsible navigation tree, and denser left-sidebar direction.
 
 ## Decision
 
-Implemented direct local workspace selection and a filesystem-backed tree before adding higher-level note actions so the product could establish its core local-first model first. Chose a dense collapsible tree and simplified empty states over more ambitious navigation features to make the shell immediately usable without adding premature complexity.
+Implemented direct local workspace selection and a filesystem-backed tree before adding higher-level document actions so the product could establish its core local-first model first. Chose a dense collapsible tree and simplified empty states over more ambitious navigation features to make the shell immediately usable without adding premature complexity.
 
 ## Affected Areas
 

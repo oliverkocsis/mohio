@@ -128,7 +128,7 @@ export function RichTextEditor({
             "aria-label": "Document body",
             "data-testid": "rich-text-editor",
           }),
-          placeholder("Start writing your note"),
+          placeholder("Start writing your document"),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged || isApplyingExternalUpdateRef.current) {
               return;

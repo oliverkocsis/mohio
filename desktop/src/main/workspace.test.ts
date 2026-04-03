@@ -25,7 +25,7 @@ describe("getWorkspaceSummary", () => {
     tempDirectories.push(workspacePath);
 
     await writeFile(path.join(workspacePath, "README.md"), "# Workspace");
-    await writeFile(path.join(workspacePath, "notes.MD"), "---\ntitle: Notes; Archive\n---\n# Notes\n");
+    await writeFile(path.join(workspacePath, "documents.MD"), "---\ntitle: Documents; Archive\n---\n# Documents\n");
     await writeFile(path.join(workspacePath, "draft.txt"), "ignore me");
 
     await mkdir(path.join(workspacePath, "docs", "nested"), { recursive: true });
@@ -71,11 +71,11 @@ describe("getWorkspaceSummary", () => {
         ],
       },
       {
-        id: "notes.MD",
+        id: "documents.MD",
         kind: "document",
-        name: "notes.MD",
-        relativePath: "notes.MD",
-        displayTitle: "Notes",
+        name: "documents.MD",
+        relativePath: "documents.MD",
+        displayTitle: "Documents",
       },
       {
         id: "README.md",

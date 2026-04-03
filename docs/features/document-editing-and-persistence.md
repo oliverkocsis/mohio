@@ -57,20 +57,20 @@ On save, Mohio rebuilds the file with:
 - After a successful save, the title field updates to the canonical saved title returned from main (for example, after filename sanitization in `filename-linked` mode).
 - existing frontmatter is preserved as-is, including `frontmatter.title` if present
 
-## Note Creation and Deletion
+## Document Creation and Deletion
 
-- New notes can be created from the workspace sidebar.
-- Mohio writes new notes with a default `# Untitled` heading.
-- New notes are created in the selected note's folder.
-- If no note is selected, the new note is created at workspace root.
+- New documents can be created from the workspace sidebar.
+- Mohio writes new documents with a default `# Untitled` heading.
+- New documents are created in the selected document's folder.
+- If no document is selected, the new document is created at workspace root.
 - Name collisions use numeric suffixes (`Untitled.md`, `Untitled 1.md`, ...).
-- Notes can be deleted from the workspace tree context menu after explicit confirmation.
+- Documents can be deleted from the workspace tree context menu after explicit confirmation.
 
 ## Filename Rules
 
 - Illegal cross-platform filename characters are removed.
 - Trailing spaces and trailing dots are removed.
-- Windows reserved basenames are rewritten with a ` Note` suffix.
+- Windows reserved basenames are rewritten with a ` Document` suffix.
 - Empty titles fall back to `Untitled`.
 - When a renamed filename collides with an existing file in the same folder, Mohio appends a numeric suffix such as ` 1`, ` 2`, and so on.
 
@@ -130,7 +130,7 @@ On save, Mohio rebuilds the file with:
 
 - Mohio tracks recent material local edits and records a background `checkpoint` commit after about 60 seconds of idle time.
 - Switching documents after recent local edits triggers a pre-switch `checkpoint` commit.
-- Deleting a note triggers a pre-delete `checkpoint` commit.
+- Deleting a document triggers a pre-delete `checkpoint` commit.
 - Opening a document also triggers auto-save commit attempt + incoming sync check.
 
 ## Current Limitations

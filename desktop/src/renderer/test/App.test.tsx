@@ -274,15 +274,13 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     });
 
-    const searchInput = await screen.findByLabelText("Search notes");
+    const searchInput = await screen.findByLabelText("Search documents");
 
     await act(async () => {
       fireEvent.change(searchInput, {
         target: { value: "roadmap" },
       });
     });
-
-    const clearSearchButton = await screen.findByRole("button", { name: "Clear search" });
 
     const result = await screen.findByRole("button", { name: "Plan" });
 
@@ -294,11 +292,12 @@ describe("App", () => {
     expect(await screen.findByDisplayValue("Plan")).toBeInTheDocument();
 
     await act(async () => {
-      fireEvent.click(clearSearchButton);
+      fireEvent.change(searchInput, {
+        target: { value: "" },
+      });
     });
 
     expect(searchInput).toHaveValue("");
-    expect(screen.queryByRole("button", { name: "Clear search" })).not.toBeInTheDocument();
   });
 
   it("renders assistant quick-action pills above the composer and sends quick prompts", async () => {
@@ -322,7 +321,7 @@ describe("App", () => {
 
     await screen.findByTestId("assistant-sidebar");
 
-    const quickAction = await screen.findByRole("button", { name: "Summarize this note" });
+    const quickAction = await screen.findByRole("button", { name: "Summarise document" });
     const composerInput = await screen.findByLabelText("Assistant composer");
 
     expect(quickAction.compareDocumentPosition(composerInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -332,7 +331,7 @@ describe("App", () => {
     });
 
     expect(sendAssistantMessage).toHaveBeenCalledWith(expect.objectContaining({
-      content: "Summarize this note in concise bullets.",
+      content: "Summarise document in concise bullets.",
     }));
   });
 
@@ -350,9 +349,32 @@ describe("App", () => {
       fireEvent.contextMenu(architectureButton);
     });
 
-    expect(screen.getByRole("menuitem", { name: "Delete Note" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Delete Document" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Open in New Tab" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Open in Split View" })).not.toBeInTheDocument();
+  });
+
+  it("switches the left panel back to Documents when creating a new document", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    });
+
+    expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute("aria-selected", "true");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Quick New Document" }));
+    });
+
+    expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "true");
   });
 
 });

@@ -7,6 +7,6 @@ This section is end-user-facing. It explains how to use Mohio in product languag
 - [Desktop Basics](desktop-basics.md)
   - starting the app
   - opening a workspace
-  - browsing notes
+  - browsing documents
   - editing documents
   - understanding autosave and current limitations

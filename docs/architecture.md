@@ -55,7 +55,7 @@ flowchart LR
 2. Renderer sends the search query through preload.
 3. Main scans workspace markdown files and builds discovery data on demand:
    - title/path/content matches for search
-4. Renderer renders ranked search results and opens notes into the active editor surface.
+4. Renderer renders ranked search results and opens documents into the active editor surface.
 
 ### Save Document
 
@@ -76,7 +76,7 @@ flowchart LR
 
 1. Renderer loads Codex chat history for the current workspace through the preload API.
 2. Renderer selects an existing Codex thread or creates a new one.
-3. Renderer sends the user message plus the current note title, note path, and current note Markdown to main.
+3. Renderer sends the user message plus the current document title, document path, and current document Markdown to main.
 4. Main starts or resumes the Codex thread through `codex app-server`, always with the active workspace root as `cwd`.
 5. Main reuses Codex's existing config, auth state, and session storage instead of persisting assistant history itself.
 6. Main starts the turn, streams assistant deltas back to renderer through assistant events, and refreshes the workspace-filtered thread list when Codex thread state changes.
@@ -86,7 +86,7 @@ flowchart LR
 
 1. User `Cmd/Ctrl+Click`s an internal link in the editor.
 2. Renderer resolves target path (markdown/wiki/anchor forms) against current workspace documents.
-3. Renderer opens the resolved note in the active editor surface.
+3. Renderer opens the resolved document in the active editor surface.
 
 ## Security and Trust Boundaries
 

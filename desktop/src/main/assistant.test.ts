@@ -109,7 +109,7 @@ describe("assistant runtime", () => {
           modelProvider: "openai",
           name: null,
           path: "/Users/test/.codex/sessions/thread-2",
-          preview: "[MOHIO_USER_REQUEST]\nSummarize this note\n[/MOHIO_USER_REQUEST]\n\nCurrent note body",
+          preview: "[MOHIO_USER_REQUEST]\nSummarise document\n[/MOHIO_USER_REQUEST]\n\nCurrent document body",
           source: "vscode",
           status: { type: "idle" },
           turns: [],
@@ -126,15 +126,15 @@ describe("assistant runtime", () => {
       {
         createdAt: "2024-03-23T00:00:00.000Z",
         id: "thread-2",
-        preview: "Summarize this note",
+        preview: "Summarise document",
         status: "idle",
-        title: "Summarize this note",
+        title: "Summarise document",
         updatedAt: "2024-03-23T01:00:00.000Z",
       },
     ]);
   });
 
-  it("creates a Codex thread, sends a note-aware message, and streams assistant text", async () => {
+  it("creates a Codex thread, sends a document-aware message, and streams assistant text", async () => {
     const process = new FakeAssistantProcess();
     const runtime = createAssistantRuntime({
       createId: vi.fn()
@@ -201,13 +201,13 @@ describe("assistant runtime", () => {
       threadId: "thread-1",
       workspacePath: "/workspaces/alpha",
       workspaceName: "alpha",
-      noteRelativePath: "docs/Plan.md",
-      content: "Summarize this note",
+      documentRelativePath: "docs/Plan.md",
+      content: "Summarise document",
       documentTitle: "Plan",
       documentMarkdown: "Body.\n",
     });
 
-    const turnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const turnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
 
     expect(turnStartRequest.method).toBe("turn/start");
     expect(turnStartRequest.params).toMatchObject({
@@ -215,7 +215,7 @@ describe("assistant runtime", () => {
       threadId: "thread-1",
     });
     expect(JSON.stringify(turnStartRequest.params)).toContain("docs/Plan.md");
-    expect(JSON.stringify(turnStartRequest.params)).toContain("Summarize this note");
+    expect(JSON.stringify(turnStartRequest.params)).toContain("Summarise document");
     process.respondSuccess(turnStartRequest.id, {
       turn: {
         error: null,
@@ -229,7 +229,7 @@ describe("assistant runtime", () => {
       id: "thread-1",
       messages: [
         {
-          content: "Summarize this note",
+          content: "Summarise document",
           id: "user-1",
           role: "user",
         },
@@ -273,7 +273,7 @@ describe("assistant runtime", () => {
       id: "thread-1",
       messages: [
         expect.objectContaining({
-          content: "Summarize this note",
+          content: "Summarise document",
           role: "user",
         }),
         expect.objectContaining({
@@ -346,13 +346,13 @@ describe("assistant runtime", () => {
       threadId: "thread-keep-stream",
       workspacePath: "/workspaces/alpha",
       workspaceName: "alpha",
-      noteRelativePath: "docs/Plan.md",
-      content: "Summarize this note",
+      documentRelativePath: "docs/Plan.md",
+      content: "Summarise document",
       documentTitle: "Plan",
       documentMarkdown: "Body.\n",
     });
 
-    const turnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const turnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
     process.respondSuccess(turnStartRequest.id, {
       turn: {
         error: null,
@@ -398,7 +398,7 @@ describe("assistant runtime", () => {
       id: "thread-keep-stream",
       messages: [
         expect.objectContaining({
-          content: "Summarize this note",
+          content: "Summarise document",
           role: "user",
         }),
         expect.objectContaining({
@@ -521,7 +521,7 @@ describe("assistant runtime", () => {
       threadId: "thread-existing",
       workspacePath: "/workspaces/alpha",
       workspaceName: "alpha",
-      noteRelativePath: "docs/Plan.md",
+      documentRelativePath: "docs/Plan.md",
       content: "Continue this chat",
       documentTitle: "Plan",
       documentMarkdown: "Body.\n",
@@ -624,13 +624,13 @@ describe("assistant runtime", () => {
       threadId: "thread-fresh",
       workspacePath: "/workspaces/alpha",
       workspaceName: "alpha",
-      noteRelativePath: "docs/Plan.md",
-      content: "Summarize this note",
+      documentRelativePath: "docs/Plan.md",
+      content: "Summarise document",
       documentTitle: "Plan",
       documentMarkdown: "Body.\n",
     });
 
-    const firstTurnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const firstTurnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
     expect(firstTurnStartRequest.method).toBe("turn/start");
     process.respondError(firstTurnStartRequest.id, "no rollout found for thread id thread-fresh");
 
@@ -650,7 +650,7 @@ describe("assistant runtime", () => {
         modelProvider: "openai",
         name: null,
         path: "/Users/test/.codex/sessions/thread-fresh",
-        preview: "Summarize this note",
+        preview: "Summarise document",
         source: "app-server",
         status: { type: "idle" },
         turns: [],
@@ -661,7 +661,7 @@ describe("assistant runtime", () => {
       },
     });
 
-    const retriedTurnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const retriedTurnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
     expect(retriedTurnStartRequest.method).toBe("turn/start");
     process.respondSuccess(retriedTurnStartRequest.id, {
       turn: {
@@ -726,13 +726,13 @@ describe("assistant runtime", () => {
       threadId: "thread-retry-many",
       workspacePath: "/workspaces/alpha",
       workspaceName: "alpha",
-      noteRelativePath: "docs/Plan.md",
-      content: "Summarize this note",
+      documentRelativePath: "docs/Plan.md",
+      content: "Summarise document",
       documentTitle: "Plan",
       documentMarkdown: "Body.\n",
     });
 
-    const firstTurnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const firstTurnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
     expect(firstTurnStartRequest.method).toBe("turn/start");
     process.respondError(firstTurnStartRequest.id, "no rollout found for thread id thread-retry-many");
 
@@ -748,7 +748,7 @@ describe("assistant runtime", () => {
         modelProvider: "openai",
         name: null,
         path: "/Users/test/.codex/sessions/thread-retry-many",
-        preview: "Summarize this note",
+        preview: "Summarise document",
         source: "app-server",
         status: { type: "idle" },
         turns: [],
@@ -759,7 +759,7 @@ describe("assistant runtime", () => {
       },
     });
 
-    const secondTurnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const secondTurnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
     expect(secondTurnStartRequest.method).toBe("turn/start");
     process.respondError(secondTurnStartRequest.id, "no rollout found for thread id thread-retry-many");
 
@@ -775,7 +775,7 @@ describe("assistant runtime", () => {
         modelProvider: "openai",
         name: null,
         path: "/Users/test/.codex/sessions/thread-retry-many",
-        preview: "Summarize this note",
+        preview: "Summarise document",
         source: "app-server",
         status: { type: "idle" },
         turns: [],
@@ -786,7 +786,7 @@ describe("assistant runtime", () => {
       },
     });
 
-    const thirdTurnStartRequest = await nextNonThreadListRequest(process, "Summarize this note");
+    const thirdTurnStartRequest = await nextNonThreadListRequest(process, "Summarise document");
     expect(thirdTurnStartRequest.method).toBe("turn/start");
     process.respondSuccess(thirdTurnStartRequest.id, {
       turn: {

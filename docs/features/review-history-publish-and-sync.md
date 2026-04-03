@@ -78,7 +78,7 @@ Mohio also returns `lastPublishedAt` when upstream history for the document exis
   - `Documents`
   - `Search`
   - `Unpublished` (same hierarchy/sorting, filtered to non-published docs)
-- top bar quick note icon control (`New Note`)
+- top bar quick document icon control (`New Document`)
 - left sidebar bottom action:
   - `Publish` in `Unpublished`
 

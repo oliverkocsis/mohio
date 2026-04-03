@@ -14,7 +14,6 @@ import {
   SquarePen,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import type {
   AssistantThread,
@@ -60,14 +59,15 @@ interface DocumentEditorSession {
 
 const ASSISTANT_QUICK_ACTIONS = [
   {
-    label: "Summarize this note",
-    prompt: "Summarize this note in concise bullets.",
+    label: "Summarise document",
+    prompt: "Summarise document in concise bullets.",
   },
   {
-    label: "Organize this note",
-    prompt: "Organize this note into clear sections with concise headings and next steps.",
+    label: "Improve document",
+    prompt: "Improve document clarity, structure, and flow while keeping the original meaning.",
   },
 ] as const;
+const SEARCH_DOCUMENTS_PLACEHOLDER = "Search by file name, path, or document content.";
 
 function useDocumentEditorSession({
   onRelativePathChange,
@@ -488,6 +488,8 @@ export function App() {
       return;
     }
 
+    setLeftSidebarTab("documents");
+
     const targetPath = activeDocumentPath;
     const directoryRelativePath = getDocumentDirectoryRelativePath(targetPath);
 
@@ -498,7 +500,7 @@ export function App() {
       await refreshPublishSummary();
       setActiveDocumentPath(nextDocument.relativePath);
     } catch {
-      setWorkspaceError("Mohio could not create a new note.");
+      setWorkspaceError("Mohio could not create a new document.");
     }
   };
 
@@ -507,7 +509,7 @@ export function App() {
       return;
     }
 
-    const confirmed = window.confirm("Delete this note from the workspace?");
+    const confirmed = window.confirm("Delete this document from the workspace?");
 
     if (!confirmed) {
       return;
@@ -520,7 +522,7 @@ export function App() {
       await refreshWorkspaceSummary();
       await refreshPublishSummary();
     } catch {
-      setWorkspaceError("Mohio could not delete that note.");
+      setWorkspaceError("Mohio could not delete that document.");
     }
   };
 
@@ -563,7 +565,7 @@ export function App() {
 
       const nextThread = await window.mohio.sendAssistantMessage({
         threadId,
-        noteRelativePath: activeDocumentPath,
+        documentRelativePath: activeDocumentPath,
         content: trimmedMessage,
         documentTitle: activeDraftTitle,
         documentMarkdown: activeDraftMarkdown,
@@ -636,7 +638,7 @@ export function App() {
 
           <div className="top-bar__context-actions">
             <button
-              aria-label="Quick New Note"
+              aria-label="Quick New Document"
               className="top-bar__icon-action"
               disabled={!workspace}
               onClick={() => {
@@ -669,10 +671,10 @@ export function App() {
         {isLeftPanelOpen ? (
           <aside className="sidebar sidebar--left" data-testid="workspace-sidebar">
             <section className="sidebar__section sidebar__section--edge-tabs">
-              <div className="sidebar-tabs sidebar-tabs--full-width" role="tablist" aria-label="Workspace views">
+              <div className="sidebar-tabs sidebar-tabs--underlined" role="tablist" aria-label="Workspace views">
                 <button
                   aria-selected={leftSidebarTab === "documents"}
-                  className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
+                  className={`sidebar-tab sidebar-tab--underlined${leftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
                   onClick={() => {
                     setLeftSidebarTab("documents");
                   }}
@@ -684,7 +686,7 @@ export function App() {
                 </button>
                 <button
                   aria-selected={leftSidebarTab === "search"}
-                  className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "search" ? " sidebar-tab--active" : ""}`}
+                  className={`sidebar-tab sidebar-tab--underlined${leftSidebarTab === "search" ? " sidebar-tab--active" : ""}`}
                   onClick={() => {
                     setLeftSidebarTab("search");
                   }}
@@ -696,7 +698,7 @@ export function App() {
                 </button>
                 <button
                   aria-selected={leftSidebarTab === "unpublished"}
-                  className={`sidebar-tab sidebar-tab--full-width${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
+                  className={`sidebar-tab sidebar-tab--underlined${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
                   onClick={() => {
                     setLeftSidebarTab("unpublished");
                   }}
@@ -716,42 +718,26 @@ export function App() {
               <div className="workspace-panel__scroll">
                 {leftSidebarTab === "search" ? (
                   <section className="workspace-search-panel" data-testid="workspace-search-panel">
-                    <div className="search-input-control">
-                      <input
-                        aria-label="Search notes"
-                        className="search-input workspace-search-panel__input"
-                        disabled={!workspace}
-                        onChange={(event) => {
-                          setSearchQuery(event.target.value);
-                        }}
-                        placeholder={workspace ? `Search ${workspace.name}` : "Search workspace"}
-                        type="search"
-                        value={searchQuery}
-                      />
-                      {searchQuery.length > 0 ? (
-                        <button
-                          aria-label="Clear search"
-                          className="search-input-control__clear"
-                          onClick={() => {
-                            setSearchQuery("");
-                          }}
-                          type="button"
-                        >
-                          <X aria-hidden="true" className="search-input-control__clear-icon" />
-                        </button>
-                      ) : null}
-                    </div>
+                    <input
+                      aria-label="Search documents"
+                      className="search-input workspace-search-panel__input"
+                      disabled={!workspace}
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                      }}
+                      placeholder={SEARCH_DOCUMENTS_PLACEHOLDER}
+                      type="search"
+                      value={searchQuery}
+                    />
 
                     {isWorkspaceLoading ? (
                       <p className="workspace-panel__copy">Loading current workspace...</p>
-                    ) : !workspace ? null : searchQuery.trim().length === 0 ? (
-                      <p className="workspace-panel__copy">Search by file name, path, or note content.</p>
-                    ) : (
+                    ) : !workspace ? null : searchQuery.trim().length > 0 ? (
                       <div className="workspace-search-results" data-testid="workspace-search-results">
                         {isSearchLoading ? (
                           <p className="workspace-panel__copy">Searching workspace...</p>
                         ) : searchResults.length === 0 ? (
-                          <p className="workspace-panel__copy">No matching notes found.</p>
+                          <p className="workspace-panel__copy">No matching documents found.</p>
                         ) : (
                           <ul className="workspace-tree" role="list">
                             {searchResults.map((result) => (
@@ -781,7 +767,7 @@ export function App() {
                           </ul>
                         )}
                       </div>
-                    )}
+                    ) : null}
                   </section>
                 ) : isWorkspaceLoading ? (
                   <p className="workspace-panel__copy">Loading current workspace...</p>
@@ -847,7 +833,7 @@ export function App() {
                       type="button"
                     >
                       <Trash2 aria-hidden="true" className="workspace-document-menu__icon" />
-                      <span>Delete Note</span>
+                      <span>Delete Document</span>
                     </button>
                   </div>
                 ) : null}
@@ -892,10 +878,10 @@ export function App() {
         {isRightPanelOpen ? (
           <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
             <section className="sidebar__section sidebar__section--edge-tabs">
-              <div className="sidebar-tabs sidebar-tabs--full-width" role="tablist" aria-label="Right panel views">
+              <div className="sidebar-tabs sidebar-tabs--underlined" role="tablist" aria-label="Right panel views">
                 <button
                   aria-selected={rightSidebarTab === "assistant"}
-                  className={`sidebar-tab sidebar-tab--full-width${rightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
+                  className={`sidebar-tab sidebar-tab--underlined${rightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
                   onClick={() => {
                     setRightSidebarTab("assistant");
                   }}
@@ -907,7 +893,7 @@ export function App() {
                 </button>
                 <button
                   aria-selected={rightSidebarTab === "history"}
-                  className={`sidebar-tab sidebar-tab--full-width${rightSidebarTab === "history" ? " sidebar-tab--active" : ""}`}
+                  className={`sidebar-tab sidebar-tab--underlined${rightSidebarTab === "history" ? " sidebar-tab--active" : ""}`}
                   onClick={() => {
                     setRightSidebarTab("history");
                   }}
@@ -923,7 +909,7 @@ export function App() {
             {rightSidebarTab === "assistant" ? (
               <section className="sidebar__section assistant-panel">
                 {!workspace ? null : !activeDocumentPath ? (
-                  <p className="workspace-panel__copy">Select a note to chat with Codex.</p>
+                  <p className="workspace-panel__copy">Select a document to chat with Codex.</p>
                 ) : (
                   <>
                     <div className="assistant-panel__body">
@@ -991,7 +977,7 @@ export function App() {
                             onChange={(event) => {
                               setAssistantComposerValue(event.target.value);
                             }}
-                            placeholder="Ask Codex about this note or workspace"
+                            placeholder="Ask Codex about this document or workspace"
                             rows={1}
                             value={assistantComposerValue}
                           />

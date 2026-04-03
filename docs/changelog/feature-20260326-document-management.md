@@ -1,4 +1,4 @@
-# feature-20260326-note-and-document-management
+# feature-20260326-document-management
 
 ## Date
 
@@ -6,19 +6,19 @@
 
 ## Context
 
-The desktop workspace already supported opening and editing Markdown files, but note lifecycle actions were missing from the app shell and title behavior still prioritized frontmatter over the intended filename/H1 coupling. Users had to create and delete files outside Mohio, and document titles could drift from filename intent when H1 and file naming diverged.
+The desktop workspace already supported opening and editing Markdown files, but document lifecycle actions were missing from the app shell and title behavior still prioritized frontmatter over the intended filename/H1 coupling. Users had to create and delete files outside Mohio, and document titles could drift from filename intent when H1 and file naming diverged.
 
 ## Change
 
 - Added document creation and deletion APIs to the shared Mohio contract, preload bridge, and Electron IPC channels.
-- Implemented main-process document-store operations for creating notes and deleting notes with workspace-path validation.
-- Added unique note-name allocation for `Untitled.md`, `Untitled 1.md`, and subsequent collisions.
-- Enabled the sidebar `New Note` action in workspace mode:
-  - creates in the selected note's folder
-  - falls back to workspace root when no note is selected
-  - opens the newly created note immediately
-- Added a renderer context menu on workspace document rows with a `Delete Note` action and confirmation flow.
-- Updated selection handling so the active note highlight stays correct after create/delete transitions.
+- Implemented main-process document-store operations for creating documents and deleting documents with workspace-path validation.
+- Added unique document-name allocation for `Untitled.md`, `Untitled 1.md`, and subsequent collisions.
+- Enabled the sidebar `New Document` action in workspace mode:
+  - creates in the selected document's folder
+  - falls back to workspace root when no document is selected
+  - opens the newly created document immediately
+- Added a renderer context menu on workspace document rows with a `Delete Document` action and confirmation flow.
+- Updated selection handling so the active document highlight stays correct after create/delete transitions.
 - Reworked title parsing and save behavior into two explicit modes:
   - `h1-linked` mode when sanitized first H1 matches sanitized filename stem
   - `filename-linked` mode otherwise
@@ -33,13 +33,13 @@ The desktop workspace already supported opening and editing Markdown files, but 
 - Added test coverage for:
   - main document create/delete behavior and safety checks
   - shared API create/delete wiring
-  - renderer new-note and delete-note interaction flows
+  - renderer new-document and delete-document interaction flows
   - H1/filename title-mode parsing and mode-specific save behavior
-- Updated feature and manual docs to reflect in-app note creation and deletion.
+- Updated feature and manual docs to reflect in-app document creation and deletion.
 
 ## Decision
 
-Mohio now treats note creation and deletion as first-class workspace operations in the desktop shell, while keeping safety explicit:
+Mohio now treats document creation and deletion as first-class workspace operations in the desktop shell, while keeping safety explicit:
 
 - create defaults to predictable `Untitled` naming
 - delete is an explicit confirmed action

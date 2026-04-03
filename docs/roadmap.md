@@ -7,7 +7,7 @@ This roadmap is user-facing. It outlines Mohio's current direction and planned p
 Mohio is currently focused on validating the core workflow for a lightweight team knowledge workspace:
 
 - capture ideas quickly
-- turn rough notes into structured knowledge
+- turn rough documents into structured knowledge
 - review important changes clearly
 - keep shared documentation easy to publish and track
 
@@ -17,7 +17,7 @@ The first milestone is a usable foundation for a bring-your-own-AI, Markdown-bas
 
 Planned focus areas:
 
-- personal scratchpad for quick note capture
+- personal scratchpad for quick document capture
 - Markdown-based wiki pages for shared knowledge
 - AI proposals from connected tools that suggest new pages, edits, and links
 - reviewable diffs before shared content changes
@@ -26,11 +26,11 @@ Planned focus areas:
 
 ### Navigation and Discovery
 
-- Switch between notes quickly from the workspace browser.
+- Switch between documents quickly from the workspace browser.
 - Search by file name.
-- Search by note content.
+- Search by document content.
 - Recognize internal Markdown links between documents.
-- Open linked notes directly from the editor.
+- Open linked documents directly from the editor.
 
 ### Publish
 
@@ -60,7 +60,7 @@ What I’d make the product feel like
 
 If you’re serious about simplicity, the experience should feel like this:
 
-I open a note
+I open a document
 I type
 it is saved automatically
 I see whether my draft is just mine or already shared
@@ -75,25 +75,23 @@ I never think about Git
 - The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
 - The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
 
-## Phase: Notes and Documents
+## Phase: Private and Shared Documents
 
-- Seperate notes and documents
-- Notes are used to capture quick thoughts, ideas.
-- Documents are used to capture structured knowledge that is shared with the team.
-- Notes are private to the user and are not shared with the team.
-- Documents are shared with the team and are visible to all members of the workspace.
-- Notes are order by last modified time and are not organized in a hierarchy.
-- Documents are organized in a hierarchy and are shared with the team.
-- Notes can be promoted to documents when they are ready to be shared with the team.
-- The left panel has 2 tabs: Notes and Documents. The Notes tab shows the user's private notes in a list with a timestamp prefix.
-- The notes can be order by modified time or created time. The user can switch between the two sorting options. (A-Z or Z-A)
-- The documents tab shows the shared documents in a folder hierarchical structure.
-- The documents can be ordered by name or modified time. The user can switch between the two sorting options. (A-Z or Z-A)
-- Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 This is the first h1 if the note`).
+- Clarify the split between private documents and shared documents.
+- Private documents support quick capture and early drafting.
+- Shared documents capture structured knowledge for team use.
+- Private documents remain user-only until shared.
+- Shared documents are visible to workspace collaborators.
+- Private documents are listed by recency in a flat list.
+- Shared documents stay organized in a folder hierarchy.
+- Users can promote private documents into shared documents when ready.
+- The left panel should expose clear navigation between private documents and shared documents.
+- Sorting options should include modified time, created time, and name where appropriate.
+- New private documents should keep predictable timestamp-based naming for fast recall.
 
 ## Phase: Canvas
 
-Text based canvas for freeform note-taking, brainstorming, and visual organization.
+Text based canvas for freeform document-taking, brainstorming, and visual organization.
 - support for basic shapes, connectors, and text boxes
 - fixed grid layout with drag-and-drop positioning
 - fixed sized elements and spacing for simplicity
@@ -128,7 +126,7 @@ After the desktop-first experience is solid, Mohio can expand the companion work
 
 Planned focus areas:
 
-- mobile capture for new notes and ideas
+- mobile capture for new documents and ideas
 - mobile reading for team documentation
 - lightweight proposal review on smaller screens
 - faster discovery of workspace knowledge
@@ -148,7 +146,7 @@ Planned focus areas:
 
 ## Ongoing Exploration
 
-- When should a note update an existing page versus create a new one?
+- When should a document update an existing page versus create a new one?
 - How much AI explanation is needed for users to trust a proposal?
 - What is the right balance between local navigation and global orientation?
 - Which collaboration signals matter most early: comments, mentions, or change notifications?
