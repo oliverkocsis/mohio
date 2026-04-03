@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildAppMenuTemplate } from "./menu";
 
 describe("buildAppMenuTemplate", () => {
-  it("adds Open Workspace to the File menu with a standard accelerator", () => {
+  it("adds Open Folder to the File menu with a standard accelerator", () => {
     const onOpenWorkspace = vi.fn();
     const template = buildAppMenuTemplate({
       appName: "Mohio",
@@ -20,19 +20,19 @@ describe("buildAppMenuTemplate", () => {
       expect.arrayContaining([
         expect.objectContaining({
           accelerator: "CmdOrCtrl+O",
-          label: "Open Workspace...",
+          label: "Open Folder...",
         }),
       ]),
     );
 
     const openWorkspaceItem = fileSubmenu.find(
       (item): item is Exclude<(typeof fileSubmenu)[number], { type: "separator" }> =>
-        "label" in item && item.label === "Open Workspace...",
+        "label" in item && item.label === "Open Folder...",
     );
 
     expect(openWorkspaceItem).toBeDefined();
     if (!openWorkspaceItem || !("click" in openWorkspaceItem) || !openWorkspaceItem.click) {
-      throw new Error("Open Workspace menu item is missing its click handler.");
+      throw new Error("Open Folder menu item is missing its click handler.");
     }
 
     openWorkspaceItem.click({} as never, undefined, {} as never);

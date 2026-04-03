@@ -29,6 +29,15 @@ export interface WorkspaceSummary {
   documentCount: number;
 }
 
+export type WorkspaceSearchMatchType = "content" | "path" | "title";
+
+export interface WorkspaceSearchMatch {
+  relativePath: string;
+  displayTitle: string;
+  matchType: WorkspaceSearchMatchType;
+  snippet: string | null;
+}
+
 export interface WorkspaceDocument {
   relativePath: string;
   fileName: string;
@@ -190,7 +199,7 @@ export type AssistantEvent =
 
 export interface SendAssistantMessageInput {
   threadId: string;
-  noteRelativePath: string;
+  documentRelativePath: string;
   content: string;
   documentTitle: string;
   documentMarkdown: string;
@@ -205,6 +214,7 @@ export interface MohioApi {
   getAppInfo: () => AppInfo;
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
+  searchWorkspace: (query: string) => Promise<WorkspaceSearchMatch[]>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
   deleteDocument: (relativePath: string) => Promise<void>;

@@ -13,34 +13,53 @@ This guide covers the workflows that are currently available in the desktop app.
 You can open a workspace in either of these ways:
 
 - Click the workspace selector in the top bar.
-- Use `File > Open Workspace...`
+- Use `File > Open Folder...`
 - Use the shortcut `CmdOrCtrl+O`
 
 After you choose a folder, Mohio shows its Markdown documents in the left sidebar.
 
-When no workspace is open, the main empty-state button is labeled `Open Workspace`.
-When a workspace is open, the workspace sidebar `New Note` button creates a new note in the currently selected note folder.
-If no note is selected yet, `New Note` creates the file at workspace root.
+When no workspace is open, the main empty-state button is labeled `Open Folder`.
+When a workspace is open, the top-bar quick `New Document` action creates a new document in the currently selected document folder.
+If no document is selected yet, `New Document` creates the file at workspace root.
 
 ## Browse Documents
 
 - Folders appear before documents.
 - Click a folder row to expand or collapse it.
-- Click a document row to open it.
+- Click a document row to open it in the editor.
 - If a document has a visible title, Mohio shows that title in the sidebar.
-- Right-click a document row to open the context menu and choose `Delete Note`.
+- Right-click a document row to open the context menu:
+  - `Delete Document`
 - Use the left sidebar tabs:
-  - `Documents` to browse all notes
-  - `Unpublished` to focus on notes that are not fully published yet
+  - `Documents` to browse all documents
+  - `Search` to run live workspace search
+  - `Unpublished` to focus on documents that are not fully published yet
+
+## Search Documents
+
+- Open the left sidebar `Search` tab.
+- Use the full-width search field at the top of that tab to find documents by:
+  - file name/path
+  - document content
+- Results update while you type.
+- Matching text in the open document is highlighted in yellow while a search query is active.
+- Use the search field's built-in clear control (when available) to clear the query quickly.
 
 ## Edit a Document
 
 - Select a document from the left sidebar.
 - Edit the title at the top of the page.
-  - If the note starts with a linked first H1 (`# ...`) that matches the filename, the title reflects that H1.
+  - If the document starts with a linked first H1 (`# ...`) that matches the filename, the title reflects that H1.
   - If the first H1 is missing or mismatched, the title reflects the filename instead.
 - Edit the body in the main editor, which displays Markdown as formatted text while still saving Markdown source underneath.
 - Use the toolbar for headings, lists, quotes, links, images, code, and other basic formatting.
+- Hold `Cmd/Ctrl` and click an internal link in the editor to open that linked document directly.
+
+## Collapse and Reopen Side Panels
+
+- Use the top-left panel icon to collapse/reopen the left workspace panel.
+- Use the top-right panel icon to collapse/reopen the right panel.
+- The center editor expands automatically when a side panel is collapsed.
 
 ## How Saving Works
 
@@ -54,10 +73,9 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 ## Publish Shared Changes
 
 - Publishing is explicit.
-- A quick `Publish` icon appears next to the workspace name and shows an unpublished badge.
-- The left sidebar `Unpublished` tab also has a full-width `Publish` action at the bottom.
-- Click either `Publish` action to send your local Markdown updates to the shared branch.
-- Each note can show status such as:
+- Use the left sidebar `Unpublished` tab and its full-width `Publish` action at the bottom.
+- Click `Publish` to send your local Markdown updates to the shared branch.
+- Each document can show status such as:
   - `Published`
   - `Unpublished changes`
   - `Never published`
@@ -65,9 +83,9 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 
 ## History
 
-- Open the right sidebar `History` tab while a note is selected.
-- If you selected the note from `Unpublished`, Mohio shows the remote-versus-local diff first.
-- Review the commit list for that note.
+- Open the right sidebar `History` tab while a document is selected.
+- If you selected the document from `Unpublished`, Mohio shows the remote-versus-local diff first.
+- Review the commit list for that document.
 - Each history row shows:
   - commit message
   - date/time
@@ -92,7 +110,7 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 
 ## Use the Assistant Panel
 
-- Open a workspace and select a note.
+- Open a folder and select a document.
 - Use the right sidebar `Assistant` tab to browse Codex chats for the current workspace.
 - The assistant opens in a chat-list view first.
 - Click an existing chat to open it.
@@ -103,18 +121,16 @@ If no note is selected yet, `New Note` creates the file at workspace root.
 - Your own prompts appear as compact bubbles, but Codex replies render as full-width left-aligned responses.
 - While Codex is still working, Mohio keeps a muted animated `Thinking...` line at the bottom of the chat during quiet gaps, hides it while fresh text is printing, and leaves streamed text visible once it appears.
 - You can type your own request or use the quick actions:
-  - summarize the note
-  - organize the note
-  - suggest related notes from the current workspace
+  - summarise document
+  - improve document
 - The composer is a growing text area (up to 5 lines) with an icon-only send control inside the field.
 - Press `Enter` to send, or `Shift+Enter` to insert a new line.
-- Mohio sends the current note content along with the wider workspace context for that run.
-- The selected note stays the main context for what you send, but the chat history itself comes from Codex and is not tied to one note inside Mohio.
+- Mohio sends the current document content along with the wider workspace context for that run.
+- The selected document stays the main context for what you send, but the chat history itself comes from Codex and is not tied to one document inside Mohio.
 
 ## Current Limits
 
-- You cannot rename notes from a dedicated sidebar action yet.
-- Search is not active yet.
+- You cannot rename documents from a dedicated sidebar action yet.
 - Mohio only shows Codex chats whose working folder matches the open workspace.
-- The assistant can chat about your workspace, but it cannot apply note edits through Mohio yet.
-- There is no rendered preview or split view for Markdown yet.
+- The assistant can chat about your workspace, but it cannot apply document edits through Mohio yet.
+- There is no rendered preview mode for Markdown yet.

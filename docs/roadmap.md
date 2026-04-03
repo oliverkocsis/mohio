@@ -7,7 +7,7 @@ This roadmap is user-facing. It outlines Mohio's current direction and planned p
 Mohio is currently focused on validating the core workflow for a lightweight team knowledge workspace:
 
 - capture ideas quickly
-- turn rough notes into structured knowledge
+- turn rough documents into structured knowledge
 - review important changes clearly
 - keep shared documentation easy to publish and track
 
@@ -17,24 +17,57 @@ The first milestone is a usable foundation for a bring-your-own-AI, Markdown-bas
 
 Planned focus areas:
 
-- personal scratchpad for quick note capture
+- personal scratchpad for quick document capture
 - Markdown-based wiki pages for shared knowledge
 - AI proposals from connected tools that suggest new pages, edits, and links
 - reviewable diffs before shared content changes
 - snapshots and visible history for page-level changes
 - explicit publish flow for shared updates
-- contextual navigation between related pages
 
 ### Navigation and Discovery
 
-- Switch between notes quickly from the workspace browser.
+- Switch between documents quickly from the workspace browser.
 - Search by file name.
-- Search by note content.
+- Search by document content.
 - Recognize internal Markdown links between documents.
-- Open linked notes directly from the editor.
-- Support contextual navigation between related pages over time.
-- Support multiple document tabs for easy switching between related content.
-- Support side by side document view for easy comparison of related content.
+- Open linked documents directly from the editor.
+
+### Publish
+
+- Auto-sync, always. No publish button. Changes propagate on save. If you need to solve the "draft vs. shared" problem, call it exactly that — a Draft toggle — not a publish/unpublished system.
+- Conflicts become a notification, not a workflow. "Someone else edited this while you were writing. Here's their version — yours is safe." One button: "Merge for me." The technical person handles edge cases.
+- History in human language. "You edited this 2 hours ago. Maria edited it yesterday." No commit messages unless explicitly expanded.
+- Zero Git vocabulary anywhere in the UI. Not even in error messages. If a push fails, the user sees "We couldn't sync your changes — try again or contact [technical person]." Done.
+
+
+Keep:
+Git-backed Markdown storage
+auto-save
+safety commits
+explicit share/publish boundary if that’s core to the model
+guided conflict recovery
+local-first robustness
+per-document history under the hood
+Hide or radically reframe
+checkpoint / auto-save terminology
+commit history as primary history
+local vs remote framing
+unpublished terminology
+sync language
+ahead/behind semantics
+merge-oriented conflict vocabulary
+What I’d make the product feel like
+
+If you’re serious about simplicity, the experience should feel like this:
+
+I open a document
+I type
+it is saved automatically
+I see whether my draft is just mine or already shared
+when ready, I click Share
+if someone else changed it, Mohio explains that plainly
+I can view older versions and restore one
+I never think about Git
 
 ### Git v2
 - Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
@@ -42,25 +75,23 @@ Planned focus areas:
 - The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
 - The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
 
-## Phase: Notes and Documents
+## Phase: Private and Shared Documents
 
-- Seperate notes and documents
-- Notes are used to capture quick thoughts, ideas.
-- Documents are used to capture structured knowledge that is shared with the team.
-- Notes are private to the user and are not shared with the team.
-- Documents are shared with the team and are visible to all members of the workspace.
-- Notes are order by last modified time and are not organized in a hierarchy.
-- Documents are organized in a hierarchy and are shared with the team.
-- Notes can be promoted to documents when they are ready to be shared with the team.
-- The left panel has 2 tabs: Notes and Documents. The Notes tab shows the user's private notes in a list with a timestamp prefix.
-- The notes can be order by modified time or created time. The user can switch between the two sorting options. (A-Z or Z-A)
-- The documents tab shows the shared documents in a folder hierarchical structure.
-- The documents can be ordered by name or modified time. The user can switch between the two sorting options. (A-Z or Z-A)
-- Notes are created with a timestamp prefix in the title to make it easy to find them later in the _notes folder. The format of the timestamp is `yyyymmdd-hhmmss` + the standard document title algorithm (e.g. `20231001-143000 This is the first h1 if the note`).
+- Clarify the split between private documents and shared documents.
+- Private documents support quick capture and early drafting.
+- Shared documents capture structured knowledge for team use.
+- Private documents remain user-only until shared.
+- Shared documents are visible to workspace collaborators.
+- Private documents are listed by recency in a flat list.
+- Shared documents stay organized in a folder hierarchy.
+- Users can promote private documents into shared documents when ready.
+- The left panel should expose clear navigation between private documents and shared documents.
+- Sorting options should include modified time, created time, and name where appropriate.
+- New private documents should keep predictable timestamp-based naming for fast recall.
 
 ## Phase: Canvas
 
-Text based canvas for freeform note-taking, brainstorming, and visual organization.
+Text based canvas for freeform document-taking, brainstorming, and visual organization.
 - support for basic shapes, connectors, and text boxes
 - fixed grid layout with drag-and-drop positioning
 - fixed sized elements and spacing for simplicity
@@ -95,10 +126,10 @@ After the desktop-first experience is solid, Mohio can expand the companion work
 
 Planned focus areas:
 
-- mobile capture for new notes and ideas
+- mobile capture for new documents and ideas
 - mobile reading for team documentation
 - lightweight proposal review on smaller screens
-- faster discovery of related knowledge and backlinks
+- faster discovery of workspace knowledge
 
 ## Phase: Shared Storage and Workspace Connectivity
 
@@ -115,10 +146,9 @@ Planned focus areas:
 
 ## Ongoing Exploration
 
-- When should a note update an existing page versus create a new one?
+- When should a document update an existing page versus create a new one?
 - How much AI explanation is needed for users to trust a proposal?
 - What is the right balance between local navigation and global orientation?
-- How should related-page suggestions be ranked and displayed?
 - Which collaboration signals matter most early: comments, mentions, or change notifications?
 
 ## Out of Scope for the Initial Release

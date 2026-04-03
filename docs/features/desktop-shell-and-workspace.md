@@ -17,14 +17,15 @@ This document covers the current shell and workspace flow in `desktop/`.
 - The shell layout has:
   - top bar
   - left workspace sidebar
-  - center editor panel
+  - center editor panel with a single active document surface
   - right sidebar with assistant and history tabs
+- Both side panels can be collapsed and reopened from icon controls in the top bar.
 - The renderer is implemented in `React` and `TypeScript`.
 - The right sidebar hosts the live Codex assistant panel.
 
 ## Menu and Native Entry Points
 
-- `File > Open Workspace...` opens the native folder picker.
+- `File > Open Folder...` opens the native folder picker.
 - Shortcut: `CmdOrCtrl+O`
 - The top-bar workspace button triggers the same workspace-opening flow.
 
@@ -37,15 +38,11 @@ Current API surface:
 - `getAppInfo()`
 - `getCurrentWorkspace()`
 - `openWorkspace()`
+- `searchWorkspace(query)`
 - `readDocument(relativePath)`
 - `createDocument({ directoryRelativePath })`
 - `deleteDocument(relativePath)`
 - `saveDocument(input)`
-- `createCheckpoint(input)`
-- `createAiChangeCheckpoint(relativePath, reason)`
-- `listCheckpoints(relativePath | null)`
-- `getCheckpointDiff(input)`
-- `revertToCheckpoint(input)`
 - `getPublishSummary()`
 - `publishWorkspaceChanges()`
 - `syncIncomingChanges(reason)`
@@ -82,13 +79,17 @@ Current API surface:
 
 - The left sidebar renders tabbed views:
   - `Documents` for full tree
+  - `Search` for live document search
   - `Unpublished` for non-published documents only
-- The `New Note` action creates a markdown note in the selected note folder.
-- If no note is selected, `New Note` creates the note at workspace root.
+- Tree document open behavior:
+  - single-click opens the document in the main editor surface
+  - right-click includes `Delete Document`
+- The `New Document` action creates a markdown document in the selected document folder.
+- If no document is selected, `New Document` creates the document at workspace root.
 - Directories are expanded by default after a workspace loads.
 - Clicking a directory row toggles expansion.
 - Clicking a document row selects that document.
-- Right-clicking a document row opens a context menu with `Delete Note`.
+- Right-clicking a document row opens a context menu with `Delete Document`.
 - The first document in the tree becomes the default selection after workspace load.
 - Document rows display parsed titles when available.
 
@@ -96,9 +97,9 @@ Current API surface:
 
 ### No Workspace Open
 
-- Left sidebar shows `No workspace is open.`
+- Left and right sidebars keep tab structure visible without workspace-empty placeholder copy.
 - Center panel shows a single CTA to choose a folder.
-- Search remains visible but is read-only.
+- Search tab remains visible; its input is disabled until a folder is open.
 
 ### Workspace With No Markdown Documents
 
@@ -107,11 +108,21 @@ Current API surface:
 
 ### Workspace With Documents
 
-- The selected document loads into the editor panel.
-- Newly created notes are selected and opened immediately.
+- The selected document loads into the single editor surface.
+- Newly created documents are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
-- The top bar shows explicit `Publish` and `Sync` actions.
-- The right sidebar supports both assistant chat and checkpoint history flows.
+- The top bar keeps quick `New Document` and panel visibility controls.
+- The right sidebar supports assistant and history flows.
+
+### Search and Discovery
+
+- Left-sidebar `Search` tab includes a dedicated full-width input.
+- Search is live and queries:
+  - file/path matches
+  - content matches with snippets
+- Active query text is highlighted in the open editor with yellow in-document marks.
+- Search input uses the native clear control provided by `type=\"search\"` (when available).
+- Internal Markdown and wiki links can be opened directly from the editor with `Cmd/Ctrl+Click`.
 
 ## Security Boundary
 
@@ -121,9 +132,8 @@ Current API surface:
 
 ## Current Limitations
 
-- No rename-note UI beyond title-driven file rename
-- No search implementation behind the search field
-- No recent-note or pinned-note behavior yet
+- No dedicated rename-document action beyond title-driven file rename
+- Panel collapse state is session-local (not persisted across restart)
 - History diff is rendered as raw patch text rather than a rich split diff
 
 ## Code Anchors

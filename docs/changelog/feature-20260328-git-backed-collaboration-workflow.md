@@ -20,9 +20,9 @@ Mohio needed a collaboration workflow that keeps Git as the source of truth whil
 - Updated publish UX to explicit action surfaces:
   - quick publish icon near workspace name
   - full-width publish action at the bottom of the `Unpublished` tab
-- Updated new note UX similarly:
-  - quick new note icon near workspace name
-  - full-width new note action at the bottom of the `Documents` tab
+- Updated new document UX similarly:
+  - quick new document icon near workspace name
+  - full-width new document action at the bottom of the `Documents` tab
 - Added automatic sync and commit triggers:
   - workspace open
   - document open

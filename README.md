@@ -1,6 +1,6 @@
 # Mohio
 
-Mohio is an open source knowledge workspace for small teams. It combines fast note capture, structured team documentation, and bring-your-own AI assistance that works with Codex and Claude Code while keeping content stored as plain Markdown in a Git-backed workspace.
+Mohio is an open source knowledge workspace for small teams. It combines fast document capture, structured team documentation, and bring-your-own AI assistance that works with Codex and Claude Code while keeping content stored as plain Markdown in a Git-backed workspace.
 
 The goal is simple: make team knowledge easy to capture, refine, and share without forcing every contributor to think in Git, file structures, or documentation bureaucracy.
 
@@ -103,7 +103,7 @@ Rules:
 
 All software changes must be documented in `docs/changelog/`.
 
-During feature development, developers may keep working changelog notes for the branch. Before the reviewed feature branch is merged into `main`, all changelog notes for that branch must be consolidated into one final Markdown file named exactly after the branch:
+During feature development, developers may keep working changelog entries for the branch. Before the reviewed feature branch is merged into `main`, all changelog entries for that branch must be consolidated into one final Markdown file named exactly after the branch:
 
 - `feature-yyyymmdd-descriptive-feature-name.md`
 
@@ -121,7 +121,7 @@ Rules:
 - `Context` should explain the situation behind the change.
 - `Decision` should capture the trade-offs and chosen direction.
 - The final changelog may also include `Affected Areas` and `Impact` when useful.
-- Merge all branch changelog notes into the single final changelog file for that branch.
+- Merge all branch changelog entries into the single final changelog file for that branch.
 - Do not rely on commit messages or PR descriptions as the only historical record.
 
 ## Product Direction

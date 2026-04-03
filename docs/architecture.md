@@ -30,14 +30,14 @@ flowchart LR
 
 - `Electron main`: window, menu, folder picker, filesystem access, file watching, Codex app-server client
 - `Preload`: typed `window.mohio` bridge
-- `Renderer`: React UI for workspace tree, editor, assistant history, and transcript
+- `Renderer`: React UI for workspace tree, search, single-document editor surface, assistant history, and transcript
 - `Workspace`: local folder with `.md`, `.markdown`, and `.mdx` files
 
 ## Data Flow
 
-### Open Workspace
+### Open Folder
 
-1. User opens a folder from the workspace button or `File > Open Workspace...`.
+1. User opens a folder from the workspace button or `File > Open Folder...`.
 2. Main opens the native directory picker.
 3. Main builds a `WorkspaceSummary`.
 4. Renderer refreshes the workspace tree and selects the first available document.
@@ -48,6 +48,14 @@ flowchart LR
 2. Main resolves that path inside the active workspace.
 3. The Markdown file is read and parsed.
 4. Renderer loads the parsed title and body into the editor.
+
+### Search Discovery
+
+1. User types in the left-sidebar `Search` tab input.
+2. Renderer sends the search query through preload.
+3. Main scans workspace markdown files and builds discovery data on demand:
+   - title/path/content matches for search
+4. Renderer renders ranked search results and opens documents into the active editor surface.
 
 ### Save Document
 
@@ -68,11 +76,17 @@ flowchart LR
 
 1. Renderer loads Codex chat history for the current workspace through the preload API.
 2. Renderer selects an existing Codex thread or creates a new one.
-3. Renderer sends the user message plus the current note title, note path, and current note Markdown to main.
+3. Renderer sends the user message plus the current document title, document path, and current document Markdown to main.
 4. Main starts or resumes the Codex thread through `codex app-server`, always with the active workspace root as `cwd`.
 5. Main reuses Codex's existing config, auth state, and session storage instead of persisting assistant history itself.
 6. Main starts the turn, streams assistant deltas back to renderer through assistant events, and refreshes the workspace-filtered thread list when Codex thread state changes.
 7. Renderer updates the right sidebar transcript and history list while the run is active.
+
+### Internal Link Activation
+
+1. User `Cmd/Ctrl+Click`s an internal link in the editor.
+2. Renderer resolves target path (markdown/wiki/anchor forms) against current workspace documents.
+3. Renderer opens the resolved document in the active editor surface.
 
 ## Security and Trust Boundaries
 
@@ -95,12 +109,12 @@ flowchart LR
 ## Current Architectural Constraints
 
 - The app is single-window and desktop-only today.
-- Search UI exists as a placeholder input only; it is not wired to workspace querying.
+- Search discovery is computed from workspace files on demand, without persistent indexing.
 - Assistant history browsing is limited to Codex threads whose `cwd` exactly matches the open workspace path.
 - The assistant can chat about the workspace, but it cannot apply edits through Mohio yet.
 - History is commit-list based (message/date/stats) rather than a visual side-by-side diff/restore workflow.
 - Publish and sync currently target Markdown documents only (`.md`, `.markdown`, `.mdx`).
-- There is still no rendered preview or split-view Markdown mode.
+- There is no rendered preview mode for Markdown yet.
 
 ## When To Update This Document
 

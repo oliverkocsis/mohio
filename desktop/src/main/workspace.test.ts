@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { getWorkspaceSummary } from "./workspace";
+import {
+  getWorkspaceSummary,
+  searchWorkspace,
+} from "./workspace";
 
 const tempDirectories: string[] = [];
 
@@ -22,7 +25,7 @@ describe("getWorkspaceSummary", () => {
     tempDirectories.push(workspacePath);
 
     await writeFile(path.join(workspacePath, "README.md"), "# Workspace");
-    await writeFile(path.join(workspacePath, "notes.MD"), "---\ntitle: Notes; Archive\n---\n# Notes\n");
+    await writeFile(path.join(workspacePath, "documents.MD"), "---\ntitle: Documents; Archive\n---\n# Documents\n");
     await writeFile(path.join(workspacePath, "draft.txt"), "ignore me");
 
     await mkdir(path.join(workspacePath, "docs", "nested"), { recursive: true });
@@ -68,11 +71,11 @@ describe("getWorkspaceSummary", () => {
         ],
       },
       {
-        id: "notes.MD",
+        id: "documents.MD",
         kind: "document",
-        name: "notes.MD",
-        relativePath: "notes.MD",
-        displayTitle: "Notes",
+        name: "documents.MD",
+        relativePath: "documents.MD",
+        displayTitle: "Documents",
       },
       {
         id: "README.md",
@@ -82,5 +85,43 @@ describe("getWorkspaceSummary", () => {
         displayTitle: "README",
       },
     ]);
+  });
+});
+
+describe("searchWorkspace", () => {
+  it("finds documents by title, path, and body content", async () => {
+    const workspacePath = await mkdtemp(path.join(os.tmpdir(), "mohio-workspace-"));
+    tempDirectories.push(workspacePath);
+
+    await mkdir(path.join(workspacePath, "docs"), { recursive: true });
+    await writeFile(path.join(workspacePath, "README.md"), "# Workspace Guide\n\nUse Mohio search.\n");
+    await writeFile(path.join(workspacePath, "docs", "Plan.md"), "# Plan\n\nRoadmap steps.\n");
+
+    const guideMatches = await searchWorkspace(workspacePath, "guide");
+    expect(guideMatches).toHaveLength(1);
+    expect(guideMatches[0]).toMatchObject({
+      relativePath: "README.md",
+      matchType: "content",
+    });
+    expect(guideMatches[0]?.snippet).toContain("Workspace Guide");
+
+    const pathMatches = await searchWorkspace(workspacePath, "docs/plan");
+    expect(pathMatches).toEqual([
+      {
+        relativePath: path.join("docs", "Plan.md"),
+        displayTitle: "Plan",
+        matchType: "path",
+        snippet: null,
+      },
+    ]);
+
+    const contentMatches = await searchWorkspace(workspacePath, "roadmap");
+    expect(contentMatches).toHaveLength(1);
+    expect(contentMatches[0]).toMatchObject({
+      relativePath: path.join("docs", "Plan.md"),
+      displayTitle: "Plan",
+      matchType: "content",
+    });
+    expect(contentMatches[0]?.snippet).toContain("Roadmap");
   });
 });

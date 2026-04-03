@@ -115,7 +115,7 @@ export function sanitizeFileSystemTitle(title: string): {
   let wasModified = sanitizedTitle !== normalizedTitle;
 
   if (WINDOWS_RESERVED_BASENAME_PATTERN.test(sanitizedTitle)) {
-    sanitizedTitle = `${sanitizedTitle} Note`;
+    sanitizedTitle = `${sanitizedTitle} Document`;
     wasModified = true;
   }
 

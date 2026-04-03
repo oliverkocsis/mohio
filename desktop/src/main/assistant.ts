@@ -12,7 +12,7 @@ import type {
 const DEFAULT_ASSISTANT_INSTRUCTIONS = [
   "You are Codex embedded inside Mohio, a local-first Markdown workspace for small teams.",
   "Work as a chat-first assistant for a Markdown knowledgebase.",
-  "Treat the active note as the primary context and the wider workspace as supporting context.",
+  "Treat the active document as the primary context and the wider workspace as supporting context.",
   "You may inspect the rest of the workspace when useful.",
   "Do not make file edits, propose patches, or claim to have changed files in this environment.",
   "Return concise, practical answers that fit a document-first workflow.",
@@ -309,7 +309,7 @@ export function createAssistantRuntime({
     content,
     documentMarkdown,
     documentTitle,
-    noteRelativePath,
+    documentRelativePath,
     threadId,
     workspaceName,
     workspacePath,
@@ -365,7 +365,7 @@ export function createAssistantRuntime({
             text: buildAssistantPrompt({
               documentMarkdown,
               documentTitle,
-              noteRelativePath,
+              documentRelativePath,
               userRequest: trimmedContent,
               workspaceName,
               workspacePath,
@@ -855,14 +855,14 @@ function getOrCreateAssistantMessage({
 function buildAssistantPrompt({
   documentMarkdown,
   documentTitle,
-  noteRelativePath,
+  documentRelativePath,
   userRequest,
   workspaceName,
   workspacePath,
 }: {
   documentMarkdown: string;
   documentTitle: string;
-  noteRelativePath: string;
+  documentRelativePath: string;
   userRequest: string;
   workspaceName: string;
   workspacePath: string;
@@ -872,12 +872,12 @@ function buildAssistantPrompt({
     userRequest,
     MOHIO_PROMPT_CLOSE,
     "",
-    "Treat the current note as primary context.",
+    "Treat the current document as primary context.",
     `Workspace name: ${workspaceName}`,
     `Workspace path: ${workspacePath}`,
-    `Current note title: ${documentTitle}`,
-    `Current note path: ${noteRelativePath}`,
-    "Current note body:",
+    `Current document title: ${documentTitle}`,
+    `Current document path: ${documentRelativePath}`,
+    "Current document body:",
     "```markdown",
     documentMarkdown.trimEnd(),
     "```",

@@ -87,7 +87,7 @@ export async function createDocument(
   const directoryStats = await fs.stat(absoluteDirectoryPath);
 
   if (!directoryStats.isDirectory()) {
-    throw new Error("Mohio could not create a note in that location.");
+    throw new Error("Mohio could not create a document in that location.");
   }
 
   const desiredRelativePath = path.join(input.directoryRelativePath ?? "", "Untitled.md");

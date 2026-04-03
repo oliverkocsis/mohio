@@ -41,7 +41,7 @@ describe("document-store", () => {
     });
   });
 
-  it("creates Untitled markdown notes in the workspace root", async () => {
+  it("creates Untitled markdown documents in the workspace root", async () => {
     const workspacePath = await mkdtemp(path.join(os.tmpdir(), "mohio-document-"));
     tempDirectories.push(workspacePath);
 
@@ -60,7 +60,7 @@ describe("document-store", () => {
     await expect(readFile(path.join(workspacePath, "Untitled.md"), "utf8")).resolves.toBe("# Untitled\n");
   });
 
-  it("creates notes in the selected directory and appends numeric suffixes on collisions", async () => {
+  it("creates documents in the selected directory and appends numeric suffixes on collisions", async () => {
     const workspacePath = await mkdtemp(path.join(os.tmpdir(), "mohio-document-"));
     tempDirectories.push(workspacePath);
     await mkdir(path.join(workspacePath, "docs"), { recursive: true });
@@ -147,7 +147,7 @@ describe("document-store", () => {
     );
   });
 
-  it("rejects note creation outside the active workspace", async () => {
+  it("rejects document creation outside the active workspace", async () => {
     const workspacePath = await mkdtemp(path.join(os.tmpdir(), "mohio-document-"));
     tempDirectories.push(workspacePath);
 

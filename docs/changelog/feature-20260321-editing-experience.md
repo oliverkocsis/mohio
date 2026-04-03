@@ -29,4 +29,4 @@ Chose a `Quill`-based WYSIWYG editor with autosave instead of waiting for a full
 
 ## Impact
 
-Mohio now supports the first end-to-end document editing workflow inside the desktop app. Users can open a workspace, load a real Markdown document, edit it through a rich-text surface, and rely on automatic persistence back to durable Markdown files. The feature also establishes the document API, title/filename rules, and renderer structure needed for later milestones such as new-note creation, source mode, and richer Markdown support.
+Mohio now supports the first end-to-end document editing workflow inside the desktop app. Users can open a workspace, load a real Markdown document, edit it through a rich-text surface, and rely on automatic persistence back to durable Markdown files. The feature also establishes the document API, title/filename rules, and renderer structure needed for later milestones such as new-document creation, source mode, and richer Markdown support.

@@ -11,6 +11,7 @@ import {
   applyHeading,
   applyInlineWrap,
   applyLink,
+  getInternalLinkAtPosition,
   RichTextEditor,
 } from "@renderer/markdown-editor";
 
@@ -36,6 +37,14 @@ describe("markdown editor toolbar transforms", () => {
 
   it("builds markdown links directly from the current selection", () => {
     expect(applyLink("Alpha", 0, 5, "https://example.com").text).toBe("[Alpha](https://example.com)");
+  });
+
+  it("extracts markdown and wiki internal links by cursor position", () => {
+    const markdownLink = "[Plan](docs/Plan.md)";
+    expect(getInternalLinkAtPosition(markdownLink, 2)).toEqual({ target: "docs/Plan.md" });
+
+    const wikiLink = "[[Architecture|System Design]]";
+    expect(getInternalLinkAtPosition(wikiLink, 4)).toEqual({ target: "Architecture" });
   });
 
   it("removes line and inline markdown formatting", () => {
@@ -101,6 +110,28 @@ describe("markdown editor toolbar transforms", () => {
     expect(content?.textContent).toContain("Use inline code.");
     expect(content?.textContent).not.toContain("# Heading");
     expect(content?.textContent).not.toContain("`inline`");
+  });
+
+  it("highlights search matches in the visible document text", () => {
+    const { container, rerender } = render(createElement(RichTextEditor, {
+      highlightQuery: "alpha",
+      markdown: "Alpha beta alpha",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-search-highlight").length).toBeGreaterThanOrEqual(2);
+
+    rerender(createElement(RichTextEditor, {
+      highlightQuery: "",
+      markdown: "Alpha beta alpha",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-search-highlight")).toHaveLength(0);
   });
 
 });

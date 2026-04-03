@@ -27,6 +27,14 @@ describe("createMohioApi", () => {
 
     const getCurrentWorkspace = vi.fn().mockResolvedValue(workspace);
     const openWorkspace = vi.fn().mockResolvedValue(workspace);
+    const searchWorkspace = vi.fn().mockResolvedValue([
+      {
+        relativePath: "README.md",
+        displayTitle: "README",
+        matchType: "title" as const,
+        snippet: null,
+      },
+    ]);
     const readDocument = vi.fn().mockResolvedValue(document);
     const createDocument = vi.fn().mockResolvedValue({
       relativePath: "Untitled.md",
@@ -119,7 +127,7 @@ describe("createMohioApi", () => {
         {
           id: "message-1",
           role: "user" as const,
-          content: "Summarize this note",
+          content: "Summarise document",
           createdAt: "2026-03-21T00:00:00.000Z",
         },
       ],
@@ -141,6 +149,7 @@ describe("createMohioApi", () => {
       },
       getCurrentWorkspace,
       openWorkspace,
+      searchWorkspace,
       readDocument,
       createDocument,
       deleteDocument,
@@ -174,6 +183,14 @@ describe("createMohioApi", () => {
     });
     await expect(api.getCurrentWorkspace()).resolves.toEqual(workspace);
     await expect(api.openWorkspace()).resolves.toEqual(workspace);
+    await expect(api.searchWorkspace("readme")).resolves.toEqual([
+      {
+        relativePath: "README.md",
+        displayTitle: "README",
+        matchType: "title",
+        snippet: null,
+      },
+    ]);
     await expect(api.readDocument("README.md")).resolves.toEqual(document);
     await expect(api.createDocument({ directoryRelativePath: null })).resolves.toEqual({
       relativePath: "Untitled.md",
@@ -269,8 +286,8 @@ describe("createMohioApi", () => {
     });
     await expect(api.sendAssistantMessage({
       threadId: "thread-1",
-      noteRelativePath: "README.md",
-      content: "Summarize this note",
+      documentRelativePath: "README.md",
+      content: "Summarise document",
       documentTitle: "README",
       documentMarkdown: "Body",
     })).resolves.toEqual({
@@ -282,7 +299,7 @@ describe("createMohioApi", () => {
         {
           id: "message-1",
           role: "user",
-          content: "Summarize this note",
+          content: "Summarise document",
           createdAt: "2026-03-21T00:00:00.000Z",
         },
       ],
@@ -300,6 +317,7 @@ describe("createMohioApi", () => {
     expect(api.onAssistantEvent(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
+    expect(searchWorkspace).toHaveBeenCalledWith("readme");
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
     expect(deleteDocument).toHaveBeenCalledWith("README.md");
@@ -329,8 +347,8 @@ describe("createMohioApi", () => {
     expect(getAssistantThread).toHaveBeenCalledWith("thread-1");
     expect(sendAssistantMessage).toHaveBeenCalledWith({
       threadId: "thread-1",
-      noteRelativePath: "README.md",
-      content: "Summarize this note",
+      documentRelativePath: "README.md",
+      content: "Summarise document",
       documentTitle: "README",
       documentMarkdown: "Body",
     });

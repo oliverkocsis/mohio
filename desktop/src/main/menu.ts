@@ -19,7 +19,7 @@ export function buildAppMenuTemplate({
         click: (_menuItem, browserWindow) => {
           void onOpenWorkspace(browserWindow ?? undefined);
         },
-        label: "Open Workspace...",
+        label: "Open Folder...",
       },
       { type: "separator" },
       isMac ? { role: "close" } : { role: "quit" },

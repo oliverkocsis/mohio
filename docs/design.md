@@ -25,17 +25,22 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Top Bar
 
 - Height: `48px`
-- Purpose: workspace selection and search placeholder
+- Purpose: workspace selection, quick document control, and panel visibility controls
 - Rules:
   - keep the workspace selector prominent
-  - keep search visually secondary until it is functional
+  - keep panel collapse/reopen controls icon-only and edge-aligned (left toggle on the left, right toggle on the right)
 
 ### Left Sidebar
 
 - Width target: `320px`
-- Purpose: show the current workspace tree
+- Purpose: show workspace browsing (`Documents`), workspace search (`Search`), and unpublished state (`Unpublished`)
 - Rules:
+  - tab headers use centered inline tabs (not full-width)
+  - tabs are borderless with active-state underline only
+  - keep existing tab icons next to labels
+  - keep even spacing between tabs and align labels to the middle
   - directories appear before documents
+  - keep the `Search` tab input full-width and pinned to the top of the tab content
   - expanded and collapsed states use chevrons
   - active document uses a soft blue highlight
   - empty states use short copy and one clear next action
@@ -43,7 +48,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Center Panel
 
 - Flexible width with readable content around `768px`
-- Purpose: title editing and rich-text editing
+- Purpose: single-document title editing and rich-text editing
 - Rules:
   - content stays visually central
   - title and body should feel like one editing surface
@@ -52,16 +57,19 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Right Sidebar
 
 - Width target: `384px`
-- Purpose: support assistant-driven note and workspace conversations
+- Purpose: support assistant and history workflows
 - Rules:
+  - use the same centered underline-only tab-header style as the left sidebar
   - keep the panel visually secondary to the editor
   - start with a dedicated session-list screen instead of mixing history and transcript together
-  - keep the list-view header minimal (tab header only)
+- keep the list-view header minimal (tab header only)
+- keep thread titles in the list compact (single-line with ellipsis overflow handling)
   - use a detail header with back navigation, thread title, and a compact overflow menu
   - keep header icon controls lightweight, without bordered icon chrome for back, new-chat, or chat-menu actions
-  - avoid bubble chrome for assistant answers; render them as full-width left-aligned note-style responses
-  - use quick-action chips for common note workflows
-  - composer stays anchored at the bottom
+  - avoid bubble chrome for assistant answers; render them as full-width left-aligned document-style responses
+  - use quick-action chips for common document workflows
+- composer stays anchored at the bottom
+- keep quick-action pills directly above the composer input within the sticky footer block
 
 ## Visual Tokens
 
@@ -110,6 +118,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ## Component Rules
 
 - Use Title Case for visible button labels.
+- Use British English spelling in all user-visible copy (for example: `summarise`, `organise`, `colour`, `centre`).
 - Exception: assistant quick-action chips use sentence case.
 
 ### Workspace Selector
@@ -122,7 +131,9 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 - Prefer compact rows over roomy file-explorer spacing
 - Show display titles when available instead of raw filenames
 - Keep nesting readable with indentation, not heavy borders
-- Show a lightweight `New Note` icon control in the workspace header, using the same unframed icon-button treatment as the assistant panel
+- Show a lightweight `New Document` icon control in the workspace header, using the same unframed icon-button treatment as the assistant panel
+- Document rows should open documents directly in the main editor on single-click
+- Document context menu should expose delete
 
 ### Editor Toolbar
 
@@ -161,12 +172,15 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 
 - Opening a workspace should update the shell immediately.
 - Selecting a document should feel instant and should not expose raw IPC or filesystem concepts.
+- Search should be live and return both filename/path and content matches.
+- Active search terms should be highlighted in the editor surface with a yellow highlighter treatment.
 - Saving should be automatic and mostly invisible.
 - Error messages should be brief and local to the affected panel.
 - Assistant UI should remain secondary to the document even when live.
-- Switching chats should not change the selected note.
-- Switching notes should keep the active Codex chat, but future prompts should use the newly selected note as primary context.
+- Switching chats should not change the selected document.
+- Switching documents should keep the active Codex chat, but future prompts should use the newly selected document as primary context.
 - Assistant runs should stream text into the panel instead of waiting for a full-page transition.
+- Side panel collapse controls must always remain visible in the top bar so collapsed panels can be reopened in one click.
 
 ## Responsive Guidance
 
