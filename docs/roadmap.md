@@ -24,56 +24,45 @@ Planned focus areas:
 - snapshots and visible history for page-level changes
 - explicit publish flow for shared updates
 
-### Navigation and Discovery
+### Automatic Sharing & Versioning
 
-- Switch between documents quickly from the workspace browser.
-- Search by file name.
-- Search by document content.
-- Recognize internal Markdown links between documents.
-- Open linked documents directly from the editor.
+**Objective:** Simplify the commit messaging system, automate workspace sharing, and refine the layout to keep the interface as clean and non-technical as possible.
 
-### Publish
+#### 1. Updated Commit Heuristics (The "Pulse")
+Trigger a Git commit on the following events. **Every single commit** will use the exact same message schema: `Snapshot: [ISO-Date]`.
 
-- Auto-sync, always. No publish button. Changes propagate on save. If you need to solve the "draft vs. shared" problem, call it exactly that — a Draft toggle — not a publish/unpublished system.
-- Conflicts become a notification, not a workflow. "Someone else edited this while you were writing. Here's their version — yours is safe." One button: "Merge for me." The technical person handles edge cases.
-- History in human language. "You edited this 2 hours ago. Maria edited it yesterday." No commit messages unless explicitly expanded.
-- Zero Git vocabulary anywhere in the UI. Not even in error messages. If a push fails, the user sees "We couldn't sync your changes — try again or contact [technical person]." Done.
+* **Idle Pulse:** After **3 minutes** of inactivity following a change.
+* **Context Switch:** Immediately when the user switches to a different document.
+* **Assistant Dispatch:** Immediately before a message is sent to the AI assistant (to ensure the AI has the latest context).
+* **Safety Guard:** Immediately before Rename, Delete, or merging incoming changes.
 
+#### 2. Fully Automated "Publishing" (Sharing)
+The concept of "Unpublished" files is removed. Sharing is now a background process linked directly to the heuristics.
+* **Auto-Share:** Every time a commit is created by the heuristics above, Mohio will automatically push the changes to the Git remote.
+* **Left Sidebar:** Remove the `Unpublished` documents tab entirely. The file tree should just be a clean list of the team's documents.
+* **Right Sidebar:**  **UI Copy Change:** Rename the right sidebar's `History` tab to `Versions`.
+* **Manual Share Button Placement:** Place the manual `Share` (or `Publish`) button at the top right of the application layout. It should be aligned to the **right of the main panel**, sitting immediately to the **left of the icon used to hide the right panel**. Even though sharing is automatic, users should be able to force an immediate push if they are about to close their laptop or need someone to see a change *right now*.
 
-Keep:
-Git-backed Markdown storage
-auto-save
-safety commits
-explicit share/publish boundary if that’s core to the model
-guided conflict recovery
-local-first robustness
-per-document history under the hood
-Hide or radically reframe
-checkpoint / auto-save terminology
-commit history as primary history
-local vs remote framing
-unpublished terminology
-sync language
-ahead/behind semantics
-merge-oriented conflict vocabulary
-What I’d make the product feel like
+#### Definition of Done
+- [ ] All Git commits use the uniform `Snapshot: [ISO-Date]` format.
+- [ ] Commits are triggered before sending messages to the assistant.
+- [ ] The `Unpublished` view is removed from the left sidebar.
+- [ ] Commits automatically trigger a `git push` in the background.
+- [ ] The manual share button is correctly positioned to the left of the "Hide Right Panel" icon.
+- [ ] The right sidebar tab is labeled `Versions`.
 
-If you’re serious about simplicity, the experience should feel like this:
-
-I open a document
-I type
-it is saved automatically
-I see whether my draft is just mine or already shared
-when ready, I click Share
-if someone else changed it, Mohio explains that plainly
-I can view older versions and restore one
-I never think about Git
 
 ### Git v2
 - Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
 - When the user clicks on the Publish and there is not remote git repo, then prompt the user to connect a remote git repository (GitHub, GitLab, Bitbucket, or custom).
 - The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
 - The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
+
+### Semantic Summaries (The "Secret Sauce")
+Since you have a "technical" person, use a small LLM call (or a simple regex) to look at the diff before committing. Instead of auto-save, use a summary:
+- If 1 line changed: Update (Small edit)
+- If 20+ lines changed: Update (Major revision)
+- If headers changed: Update (Restructured document)
 
 ## Phase: Private and Shared Documents
 
