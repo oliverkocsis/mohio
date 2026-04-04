@@ -4,12 +4,18 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
 import type { BaseWindow, IpcMainInvokeEvent, WebContents } from "electron";
 import path from "node:path";
 import { MOHIO_CHANNELS } from "@shared/mohio-api";
-import type { AssistantEvent, DocumentChangedEvent, WorkspaceSummary } from "@shared/mohio-types";
+import type {
+  AssistantEvent,
+  DocumentChangedEvent,
+  RiskyCommitTrigger,
+  WorkspaceSummary,
+} from "@shared/mohio-types";
 import { createAssistantRuntime } from "./assistant";
 import { createGitCollaborationService } from "./git-collaboration";
 import {
   createDocument,
   deleteDocument,
+  isLikelyRenameSave,
   readDocument,
   resolveWorkspacePath,
   saveDocument,
@@ -21,6 +27,8 @@ import {
 } from "./workspace";
 
 let currentWorkspacePath: string | null = null;
+let isExitSnapshotInProgress = false;
+let shouldAllowQuitAfterExitSnapshot = false;
 const assistantRuntime = createAssistantRuntime();
 const gitCollaboration = createGitCollaborationService();
 const activeDocumentWatches = new Map<number, {
@@ -56,7 +64,22 @@ function createMainWindow(): BrowserWindow {
     void mainWindow.loadFile(rendererPath);
   }
 
+  mainWindow.on("blur", () => {
+    void recordWorkspaceSnapshot("app-focus-loss").catch(() => undefined);
+  });
+
   return mainWindow;
+}
+
+async function recordWorkspaceSnapshot(trigger: RiskyCommitTrigger): Promise<void> {
+  if (!currentWorkspacePath) {
+    return;
+  }
+
+  await gitCollaboration.recordRiskyCommit(currentWorkspacePath, {
+    trigger,
+    force: true,
+  });
 }
 
 async function loadCurrentWorkspace() {
@@ -200,7 +223,6 @@ function registerMohioHandlers() {
       throw new Error("Open a folder before loading documents.");
     }
 
-    void gitCollaboration.recordAutoSaveCommit(currentWorkspacePath).catch(() => undefined);
     void gitCollaboration.syncIncomingChanges(currentWorkspacePath, "document-open").catch(() => undefined);
     return readDocument(currentWorkspacePath, relativePath);
   });
@@ -216,6 +238,10 @@ function registerMohioHandlers() {
       throw new Error("Open a folder before deleting documents.");
     }
 
+    await gitCollaboration.recordRiskyCommit(currentWorkspacePath, {
+      trigger: "delete",
+      force: true,
+    }).catch(() => undefined);
     return deleteDocument(currentWorkspacePath, relativePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.saveDocument, async (_event, input) => {
@@ -223,6 +249,12 @@ function registerMohioHandlers() {
       throw new Error("Open a folder before saving documents.");
     }
 
+    if (isLikelyRenameSave(input)) {
+      await gitCollaboration.recordRiskyCommit(currentWorkspacePath, {
+        trigger: "rename-move",
+        force: true,
+      }).catch(() => undefined);
+    }
     return saveDocument(currentWorkspacePath, input);
   });
   ipcMain.handle(MOHIO_CHANNELS.recordRiskyCommit, async (_event, input) => {
@@ -274,15 +306,22 @@ function registerMohioHandlers() {
 
     return gitCollaboration.getPublishSummary(currentWorkspacePath, workspace.documents);
   });
-  ipcMain.handle(MOHIO_CHANNELS.publishWorkspaceChanges, async () => {
+  ipcMain.handle(MOHIO_CHANNELS.syncWorkspaceChanges, async () => {
     if (!currentWorkspacePath) {
-      throw new Error("Open a folder before publishing.");
+      throw new Error("Open a folder before syncing.");
     }
 
-    const result = await gitCollaboration.publishWorkspaceChanges(currentWorkspacePath);
+    const result = await gitCollaboration.syncWorkspaceChanges(currentWorkspacePath);
     const workspace = await loadCurrentWorkspace();
     broadcastWorkspaceChange(workspace);
     return result;
+  });
+  ipcMain.handle(MOHIO_CHANNELS.getAutoSyncStatus, async () => {
+    if (!currentWorkspacePath) {
+      throw new Error("Open a folder before loading sync status.");
+    }
+
+    return gitCollaboration.getAutoSyncStatus(currentWorkspacePath);
   });
   ipcMain.handle(MOHIO_CHANNELS.syncIncomingChanges, async (_event, reason: string) => {
     if (!currentWorkspacePath) {
@@ -352,6 +391,11 @@ function registerMohioHandlers() {
     if (!workspace) {
       throw new Error("Open a folder before starting an assistant conversation.");
     }
+
+    await gitCollaboration.recordRiskyCommit(currentWorkspacePath, {
+      trigger: "assistant-dispatch",
+      force: true,
+    }).catch(() => undefined);
 
     return assistantRuntime.sendMessage({
       workspacePath: currentWorkspacePath,
@@ -430,4 +474,26 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", (event) => {
+  if (shouldAllowQuitAfterExitSnapshot || !currentWorkspacePath) {
+    return;
+  }
+
+  if (isExitSnapshotInProgress) {
+    event.preventDefault();
+    return;
+  }
+
+  event.preventDefault();
+  isExitSnapshotInProgress = true;
+
+  void recordWorkspaceSnapshot("application-exit")
+    .catch(() => undefined)
+    .finally(() => {
+      shouldAllowQuitAfterExitSnapshot = true;
+      isExitSnapshotInProgress = false;
+      app.quit();
+    });
 });

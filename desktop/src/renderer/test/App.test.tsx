@@ -97,11 +97,16 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
       unpublishedCount: 0,
       unpublishedTree: [],
     }),
-    publishWorkspaceChanges: async () => ({
+    syncWorkspaceChanges: async () => ({
       committed: false,
       commitSha: null,
-      publishedAt: null,
+      syncedAt: null,
       message: "No changes",
+    }),
+    getAutoSyncStatus: async () => ({
+      enabled: true,
+      hasUncommittedChanges: false,
+      lastSyncedAt: null,
     }),
     syncIncomingChanges: async () => ({
       status: "idle",
@@ -172,7 +177,16 @@ describe("App", () => {
     expect(screen.getByTestId("top-bar")).toBeInTheDocument();
     expect(screen.getByLabelText("Collapse left panel")).toBeInTheDocument();
     expect(screen.getByLabelText("Collapse right panel")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Search" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Documents" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Search" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Assistant" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Versions" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Assistant" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Versions" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.queryByRole("tab", { name: "Unpublished" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
     expect(screen.queryByLabelText("Search workspace")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Related" })).not.toBeInTheDocument();
     expect(await screen.findByTestId("document-state-primary-empty")).toBeInTheDocument();
@@ -375,6 +389,141 @@ describe("App", () => {
     });
 
     expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("syncs immediately from the top bar Sync control", async () => {
+    const workspace = createWorkspace();
+    const syncWorkspaceChanges = vi.fn().mockResolvedValue({
+      committed: true,
+      commitSha: "abc123",
+      syncedAt: new Date().toISOString(),
+      message: "Synced.",
+    });
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      syncWorkspaceChanges,
+      getAutoSyncStatus: async () => ({
+        enabled: true,
+        hasUncommittedChanges: true,
+        lastSyncedAt: new Date().toISOString(),
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    });
+
+    expect(syncWorkspaceChanges).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Sync disabled when no uncommitted changes are present", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      getAutoSyncStatus: async () => ({
+        enabled: true,
+        hasUncommittedChanges: false,
+        lastSyncedAt: new Date().toISOString(),
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
+  });
+
+  it("shows concise synced status with floored relative time", async () => {
+    const now = new Date("2026-04-04T12:00:00.000Z").getTime();
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+
+    try {
+      const workspace = createWorkspace();
+      window.mohio = createMohioMock({
+        getCurrentWorkspace: async () => workspace,
+        getAutoSyncStatus: async () => ({
+          enabled: true,
+          hasUncommittedChanges: false,
+          lastSyncedAt: "2026-04-04T11:56:01.000Z",
+        }),
+      });
+
+      render(<App />);
+
+      await screen.findByTestId("workspace-sidebar");
+
+      expect(screen.getByText("Synced 3 minutes ago")).toBeInTheDocument();
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
+  it("shows offline sync status with last synced time", async () => {
+    const now = new Date("2026-04-04T12:00:00.000Z").getTime();
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+
+    try {
+      const workspace = createWorkspace();
+      window.mohio = createMohioMock({
+        getCurrentWorkspace: async () => workspace,
+        getAutoSyncStatus: async () => ({
+          enabled: true,
+          hasUncommittedChanges: false,
+          lastSyncedAt: "2026-04-04T11:56:01.000Z",
+        }),
+      });
+
+      render(<App />);
+      await screen.findByTestId("workspace-sidebar");
+
+      await act(async () => {
+        window.dispatchEvent(new Event("offline"));
+      });
+
+      expect(screen.getByText("Offline (last synced 3 minutes ago)")).toBeInTheDocument();
+
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+      });
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
+  it("shows simplified snapshot subject and summed line update stats in Versions", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      listCommitHistory: async () => [
+        {
+          sha: "abc123",
+          shortSha: "abc123",
+          subject: "Snapshot: 2026-04-04",
+          authoredAt: "2026-04-04T19:33:03.000Z",
+          authorName: "Mohio Test",
+          shortStat: "1 file changed, 1 insertion(+), 1 deletion(-)",
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "Versions" }));
+    });
+
+    expect(await screen.findByText("Snapshot")).toBeInTheDocument();
+    expect(screen.queryByText("Snapshot: 2026-04-04")).not.toBeInTheDocument();
+    expect(screen.getByText(/Mohio Test/)).toBeInTheDocument();
+    expect(screen.getByText(/1 file changed/)).toBeInTheDocument();
+    expect(screen.queryByText(/lines updated/)).not.toBeInTheDocument();
   });
 
 });

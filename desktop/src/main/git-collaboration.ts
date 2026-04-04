@@ -4,13 +4,14 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { resolveWorkspacePath } from "./document-store";
 import type {
+  AutoSyncStatus,
   CommitHistoryEntry,
   DocumentPublishState,
   DocumentPublishStatus,
-  PublishResult,
   PublishSummary,
   RecordRiskyCommitInput,
   ResolveConflictInput,
+  SyncWorkspaceResult,
   SyncConflict,
   SyncState,
   UnpublishedDiffResult,
@@ -19,7 +20,6 @@ import type {
 
 const execFileAsync = promisify(execFile);
 const MARKDOWN_PATHS = ["*.md", "*.markdown", "*.mdx"];
-const MIN_RISKY_LINE_DELTA = 3;
 const legacyCheckpointCleanupDone = new Set<string>();
 
 const defaultSyncState: SyncState = {
@@ -46,8 +46,7 @@ export function createGitCollaborationService() {
     await ensureGitWorkspace(workspacePath);
     return writeCommit(workspacePath, {
       force: input.force,
-      message: "checkpoint",
-      minLineDelta: input.force ? 0 : MIN_RISKY_LINE_DELTA,
+      minLineDelta: 0,
     });
   };
 
@@ -55,7 +54,6 @@ export function createGitCollaborationService() {
     await ensureGitWorkspace(workspacePath);
     return writeCommit(workspacePath, {
       force: false,
-      message: "auto-save",
       minLineDelta: 0,
     });
   };
@@ -68,7 +66,7 @@ export function createGitCollaborationService() {
     const logArgs = [
       "log",
       "--date=iso-strict",
-      "--pretty=format:%H%x1f%h%x1f%cI%x1f%s",
+      "--pretty=format:%H%x1f%h%x1f%aI%x1f%an%x1f%s",
       "--shortstat",
       "-n",
       "100",
@@ -102,11 +100,12 @@ export function createGitCollaborationService() {
           commits.push(currentEntry);
         }
 
-        const [sha, shortSha, authoredAt, subject] = line.split("\u001f");
+        const [sha, shortSha, authoredAt, authorName, subject] = line.split("\u001f");
         currentEntry = {
           sha,
           shortSha,
           authoredAt,
+          authorName: authorName?.trim() ? authorName : "Unknown",
           subject,
           shortStat: null,
         };
@@ -172,9 +171,9 @@ export function createGitCollaborationService() {
     workspacePath: string,
     options: {
       force?: boolean;
-      message: "auto-save" | "checkpoint";
       minLineDelta: number;
       syncBeforeCommit?: boolean;
+      autoPush?: boolean;
     },
   ): Promise<boolean> => {
     if (options.syncBeforeCommit !== false) {
@@ -216,12 +215,21 @@ export function createGitCollaborationService() {
     await runGit(workspacePath, [
       "commit",
       "-m",
-      options.message,
+      createSnapshotCommitMessage(),
       "--only",
       "--",
       ...material.changedPaths,
     ]);
     lastCommittedFingerprintByWorkspace.set(workspacePath, material.fingerprint);
+
+    if (options.autoPush !== false) {
+      try {
+        await pushWorkspace(workspacePath);
+      } catch {
+        // Keep commits durable even when sharing is temporarily unavailable.
+      }
+    }
+
     return true;
   };
 
@@ -248,40 +256,57 @@ export function createGitCollaborationService() {
     };
   };
 
-  const publishWorkspaceChanges = async (workspacePath: string): Promise<PublishResult> => {
+  const syncWorkspaceChanges = async (workspacePath: string): Promise<SyncWorkspaceResult> => {
     await ensureGitWorkspace(workspacePath);
-    const committed = await recordRiskyCommit(workspacePath, {
-      trigger: "publish",
+    const committed = await writeCommit(workspacePath, {
       force: true,
+      minLineDelta: 0,
+      autoPush: false,
     });
 
-    const upstream = await getUpstreamBranch(workspacePath);
-    if (upstream) {
-      const aheadCount = await getAheadCommitCount(workspacePath, upstream);
-      if (aheadCount === 0) {
-        return {
-          committed,
-          commitSha: null,
-          publishedAt: null,
-          message: "No local commits were ready to publish.",
-        };
-      }
-
-      await runGit(workspacePath, ["push"]);
-    } else {
-      const branchResult = await runGit(workspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]);
-      const branchName = branchResult.stdout.trim();
-      await runGit(workspacePath, ["push", "-u", "origin", branchName]);
+    const pushed = await pushWorkspace(workspacePath);
+    if (!pushed) {
+      return {
+        committed,
+        commitSha: null,
+        syncedAt: null,
+        message: "No local commits were ready to sync.",
+      };
     }
 
     const shaResult = await runGit(workspacePath, ["rev-parse", "HEAD"]);
-    const publishedAt = new Date().toISOString();
+    const syncedAt = new Date().toISOString();
 
     return {
       committed,
       commitSha: shaResult.stdout.trim(),
-      publishedAt,
-      message: "Published your local commits.",
+      syncedAt,
+      message: "Synced your latest workspace snapshot.",
+    };
+  };
+
+  const getAutoSyncStatus = async (workspacePath: string): Promise<AutoSyncStatus> => {
+    await ensureGitWorkspace(workspacePath);
+    const status = await runGit(workspacePath, ["status", "--porcelain", "--", ...MARKDOWN_PATHS], {
+      allowFailure: true,
+    });
+    const hasUncommittedChanges = status.code === 0 && status.stdout.trim().length > 0;
+    const upstream = await getUpstreamBranch(workspacePath);
+    let lastSyncedAt: string | null = null;
+
+    if (upstream) {
+      const lastSyncedResult = await runGit(workspacePath, ["log", "-1", "--format=%cI", upstream], {
+        allowFailure: true,
+      });
+      if (lastSyncedResult.code === 0) {
+        lastSyncedAt = lastSyncedResult.stdout.trim() || null;
+      }
+    }
+
+    return {
+      enabled: true,
+      hasUncommittedChanges,
+      lastSyncedAt,
     };
   };
 
@@ -333,7 +358,6 @@ export function createGitCollaborationService() {
 
     await writeCommit(workspacePath, {
       force: true,
-      message: "checkpoint",
       minLineDelta: 0,
       syncBeforeCommit: false,
     });
@@ -343,7 +367,12 @@ export function createGitCollaborationService() {
     });
 
     if (mergeResult.code === 0) {
-      await runGit(workspacePath, ["commit", "-m", "checkpoint"]);
+      await runGit(workspacePath, ["commit", "-m", createSnapshotCommitMessage()]);
+      try {
+        await pushWorkspace(workspacePath);
+      } catch {
+        // Keep merge application successful even if sharing fails right now.
+      }
       const appliedAt = new Date().toISOString();
       const state: SyncState = {
         ...defaultSyncState,
@@ -414,7 +443,12 @@ export function createGitCollaborationService() {
       return state;
     }
 
-    await runGit(workspacePath, ["commit", "-m", "checkpoint"]);
+    await runGit(workspacePath, ["commit", "-m", createSnapshotCommitMessage()]);
+    try {
+      await pushWorkspace(workspacePath);
+    } catch {
+      // Conflict resolution should complete even if sharing fails right now.
+    }
 
     const resolvedState: SyncState = {
       ...defaultSyncState,
@@ -433,7 +467,8 @@ export function createGitCollaborationService() {
     listCommitHistory,
     getUnpublishedDiff,
     getPublishSummary,
-    publishWorkspaceChanges,
+    syncWorkspaceChanges,
+    getAutoSyncStatus,
     syncIncomingChanges,
     getSyncState,
     resolveSyncConflict,
@@ -557,6 +592,29 @@ async function getAheadCommitCount(workspacePath: string, upstream: string): Pro
   const [aheadRaw] = aheadBehind.stdout.trim().split(/\s+/);
   const aheadCount = Number.parseInt(aheadRaw ?? "0", 10);
   return Number.isFinite(aheadCount) ? aheadCount : 0;
+}
+
+async function pushWorkspace(workspacePath: string): Promise<boolean> {
+  const upstream = await getUpstreamBranch(workspacePath);
+  if (upstream) {
+    const aheadCount = await getAheadCommitCount(workspacePath, upstream);
+    if (aheadCount === 0) {
+      return false;
+    }
+
+    await runGit(workspacePath, ["push"]);
+    return true;
+  }
+
+  const branchResult = await runGit(workspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const branchName = branchResult.stdout.trim();
+  await runGit(workspacePath, ["push", "-u", "origin", branchName]);
+  return true;
+}
+
+function createSnapshotCommitMessage(): string {
+  const isoDate = new Date().toISOString().slice(0, 10);
+  return `Snapshot: ${isoDate}`;
 }
 
 function isShortStatLine(line: string): boolean {

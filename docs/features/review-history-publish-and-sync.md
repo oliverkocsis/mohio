@@ -1,13 +1,14 @@
 # Review, History, Publish, and Sync
 
-This document describes Mohio's current Git-backed commit history, publish-state visibility, and incoming-change sync behavior.
+This document describes Mohio's current Git-backed snapshot history, automatic syncing, and incoming-change sync behavior.
 
 ## Scope
 
-- commit-only safety history (`checkpoint` + `auto-save` commits)
-- publish-state tracking and explicit publish action
-- right-panel history commit list and unpublished remote-vs-local diff
-- automatic incoming-change sync checks and guided conflict resolution
+- snapshot-based Git history for Markdown documents
+- automatic background syncing after Mohio-created commits
+- manual top-bar sync action for immediate push
+- right-panel `Versions` commit list
+- incoming-change fetch/merge with conflict guidance
 
 ## Collaboration Service
 
@@ -15,20 +16,19 @@ Main-process collaboration behavior is implemented in `desktop/src/main/git-coll
 
 The service wraps Git operations for:
 
-- writing automatic local commits for safety/history
-- computing publish states per document
-- publishing Markdown updates with explicit push semantics
+- writing automatic local snapshot commits
+- pushing commits to the configured remote
+- computing per-document publish state metadata
 - fetching and merging incoming updates with conflict detection
 - applying per-file conflict decisions
 
-## Commit-Only Safety Points
+## Snapshot Commits
 
-Mohio does not store custom checkpoint refs or `.git/mohio` metadata anymore.
+Mohio writes regular Git commits (no custom checkpoint refs or `.git/mohio` metadata).
 
-History and safety points are regular Git commits with default messages:
+Every Mohio-created commit uses one message format:
 
-- risky transitions: `checkpoint`
-- regular saves: `auto-save`
+- `Snapshot: <ISO date>`
 
 Legacy custom checkpoint artifacts are cleaned up automatically when the collaboration service initializes.
 
@@ -39,79 +39,64 @@ Mohio only writes commits when there is real Markdown diff material:
 - changed Markdown paths present in `git status --porcelain -z -- *.md *.markdown *.mdx`
 - non-empty staged Markdown result after `git add`
 - fingerprint differs from the last committed fingerprint
-- risky commits additionally apply a minimum line-delta threshold when not forced
 
-### Commit Triggers
+### Snapshot Triggers
 
-Risky `checkpoint` commit triggers include:
+Snapshot commits are attempted at these moments:
 
-- before publish
-- before rename/move save
-- before delete
-- after an idle editing burst (~60s)
-- on document switch after a recent material edit burst
-- before incoming merge application
-- when finishing safe incoming merge commits or conflict resolution commits
+- `Idle Pulse`: after ~3 minutes of editor inactivity following draft changes
+- `Context Switch`: before switching to another document
+- `Assistant Dispatch`: before sending a message to Codex
+- `Safety Guard`: before delete, before rename/move save, and before incoming merge apply
+- `Focus Loss`: when the app window loses focus
+- `Application Exit`: before quit
 
-Non-risk `auto-save` commit triggers include:
+## Sync Behavior
 
-- after successful regular document save (non-rename path)
-- when a document is opened
-- every 60 seconds while the workspace is open
-- before assistant message dispatch
+### Automatic Sync
 
-## Publish Visibility and Explicit Publish
+When Mohio writes a snapshot commit, it immediately attempts a background push:
 
-### Publish Status Model
+- `git push` when an upstream is configured and local branch is ahead
+- `git push -u origin <branch>` when upstream is not configured yet
 
-Each document can be:
+If syncing fails, the local commit is still kept.
 
-- `published`
-- `unpublished-changes`
-- `never-published`
+### Manual Sync
 
-Mohio also returns `lastPublishedAt` when upstream history for the document exists.
+The top bar includes an explicit `Sync` status action (to the left of the right-panel toggle).
 
-### UI Surface
+When the sync status action is clicked:
 
-- left sidebar tabs:
-  - `Documents`
-  - `Search`
-  - `Unpublished` (same hierarchy/sorting, filtered to non-published docs)
-- top bar quick document icon control (`New Document`)
-- left sidebar bottom action:
-  - `Publish` in `Unpublished`
+1. Mohio attempts a forced snapshot commit
+2. Mohio pushes local commits if there is anything ahead
+3. Mohio returns a synced timestamp when a push succeeds
 
-### Publish Flow
+Top-bar status states:
 
-When `Publish` is clicked:
-
-1. attempt a forced risky `checkpoint` commit
-2. verify there are local commits ahead of upstream
-3. push local commits (`git push` or first-time upstream setup)
-4. refresh publish summary and history views
-
-Editing and autosave never publish implicitly.
+- `Synced <relative time>` with refresh icon
+- `Syncing...` with spinning refresh icon
+- `Sync paused` with alert icon
+- `Offline (last synced <relative time>)` with muted globe-off icon
 
 ## Incoming Changes and Conflict Workflow
 
-### Automatic Sync Triggers
+### Sync Triggers
 
-Sync checks run:
+Incoming sync checks run:
 
 - when a workspace opens
-- every 60 seconds while the workspace stays open
-- when a document is opened
-- before every automatic local commit attempt
+- when a document opens
+- before automatic local commit attempts (unless explicitly skipped for merge preflight)
 
 ### Safe Apply Path
 
 When incoming commits exist and merge cleanly:
 
-- pre-merge `checkpoint` commit attempt
+- pre-merge snapshot commit attempt
 - merge incoming updates (`--no-ff --no-commit`)
-- finalize with a `checkpoint` merge commit
-- update sync state to idle with success message
+- finalize with a snapshot merge commit
+- return sync state to `idle`
 
 ### Overlap Path
 
@@ -124,25 +109,23 @@ When incoming and local edits overlap:
   - `Keep incoming`
   - `Combine manually`
 
-After all files are resolved, Mohio finalizes with a `checkpoint` commit and returns sync state to `idle`.
+After all files are resolved, Mohio finalizes with a snapshot commit and returns sync state to `idle`.
 
-## History Panel
+## Versions Panel
 
 Right sidebar tabs:
 
 - `Assistant`
-- `History`
+- `Versions`
 
-History panel capabilities for the selected document:
+`Versions` panel capabilities for the selected document:
 
-- remote-vs-local diff output for files selected from the `Unpublished` view
 - commit list from `git log -- <path>`
 - each row shows:
   - commit message
   - localized date/time
-  - Git short stats (`--shortstat`)
-
-Checkpoint compare/restore UI is intentionally removed; commits are the only history unit.
+  - commit author
+  - files changed count
 
 ## API Surface
 
@@ -153,20 +136,21 @@ Checkpoint compare/restore UI is intentionally removed; commits are the only his
 - `listCommitHistory(relativePath | null)`
 - `getUnpublishedDiff(relativePath)`
 - `getPublishSummary()`
-- `publishWorkspaceChanges()`
+- `syncWorkspaceChanges()`
+- `getAutoSyncStatus()`
 - `syncIncomingChanges(reason)`
 - `getSyncState()`
 - `resolveSyncConflict(input)`
 
 ## Current Limitations
 
-- History currently renders commit metadata and patch text, not a visual side-by-side diff UI.
-- Sync conflict guidance uses clear product copy but remains compact and utilitarian.
-- Publish currently tracks Markdown files only (`.md`, `.markdown`, `.mdx`).
+- Version history currently renders commit metadata only (no rich side-by-side diff UI)
+- Sync conflict guidance is compact and utilitarian
+- Collaboration behavior targets Markdown files only (`.md`, `.markdown`, `.mdx`)
 
 ## Code Anchors
 
 - Main process collaboration logic: `desktop/src/main/git-collaboration.ts`
-- IPC wiring: `desktop/src/main/index.ts`
+- IPC wiring and app lifecycle triggers: `desktop/src/main/index.ts`
 - Shared API/types: `desktop/src/shared/mohio-api.ts`, `desktop/src/shared/mohio-types.ts`
 - Renderer UI integration: `desktop/src/renderer/App.tsx`

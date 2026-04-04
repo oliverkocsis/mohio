@@ -31,7 +31,7 @@ describe("git-collaboration", () => {
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
     expect(commits.length).toBeGreaterThan(0);
-    expect(commits[0]?.subject).toBe("checkpoint");
+    expect(commits[0]?.subject).toMatch(/^Snapshot: \d{4}-\d{2}-\d{2}$/);
     expect(commits[0]?.shortStat).toContain("file changed");
   });
 
@@ -47,7 +47,7 @@ describe("git-collaboration", () => {
     expect(secondCommit).toBe(true);
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
-    expect(commits[0]?.subject).toBe("auto-save");
+    expect(commits[0]?.subject).toMatch(/^Snapshot: \d{4}-\d{2}-\d{2}$/);
   });
 
   it("reports publish states as published, unpublished changes, and never published", async () => {

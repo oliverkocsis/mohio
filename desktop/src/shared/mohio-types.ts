@@ -88,8 +88,12 @@ export interface PublishSummary {
 
 export type RiskyCommitTrigger =
   | "ai-change"
+  | "assistant-dispatch"
+  | "app-focus-loss"
+  | "application-exit"
   | "document-switch"
   | "idle-burst"
+  | "idle-pulse"
   | "publish"
   | "rename-move"
   | "delete"
@@ -110,6 +114,7 @@ export interface CommitHistoryEntry {
   shortSha: string;
   subject: string;
   authoredAt: string;
+  authorName: string;
   shortStat: string | null;
 }
 
@@ -120,11 +125,19 @@ export interface UnpublishedDiffResult {
   message: string | null;
 }
 
-export interface PublishResult {
+export interface SyncWorkspaceResult {
   committed: boolean;
   commitSha: string | null;
-  publishedAt: string | null;
+  syncedAt: string | null;
   message: string;
+}
+
+export type PublishResult = SyncWorkspaceResult;
+
+export interface AutoSyncStatus {
+  enabled: boolean;
+  hasUncommittedChanges: boolean;
+  lastSyncedAt: string | null;
 }
 
 export interface SyncConflict {
@@ -224,7 +237,8 @@ export interface MohioApi {
   listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
   getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
   getPublishSummary: () => Promise<PublishSummary>;
-  publishWorkspaceChanges: () => Promise<PublishResult>;
+  syncWorkspaceChanges: () => Promise<SyncWorkspaceResult>;
+  getAutoSyncStatus: () => Promise<AutoSyncStatus>;
   syncIncomingChanges: (reason: string) => Promise<SyncState>;
   getSyncState: () => Promise<SyncState>;
   resolveSyncConflict: (input: ResolveConflictInput) => Promise<SyncState>;

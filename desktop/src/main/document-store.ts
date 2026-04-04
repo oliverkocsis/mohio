@@ -76,6 +76,17 @@ export async function saveDocument(
   };
 }
 
+export function isLikelyRenameSave(input: SaveDocumentInput): boolean {
+  const extension = path.extname(input.relativePath) || ".md";
+  const { sanitizedTitle } = sanitizeFileSystemTitle(input.title);
+  const desiredRelativePath = getRenamedRelativePath({
+    extension,
+    relativePath: input.relativePath,
+    sanitizedTitle,
+  });
+  return desiredRelativePath !== input.relativePath;
+}
+
 export async function createDocument(
   workspacePath: string,
   input: CreateDocumentInput,

@@ -18,7 +18,7 @@ This document covers the current shell and workspace flow in `desktop/`.
   - top bar
   - left workspace sidebar
   - center editor panel with a single active document surface
-  - right sidebar with assistant and history tabs
+  - right sidebar with assistant and versions tabs
 - Both side panels can be collapsed and reopened from icon controls in the top bar.
 - The renderer is implemented in `React` and `TypeScript`.
 - The right sidebar hosts the live Codex assistant panel.
@@ -44,7 +44,8 @@ Current API surface:
 - `deleteDocument(relativePath)`
 - `saveDocument(input)`
 - `getPublishSummary()`
-- `publishWorkspaceChanges()`
+- `syncWorkspaceChanges()`
+- `getAutoSyncStatus()`
 - `syncIncomingChanges(reason)`
 - `getSyncState()`
 - `resolveSyncConflict(input)`
@@ -80,7 +81,6 @@ Current API surface:
 - The left sidebar renders tabbed views:
   - `Documents` for full tree
   - `Search` for live document search
-  - `Unpublished` for non-published documents only
 - Tree document open behavior:
   - single-click opens the document in the main editor surface
   - right-click includes `Delete Document`
@@ -111,8 +111,8 @@ Current API surface:
 - The selected document loads into the single editor surface.
 - Newly created documents are selected and opened immediately.
 - The active row is highlighted in the workspace tree.
-- The top bar keeps quick `New Document` and panel visibility controls.
-- The right sidebar supports assistant and history flows.
+- The top bar keeps quick `New Document`, manual `Sync` status action, and panel visibility controls.
+- The right sidebar supports assistant and versions flows.
 
 ### Search and Discovery
 

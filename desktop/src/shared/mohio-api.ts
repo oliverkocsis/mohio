@@ -2,6 +2,7 @@ import type {
   AssistantEvent,
   AssistantThread,
   AssistantThreadSummary,
+  AutoSyncStatus,
   CommitHistoryEntry,
   UnpublishedDiffResult,
   RecordRiskyCommitInput,
@@ -9,13 +10,13 @@ import type {
   CreateDocumentInput,
   DocumentChangedEvent,
   MohioApi,
-  PublishResult,
   PublishSummary,
   ResolveConflictInput,
   RenameAssistantThreadInput,
   SendAssistantMessageInput,
   SaveDocumentInput,
   SaveDocumentResult,
+  SyncWorkspaceResult,
   SyncState,
   WorkspaceDocument,
   WorkspaceSearchMatch,
@@ -35,7 +36,8 @@ export const MOHIO_CHANNELS = {
   listCommitHistory: "mohio:history:commits",
   getUnpublishedDiff: "mohio:history:unpublished-diff",
   getPublishSummary: "mohio:publish:summary",
-  publishWorkspaceChanges: "mohio:publish:changes",
+  syncWorkspaceChanges: "mohio:sync:workspace-changes",
+  getAutoSyncStatus: "mohio:sync:auto-status",
   syncIncomingChanges: "mohio:sync:incoming",
   getSyncState: "mohio:sync:state",
   resolveSyncConflict: "mohio:sync:resolve-conflict",
@@ -66,7 +68,8 @@ interface CreateMohioApiOptions {
   listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
   getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
   getPublishSummary: () => Promise<PublishSummary>;
-  publishWorkspaceChanges: () => Promise<PublishResult>;
+  syncWorkspaceChanges: () => Promise<SyncWorkspaceResult>;
+  getAutoSyncStatus: () => Promise<AutoSyncStatus>;
   syncIncomingChanges: (reason: string) => Promise<SyncState>;
   getSyncState: () => Promise<SyncState>;
   resolveSyncConflict: (input: ResolveConflictInput) => Promise<SyncState>;
@@ -103,7 +106,8 @@ export function createMohioApi({
   listCommitHistory,
   getUnpublishedDiff,
   getPublishSummary,
-  publishWorkspaceChanges,
+  syncWorkspaceChanges,
+  getAutoSyncStatus,
   syncIncomingChanges,
   getSyncState,
   resolveSyncConflict,
@@ -133,7 +137,8 @@ export function createMohioApi({
     listCommitHistory,
     getUnpublishedDiff,
     getPublishSummary,
-    publishWorkspaceChanges,
+    syncWorkspaceChanges,
+    getAutoSyncStatus,
     syncIncomingChanges,
     getSyncState,
     resolveSyncConflict,

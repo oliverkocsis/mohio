@@ -1,27 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CircleAlert,
   ChevronDown,
   ChevronRight,
   FileText,
+  GlobeOff,
   History as HistoryIcon,
   MessageSquare,
   PanelLeft,
   PanelLeftClose,
   PanelRight,
   PanelRightClose,
+  RefreshCw,
   Search,
   SendHorizontal,
   SquarePen,
   Trash2,
-  Upload,
 } from "lucide-react";
 import type {
+  AutoSyncStatus,
   AssistantThread,
   AssistantThreadSummary,
   CommitHistoryEntry,
-  PublishSummary,
   SyncState,
-  UnpublishedDiffResult,
   WorkspaceDocument,
   WorkspaceSummary,
   WorkspaceTreeNode,
@@ -30,8 +31,8 @@ import type {
 import { RichTextEditor } from "./markdown-editor";
 
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
-type LeftSidebarTab = "documents" | "search" | "unpublished";
-type RightSidebarTab = "assistant" | "history";
+type LeftSidebarTab = "documents" | "search";
+type RightSidebarTab = "assistant" | "versions";
 
 interface DocumentContextMenuState {
   documentId: string;
@@ -239,17 +240,15 @@ export function App() {
   const [activeDocumentPath, setActiveDocumentPath] = useState<string | null>(null);
   const [documentContextMenu, setDocumentContextMenu] = useState<DocumentContextMenuState | null>(null);
 
-  const [publishSummary, setPublishSummary] = useState<PublishSummary | null>(null);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [syncState, setSyncState] = useState<SyncState | null>(null);
+  const [syncNowError, setSyncNowError] = useState<string | null>(null);
+  const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [autoSyncStatus, setAutoSyncStatus] = useState<AutoSyncStatus | null>(null);
+  const [, setSyncState] = useState<SyncState | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(() => window.navigator.onLine);
   const [commitHistory, setCommitHistory] = useState<CommitHistoryEntry[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-  const [unpublishedDiff, setUnpublishedDiff] = useState<UnpublishedDiffResult | null>(null);
-  const [unpublishedDiffError, setUnpublishedDiffError] = useState<string | null>(null);
-  const [isUnpublishedDiffLoading, setIsUnpublishedDiffLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<WorkspaceSearchMatch[]>([]);
@@ -308,21 +307,6 @@ export function App() {
     };
   }, []);
 
-  const refreshPublishSummary = async () => {
-    if (!workspace) {
-      setPublishSummary(null);
-      return;
-    }
-
-    try {
-      const summary = await window.mohio.getPublishSummary();
-      setPublishSummary(summary);
-      setPublishError(null);
-    } catch {
-      setPublishError("Mohio could not load publishing status.");
-    }
-  };
-
   const refreshSyncState = async () => {
     if (!workspace) {
       setSyncState(null);
@@ -338,40 +322,45 @@ export function App() {
     }
   };
 
-  useEffect(() => {
+  const refreshAutoSyncStatus = async () => {
     if (!workspace) {
-      setPublishSummary(null);
-      setSyncState(null);
+      setAutoSyncStatus(null);
       return;
     }
 
-    void refreshPublishSummary();
+    try {
+      const nextStatus = await window.mohio.getAutoSyncStatus();
+      setAutoSyncStatus(nextStatus);
+    } catch {
+      setAutoSyncStatus(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!workspace) {
+      setSyncState(null);
+      setAutoSyncStatus(null);
+      setSyncNowError(null);
+      return;
+    }
+
     void refreshSyncState();
+    void refreshAutoSyncStatus();
   }, [workspace?.path]);
 
   useEffect(() => {
-    if (!workspace || !activeDocumentPath || leftSidebarTab !== "unpublished") {
-      setUnpublishedDiff(null);
-      setUnpublishedDiffError(null);
-      setIsUnpublishedDiffLoading(false);
+    if (!workspace) {
       return;
     }
 
-    setIsUnpublishedDiffLoading(true);
+    const intervalId = window.setInterval(() => {
+      void refreshAutoSyncStatus();
+    }, 60_000);
 
-    void window.mohio.getUnpublishedDiff(activeDocumentPath).then(
-      (result) => {
-        setUnpublishedDiff(result);
-        setUnpublishedDiffError(null);
-        setIsUnpublishedDiffLoading(false);
-      },
-      () => {
-        setUnpublishedDiff(null);
-        setUnpublishedDiffError("Mohio could not load the remote vs local diff for this document.");
-        setIsUnpublishedDiffLoading(false);
-      },
-    );
-  }, [activeDocumentPath, leftSidebarTab, workspace?.path]);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [workspace?.path]);
 
   useEffect(() => {
     if (!workspace || !activeDocumentPath) {
@@ -443,12 +432,9 @@ export function App() {
     );
   }, [workspace?.path]);
 
-  const unpublishedDocumentCount = publishSummary?.unpublishedCount ?? 0;
   const leftSidebarNodes = leftSidebarTab === "documents"
     ? (workspace?.documents ?? [])
-    : leftSidebarTab === "unpublished"
-      ? (publishSummary?.unpublishedTree ?? [])
-      : [];
+    : [];
   const leftSidebarDocumentCount = countWorkspaceDocuments(leftSidebarNodes);
 
   const handleOpenWorkspace = async () => {
@@ -471,16 +457,21 @@ export function App() {
   };
 
   const openDocument = async (documentId: string) => {
+    if (documentId === activeDocumentPath) {
+      return;
+    }
+
     await editor.saveNow().catch(() => undefined);
+    await window.mohio.recordRiskyCommit({
+      trigger: "document-switch",
+      force: true,
+    }).catch(() => undefined);
+    await refreshAutoSyncStatus();
     setActiveDocumentPath(documentId);
   };
 
   const handleSelectDocument = (documentId: string) => {
     void openDocument(documentId);
-
-    if (leftSidebarTab === "unpublished") {
-      setRightSidebarTab("history");
-    }
   };
 
   const handleCreateDocument = async () => {
@@ -497,7 +488,7 @@ export function App() {
       await editor.saveNow().catch(() => undefined);
       const nextDocument = await window.mohio.createDocument({ directoryRelativePath });
       await refreshWorkspaceSummary();
-      await refreshPublishSummary();
+      await refreshAutoSyncStatus();
       setActiveDocumentPath(nextDocument.relativePath);
     } catch {
       setWorkspaceError("Mohio could not create a new document.");
@@ -520,25 +511,27 @@ export function App() {
     try {
       await window.mohio.deleteDocument(relativePath);
       await refreshWorkspaceSummary();
-      await refreshPublishSummary();
+      await refreshAutoSyncStatus();
     } catch {
       setWorkspaceError("Mohio could not delete that document.");
     }
   };
 
-  const handlePublishWorkspaceChanges = async () => {
+  const handleSyncNow = async () => {
     if (!workspace) {
       return;
     }
 
     try {
-      setIsPublishing(true);
-      await window.mohio.publishWorkspaceChanges();
-      await refreshPublishSummary();
+      setIsSyncingNow(true);
+      await window.mohio.syncWorkspaceChanges();
+      setSyncNowError(null);
+      await refreshSyncState();
+      await refreshAutoSyncStatus();
     } catch {
-      setPublishError("Mohio could not publish your workspace changes.");
+      setSyncNowError("Mohio could not sync your workspace changes.");
     } finally {
-      setIsPublishing(false);
+      setIsSyncingNow(false);
     }
   };
 
@@ -552,6 +545,12 @@ export function App() {
     setAssistantComposerValue("");
 
     try {
+      await editor.saveNow().catch(() => undefined);
+      await window.mohio.recordRiskyCommit({
+        trigger: "assistant-dispatch",
+        force: true,
+      }).catch(() => undefined);
+
       let threadId = assistantThread?.id;
 
       if (!threadId) {
@@ -575,10 +574,53 @@ export function App() {
       setAssistantError(null);
       const nextThreads = await window.mohio.listAssistantThreads();
       setAssistantThreads(nextThreads);
+      await refreshAutoSyncStatus();
     } catch {
       setAssistantError("Mohio could not send that message to Codex.");
     }
   };
+
+  useEffect(() => {
+    if (!workspace || !activeDocumentPath) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void editor.saveNow()
+        .catch(() => undefined)
+        .finally(() => {
+          void window.mohio.recordRiskyCommit({
+            trigger: "idle-pulse",
+            force: true,
+          })
+            .catch(() => undefined)
+            .finally(() => {
+              void refreshAutoSyncStatus();
+            });
+        });
+    }, 180_000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeDocumentPath, activeDraftMarkdown, activeDraftTitle, workspace?.path]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const openRelativePathFromLink = (rawTarget: string) => {
     if (!workspace) {
@@ -602,6 +644,17 @@ export function App() {
     void openDocument(resolvedPath);
   };
 
+  const syncControlState = getSyncControlState({
+    hasWorkspace: Boolean(workspace),
+    isOnline,
+    isSyncingNow,
+    hasUncommittedChanges: autoSyncStatus?.hasUncommittedChanges ?? false,
+    lastSyncedAt: autoSyncStatus?.lastSyncedAt ?? null,
+    hasSyncError: Boolean(syncNowError || syncError),
+  });
+  const hasWorkspace = Boolean(workspace);
+  const activeLeftSidebarTab: LeftSidebarTab | null = hasWorkspace ? leftSidebarTab : null;
+  const activeRightSidebarTab: RightSidebarTab | null = hasWorkspace ? rightSidebarTab : null;
   const workspaceShellClassName = `workspace-shell${isLeftPanelOpen ? "" : " workspace-shell--left-collapsed"}${isRightPanelOpen ? "" : " workspace-shell--right-collapsed"}`;
 
   return (
@@ -653,6 +706,27 @@ export function App() {
 
         <div className="top-bar__actions">
           <button
+            aria-label="Sync now"
+            className={`top-bar__sync-status-action${syncControlState.variant === "offline" ? " top-bar__sync-status-action--offline" : ""}${syncControlState.variant === "error" ? " top-bar__sync-status-action--error" : ""}`}
+            disabled={syncControlState.isDisabled}
+            onClick={() => {
+              void handleSyncNow();
+            }}
+            type="button"
+          >
+            <span className="top-bar__sync-status-label">{syncControlState.label}</span>
+            {syncControlState.icon === "alert" ? (
+              <CircleAlert aria-hidden="true" className="top-bar__sync-icon" />
+            ) : syncControlState.icon === "offline" ? (
+              <GlobeOff aria-hidden="true" className="top-bar__sync-icon" />
+            ) : (
+              <RefreshCw
+                aria-hidden="true"
+                className={`top-bar__sync-icon${syncControlState.isSpinning ? " top-bar__sync-icon--spinning" : ""}`}
+              />
+            )}
+          </button>
+          <button
             aria-label={isRightPanelOpen ? "Collapse right panel" : "Open right panel"}
             className="top-bar__icon-action"
             onClick={() => {
@@ -673,8 +747,9 @@ export function App() {
             <section className="sidebar__section sidebar__section--edge-tabs">
               <div className="sidebar-tabs sidebar-tabs--underlined" role="tablist" aria-label="Workspace views">
                 <button
-                  aria-selected={leftSidebarTab === "documents"}
-                  className={`sidebar-tab sidebar-tab--underlined${leftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
+                  aria-selected={activeLeftSidebarTab === "documents"}
+                  className={`sidebar-tab sidebar-tab--underlined${activeLeftSidebarTab === "documents" ? " sidebar-tab--active" : ""}`}
+                  disabled={!hasWorkspace}
                   onClick={() => {
                     setLeftSidebarTab("documents");
                   }}
@@ -685,8 +760,9 @@ export function App() {
                   Documents
                 </button>
                 <button
-                  aria-selected={leftSidebarTab === "search"}
-                  className={`sidebar-tab sidebar-tab--underlined${leftSidebarTab === "search" ? " sidebar-tab--active" : ""}`}
+                  aria-selected={activeLeftSidebarTab === "search"}
+                  className={`sidebar-tab sidebar-tab--underlined${activeLeftSidebarTab === "search" ? " sidebar-tab--active" : ""}`}
+                  disabled={!hasWorkspace}
                   onClick={() => {
                     setLeftSidebarTab("search");
                   }}
@@ -696,27 +772,12 @@ export function App() {
                   <Search aria-hidden="true" className="sidebar-tab__icon" />
                   Search
                 </button>
-                <button
-                  aria-selected={leftSidebarTab === "unpublished"}
-                  className={`sidebar-tab sidebar-tab--underlined${leftSidebarTab === "unpublished" ? " sidebar-tab--active" : ""}`}
-                  onClick={() => {
-                    setLeftSidebarTab("unpublished");
-                  }}
-                  role="tab"
-                  type="button"
-                >
-                  <Upload aria-hidden="true" className="sidebar-tab__icon" />
-                  Unpublished
-                  {unpublishedDocumentCount > 0 ? (
-                    <span className="sidebar-tab__badge">{unpublishedDocumentCount}</span>
-                  ) : null}
-                </button>
               </div>
             </section>
 
             <section className="sidebar__section workspace-panel">
               <div className="workspace-panel__scroll">
-                {leftSidebarTab === "search" ? (
+                {activeLeftSidebarTab === "search" ? (
                   <section className="workspace-search-panel" data-testid="workspace-search-panel">
                     <input
                       aria-label="Search documents"
@@ -773,11 +834,7 @@ export function App() {
                   <p className="workspace-panel__copy">Loading current workspace...</p>
                 ) : workspace ? (
                   leftSidebarDocumentCount === 0 ? (
-                    <p className="workspace-panel__copy">
-                      {leftSidebarTab === "documents"
-                        ? "No Markdown documents found."
-                        : "No unpublished documents in this workspace."}
-                    </p>
+                    <p className="workspace-panel__copy">No Markdown documents found.</p>
                   ) : (
                     <ul className="workspace-tree" role="tree">
                       {leftSidebarNodes.map((node) =>
@@ -812,7 +869,7 @@ export function App() {
                 ) : null}
 
                 {workspaceError ? <p className="workspace-panel__error" role="status">{workspaceError}</p> : null}
-                {publishError ? <p className="workspace-panel__error" role="status">{publishError}</p> : null}
+                {syncNowError ? <p className="workspace-panel__error" role="status">{syncNowError}</p> : null}
                 {syncError ? <p className="workspace-panel__error" role="status">{syncError}</p> : null}
 
                 {documentContextMenu ? (
@@ -838,26 +895,6 @@ export function App() {
                   </div>
                 ) : null}
               </div>
-
-              {leftSidebarTab === "unpublished" ? (
-                <div className="workspace-panel__footer-action">
-                  <button
-                    aria-label="Publish"
-                    className="primary-button workspace-panel__footer-button"
-                    disabled={!workspace || isPublishing || unpublishedDocumentCount === 0}
-                    onClick={() => {
-                      void handlePublishWorkspaceChanges();
-                    }}
-                    type="button"
-                  >
-                    <Upload aria-hidden="true" className="workspace-panel__footer-button-icon" />
-                    <span>Publish</span>
-                    {unpublishedDocumentCount > 0 ? (
-                      <span className="workspace-panel__footer-badge">{unpublishedDocumentCount}</span>
-                    ) : null}
-                  </button>
-                </div>
-              ) : null}
             </section>
           </aside>
         ) : null}
@@ -880,8 +917,9 @@ export function App() {
             <section className="sidebar__section sidebar__section--edge-tabs">
               <div className="sidebar-tabs sidebar-tabs--underlined" role="tablist" aria-label="Right panel views">
                 <button
-                  aria-selected={rightSidebarTab === "assistant"}
-                  className={`sidebar-tab sidebar-tab--underlined${rightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
+                  aria-selected={activeRightSidebarTab === "assistant"}
+                  className={`sidebar-tab sidebar-tab--underlined${activeRightSidebarTab === "assistant" ? " sidebar-tab--active" : ""}`}
+                  disabled={!hasWorkspace}
                   onClick={() => {
                     setRightSidebarTab("assistant");
                   }}
@@ -892,21 +930,22 @@ export function App() {
                   Assistant
                 </button>
                 <button
-                  aria-selected={rightSidebarTab === "history"}
-                  className={`sidebar-tab sidebar-tab--underlined${rightSidebarTab === "history" ? " sidebar-tab--active" : ""}`}
+                  aria-selected={activeRightSidebarTab === "versions"}
+                  className={`sidebar-tab sidebar-tab--underlined${activeRightSidebarTab === "versions" ? " sidebar-tab--active" : ""}`}
+                  disabled={!hasWorkspace}
                   onClick={() => {
-                    setRightSidebarTab("history");
+                    setRightSidebarTab("versions");
                   }}
                   role="tab"
                   type="button"
                 >
                   <HistoryIcon aria-hidden="true" className="sidebar-tab__icon" />
-                  History
+                  Versions
                 </button>
               </div>
             </section>
 
-            {rightSidebarTab === "assistant" ? (
+            {activeRightSidebarTab === "assistant" ? (
               <section className="sidebar__section assistant-panel">
                 {!workspace ? null : !activeDocumentPath ? (
                   <p className="workspace-panel__copy">Select a document to chat with Codex.</p>
@@ -977,7 +1016,7 @@ export function App() {
                             onChange={(event) => {
                               setAssistantComposerValue(event.target.value);
                             }}
-                            placeholder="Ask Codex about this document or workspace"
+                            placeholder="Ask about this document or workspace"
                             rows={1}
                             value={assistantComposerValue}
                           />
@@ -996,37 +1035,21 @@ export function App() {
               </section>
             ) : null}
 
-            {rightSidebarTab === "history" ? (
+            {activeRightSidebarTab === "versions" ? (
               <section className="sidebar__section history-panel">
                 {!workspace ? null : !activeDocumentPath ? (
                   <p className="workspace-panel__copy">Select a document to view commit history.</p>
                 ) : (
                   <>
-                    {leftSidebarTab === "unpublished" ? (
-                      <div className="history-remote-diff">
-                        {isUnpublishedDiffLoading ? (
-                          <p className="workspace-panel__copy">Loading remote diff...</p>
-                        ) : unpublishedDiffError ? (
-                          <p className="workspace-panel__error" role="status">{unpublishedDiffError}</p>
-                        ) : unpublishedDiff?.patch ? (
-                          <pre className="history-diff-output">{unpublishedDiff.patch}</pre>
-                        ) : unpublishedDiff?.message ? (
-                          <p className="workspace-panel__copy">{unpublishedDiff.message}</p>
-                        ) : (
-                          <p className="workspace-panel__copy">No remote/local diff available.</p>
-                        )}
-                      </div>
-                    ) : null}
-
                     {isHistoryLoading ? (
                       <p className="workspace-panel__copy">Loading commit history...</p>
                     ) : commitHistory.length > 0 ? (
                       <ul className="history-commit-list__items">
                         {commitHistory.map((commit) => (
                           <li className="history-commit-list__item" key={commit.sha}>
-                            <p className="history-commit-list__subject">{commit.subject}</p>
+                            <p className="history-commit-list__subject">{formatCommitSubject(commit.subject)}</p>
                             <p className="history-commit-list__meta">
-                              {new Date(commit.authoredAt).toLocaleString()} · {commit.shortStat ?? "No file stats"}
+                              {new Date(commit.authoredAt).toLocaleString()} · {formatCommitAuthor(commit.authorName)} · {formatCommitFileCount(commit.shortStat)}
                             </p>
                           </li>
                         ))}
@@ -1092,6 +1115,148 @@ function EditorPane({
       )}
     </section>
   );
+}
+
+type SyncControlIcon = "alert" | "offline" | "refresh";
+type SyncControlVariant = "error" | "normal" | "offline" | "syncing";
+
+interface SyncControlState {
+  icon: SyncControlIcon;
+  isDisabled: boolean;
+  isSpinning: boolean;
+  label: string;
+  variant: SyncControlVariant;
+}
+
+function getSyncControlState({
+  hasWorkspace,
+  isOnline,
+  isSyncingNow,
+  hasUncommittedChanges,
+  lastSyncedAt,
+  hasSyncError,
+}: {
+  hasWorkspace: boolean;
+  isOnline: boolean;
+  isSyncingNow: boolean;
+  hasUncommittedChanges: boolean;
+  lastSyncedAt: string | null;
+  hasSyncError: boolean;
+}): SyncControlState {
+  const isDisabled = !hasWorkspace || isSyncingNow || !hasUncommittedChanges;
+
+  if (!hasWorkspace) {
+    return {
+      icon: "refresh",
+      isDisabled: true,
+      isSpinning: false,
+      label: "Open workspace",
+      variant: "normal",
+    };
+  }
+
+  if (isSyncingNow) {
+    return {
+      icon: "refresh",
+      isDisabled: true,
+      isSpinning: true,
+      label: "Syncing...",
+      variant: "syncing",
+    };
+  }
+
+  const relative = lastSyncedAt ? formatRelativeTime(lastSyncedAt) : null;
+
+  if (!isOnline) {
+    return {
+      icon: "offline",
+      isDisabled,
+      isSpinning: false,
+      label: relative ? `Offline (last synced ${relative})` : "Offline",
+      variant: "offline",
+    };
+  }
+
+  if (hasSyncError) {
+    return {
+      icon: "alert",
+      isDisabled,
+      isSpinning: false,
+      label: "Sync paused",
+      variant: "error",
+    };
+  }
+
+  return {
+    icon: "refresh",
+    isDisabled,
+    isSpinning: false,
+    label: relative ? `Synced ${relative}` : "Synced",
+    variant: "normal",
+  };
+}
+
+function formatRelativeTime(isoDateTime: string): string | null {
+  const sharedAt = new Date(isoDateTime);
+  const milliseconds = sharedAt.getTime();
+  if (!Number.isFinite(milliseconds)) {
+    return null;
+  }
+
+  const secondsElapsed = Math.max(0, Math.floor((Date.now() - milliseconds) / 1000));
+  if (secondsElapsed < 60) {
+    return "just now";
+  }
+
+  const minutes = Math.floor(secondsElapsed / 60);
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+  }
+
+  const hours = Math.floor(secondsElapsed / 3_600);
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  }
+
+  const days = Math.floor(secondsElapsed / 86_400);
+  if (days <= 31) {
+    return `${days} ${days === 1 ? "day" : "days"} ago`;
+  }
+
+  const months = Math.floor(days / 30);
+  if (months < 12) {
+    return `${months} ${months === 1 ? "month" : "months"} ago`;
+  }
+
+  const years = Math.floor(days / 365);
+  return `${years} ${years === 1 ? "year" : "years"} ago`;
+}
+
+function formatCommitSubject(subject: string): string {
+  if (/^Snapshot:\s+\d{4}-\d{2}-\d{2}$/.test(subject)) {
+    return "Snapshot";
+  }
+
+  return subject;
+}
+
+function formatCommitAuthor(authorName: string): string {
+  const trimmed = authorName.trim();
+  return trimmed.length > 0 ? trimmed : "Unknown";
+}
+
+function formatCommitFileCount(shortStat: string | null): string {
+  if (!shortStat) {
+    return "No file stats";
+  }
+
+  const fileMatch = shortStat.match(/(\d+)\s+files?\s+changed/);
+  if (!fileMatch) {
+    return shortStat;
+  }
+
+  const fileLabel = fileMatch[1] === "1" ? "file changed" : "files changed";
+  return `${fileMatch[1]} ${fileLabel}`;
 }
 
 function renderWorkspaceNode({
