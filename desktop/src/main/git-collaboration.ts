@@ -20,6 +20,7 @@ import type {
 
 const execFileAsync = promisify(execFile);
 const MARKDOWN_PATHS = ["*.md", "*.markdown", "*.mdx"];
+const SYNC_DEBUG_ENABLED = process.env.MOHIO_SYNC_DEBUG === "1";
 const legacyCheckpointCleanupDone = new Set<string>();
 
 const defaultSyncState: SyncState = {
@@ -691,6 +692,9 @@ async function pushWorkspace(workspacePath: string): Promise<boolean> {
 }
 
 function debugSyncLog(event: string, details: Record<string, unknown>): void {
+  if (!SYNC_DEBUG_ENABLED) {
+    return;
+  }
   const timestamp = new Date().toISOString();
   console.info(`[mohio-sync-debug] ${timestamp} ${event}`, details);
 }
