@@ -115,8 +115,8 @@ On save, Mohio rebuilds the file with:
 - Autosave runs after `1000ms` of idle time when the draft differs from the last saved snapshot.
 - Saving updates the selected document path if the title changed the filename.
 - Save failures are surfaced in the editor panel as a local error state.
-- After successful non-rename saves, Mohio records an `auto-save` Git commit when there is material Markdown diff.
-- When the title edit is likely to rename or move the file, Mohio records a forced `checkpoint` commit before saving.
+- When Mohio records a commit from the editing flow, it uses `Snapshot: <ISO date>`.
+- When the title edit is likely to rename or move the file, Mohio records a forced snapshot commit before saving.
 
 ## External File Changes
 
@@ -128,10 +128,12 @@ On save, Mohio rebuilds the file with:
 
 ## Commit Hooks in Editing Flow
 
-- Mohio tracks recent material local edits and records a background `checkpoint` commit after about 60 seconds of idle time.
-- Switching documents after recent local edits triggers a pre-switch `checkpoint` commit.
-- Deleting a document triggers a pre-delete `checkpoint` commit.
-- Opening a document also triggers auto-save commit attempt + incoming sync check.
+- Mohio records a snapshot commit after about 3 minutes of idle time following draft changes.
+- Switching documents triggers a pre-switch snapshot commit.
+- Sending an assistant message triggers a pre-dispatch snapshot commit.
+- Deleting a document triggers a pre-delete snapshot commit.
+- Rename/move title saves trigger a pre-rename snapshot commit.
+- After each Mohio-created snapshot commit, Mohio attempts an automatic background push.
 
 ## Current Limitations
 

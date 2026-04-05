@@ -31,7 +31,7 @@ describe("git-collaboration", () => {
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
     expect(commits.length).toBeGreaterThan(0);
-    expect(commits[0]?.subject).toBe("checkpoint");
+    expect(commits[0]?.subject).toMatch(/^Snapshot: \d{4}-\d{2}-\d{2}$/);
     expect(commits[0]?.shortStat).toContain("file changed");
   });
 
@@ -47,7 +47,33 @@ describe("git-collaboration", () => {
     expect(secondCommit).toBe(true);
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
-    expect(commits[0]?.subject).toBe("auto-save");
+    expect(commits[0]?.subject).toMatch(/^Snapshot: \d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("creates a new snapshot for repeated edits on the same file path", async () => {
+    const workspacePath = await createWorkspace("repeat-edits");
+    const service = createGitCollaborationService();
+
+    await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nfirst change\n", "utf8");
+    const firstCommit = await service.recordRiskyCommit(workspacePath, {
+      trigger: "manual",
+      force: true,
+    });
+    expect(firstCommit).toBe(true);
+
+    await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nsecond change\n", "utf8");
+    const secondCommit = await service.recordRiskyCommit(workspacePath, {
+      trigger: "manual",
+      force: true,
+    });
+    expect(secondCommit).toBe(true);
+
+    const commits = await service.listCommitHistory(workspacePath, "README.md");
+    const snapshotSubjects = commits
+      .map((entry) => entry.subject)
+      .filter((subject) => /^Snapshot: \d{4}-\d{2}-\d{2}$/.test(subject));
+
+    expect(snapshotSubjects.length).toBeGreaterThanOrEqual(2);
   });
 
   it("reports publish states as published, unpublished changes, and never published", async () => {

@@ -25,15 +25,16 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Top Bar
 
 - Height: `48px`
-- Purpose: workspace selection, quick document control, and panel visibility controls
+- Purpose: workspace selection, quick document control, manual sync control, and panel visibility controls
 - Rules:
   - keep the workspace selector prominent
+  - keep the manual `Sync` status action in the right action cluster, directly before the right-panel toggle
   - keep panel collapse/reopen controls icon-only and edge-aligned (left toggle on the left, right toggle on the right)
 
 ### Left Sidebar
 
 - Width target: `320px`
-- Purpose: show workspace browsing (`Documents`), workspace search (`Search`), and unpublished state (`Unpublished`)
+- Purpose: show workspace browsing (`Documents`) and workspace search (`Search`)
 - Rules:
   - tab headers use centered inline tabs (not full-width)
   - tabs are borderless with active-state underline only
@@ -57,7 +58,7 @@ Mohio uses a desktop-first three-panel layout with a slim top bar.
 ### Right Sidebar
 
 - Width target: `384px`
-- Purpose: support assistant and history workflows
+- Purpose: support assistant and version-history workflows
 - Rules:
   - use the same centered underline-only tab-header style as the left sidebar
   - keep the panel visually secondary to the editor

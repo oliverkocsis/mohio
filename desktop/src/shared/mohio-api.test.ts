@@ -62,11 +62,16 @@ describe("createMohioApi", () => {
       unpublishedCount: 0,
       unpublishedTree: [],
     });
-    const publishWorkspaceChanges = vi.fn().mockResolvedValue({
+    const syncWorkspaceChanges = vi.fn().mockResolvedValue({
       committed: false,
       commitSha: null,
-      publishedAt: null,
-      message: "No unpublished Markdown changes were ready to publish.",
+      syncedAt: null,
+      message: "No Markdown changes were ready to sync.",
+    });
+    const getAutoSyncStatus = vi.fn().mockResolvedValue({
+      enabled: true,
+      hasUncommittedChanges: false,
+      lastSyncedAt: null,
     });
     const syncIncomingChanges = vi.fn().mockResolvedValue({
       status: "idle" as const,
@@ -159,7 +164,8 @@ describe("createMohioApi", () => {
       listCommitHistory,
       getUnpublishedDiff,
       getPublishSummary,
-      publishWorkspaceChanges,
+      syncWorkspaceChanges,
+      getAutoSyncStatus,
       syncIncomingChanges,
       getSyncState,
       resolveSyncConflict,
@@ -216,11 +222,16 @@ describe("createMohioApi", () => {
       unpublishedCount: 0,
       unpublishedTree: [],
     });
-    await expect(api.publishWorkspaceChanges()).resolves.toEqual({
+    await expect(api.syncWorkspaceChanges()).resolves.toEqual({
       committed: false,
       commitSha: null,
-      publishedAt: null,
-      message: "No unpublished Markdown changes were ready to publish.",
+      syncedAt: null,
+      message: "No Markdown changes were ready to sync.",
+    });
+    await expect(api.getAutoSyncStatus()).resolves.toEqual({
+      enabled: true,
+      hasUncommittedChanges: false,
+      lastSyncedAt: null,
     });
     await expect(api.syncIncomingChanges("manual")).resolves.toEqual({
       status: "idle",
@@ -328,7 +339,8 @@ describe("createMohioApi", () => {
     expect(listCommitHistory).toHaveBeenCalledWith("README.md");
     expect(getUnpublishedDiff).toHaveBeenCalledWith("README.md");
     expect(getPublishSummary).toHaveBeenCalledTimes(1);
-    expect(publishWorkspaceChanges).toHaveBeenCalledTimes(1);
+    expect(syncWorkspaceChanges).toHaveBeenCalledTimes(1);
+    expect(getAutoSyncStatus).toHaveBeenCalledTimes(1);
     expect(syncIncomingChanges).toHaveBeenCalledWith("manual");
     expect(getSyncState).toHaveBeenCalledTimes(1);
     expect(resolveSyncConflict).toHaveBeenCalledWith({

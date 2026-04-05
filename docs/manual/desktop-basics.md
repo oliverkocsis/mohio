@@ -33,7 +33,6 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 - Use the left sidebar tabs:
   - `Documents` to browse all documents
   - `Search` to run live workspace search
-  - `Unpublished` to focus on documents that are not fully published yet
 
 ## Search Documents
 
@@ -66,30 +65,30 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 - Mohio saves your changes automatically after a short pause.
 - You do not need to click a save button.
 - Changing the title can also rename the file on disk.
-- Mohio records local Git safety commits in the background:
-  - regular edits: `auto-save`
-  - higher-risk moments: `checkpoint`
+- Mohio records local Git safety snapshots in the background with one commit format:
+  - `Snapshot: <ISO date>`
+- Snapshot commits are triggered before high-risk actions (such as rename, delete, assistant send, app blur/exit) and after an idle pulse.
+- Mohio automatically syncs snapshot commits in the background when remote push succeeds.
 
-## Publish Shared Changes
+## Sync Now
 
-- Publishing is explicit.
-- Use the left sidebar `Unpublished` tab and its full-width `Publish` action at the bottom.
-- Click `Publish` to send your local Markdown updates to the shared branch.
-- Each document can show status such as:
-  - `Published`
-  - `Unpublished changes`
-  - `Never published`
-- Mohio also shows `Last published` timing when available.
+- Sync runs automatically in the background after Mohio creates snapshot commits.
+- Use the top-bar sync status control (left of the right-panel toggle) when you want to force an immediate push.
+- Status labels:
+  - `Synced <relative time>`
+  - `Syncing...`
+  - `Sync paused`
+  - `Offline (last synced <relative time>)`
 
-## History
+## Versions
 
-- Open the right sidebar `History` tab while a document is selected.
-- If you selected the document from `Unpublished`, Mohio shows the remote-versus-local diff first.
+- Open the right sidebar `Versions` tab while a document is selected.
 - Review the commit list for that document.
-- Each history row shows:
+- Each version row shows:
   - commit message
   - date/time
-  - Git short stats (files/lines changed)
+  - author
+  - files changed count
 
 ## If a File Changes Outside Mohio
 
@@ -100,7 +99,6 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 
 - Mohio checks for incoming shared updates:
   - when you open a workspace
-  - every minute while the workspace is open
   - when you open a document
 - If incoming updates are safe, Mohio applies them automatically.
 - If local and incoming edits overlap, Mohio shows guided choices in `History`:

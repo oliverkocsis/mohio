@@ -74,25 +74,61 @@ button {
 .top-bar__actions {
   justify-content: flex-end;
   justify-self: end;
-}
-
-.top-bar__sync-button,
-.top-bar__publish-button {
   gap: 8px;
-  height: 30px;
-  padding: 5px 11px;
-  font-size: 13px;
 }
 
-.top-bar__sync-button--warning {
-  border-color: rgba(180, 83, 9, 0.3);
-  background: #fff7ed;
-  color: #9a3412;
+.top-bar__sync-status-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.top-bar__sync-status-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0;
+  line-height: 1;
+}
+
+.top-bar__sync-status-action:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.top-bar__sync-status-action:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.top-bar__sync-status-action--error {
+  color: #b45309;
+}
+
+.top-bar__sync-status-action--offline {
+  color: var(--text-subtle);
 }
 
 .top-bar__sync-icon {
   width: 14px;
   height: 14px;
+}
+
+.top-bar__sync-icon--spinning {
+  animation: top-bar-spin 0.9s linear infinite;
+}
+
+@keyframes top-bar-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .top-bar__badge {
@@ -266,6 +302,13 @@ button {
 
 .sidebar-tab:hover {
   color: var(--text-primary);
+}
+
+.sidebar-tab:disabled,
+.sidebar-tab:disabled:hover {
+  color: var(--text-subtle);
+  cursor: default;
+  opacity: 0.72;
 }
 
 .top-bar__icon-action {
@@ -1458,6 +1501,7 @@ button {
 .primary-button:disabled,
 .chat-composer:disabled,
 .assistant-composer__send-button:disabled,
+.top-bar__sync-status-action:disabled,
 .assistant-panel__text-icon-button:disabled,
 .assistant-panel__menu-item:disabled {
   cursor: default;
