@@ -186,7 +186,8 @@ describe("App", () => {
     expect(screen.getByRole("tab", { name: "Assistant" })).toHaveAttribute("aria-selected", "false");
     expect(screen.getByRole("tab", { name: "Versions" })).toHaveAttribute("aria-selected", "false");
     expect(screen.queryByRole("tab", { name: "Unpublished" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Quick New Document" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sync now" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Search workspace")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Related" })).not.toBeInTheDocument();
     expect(await screen.findByTestId("document-state-primary-empty")).toBeInTheDocument();
@@ -436,6 +437,85 @@ describe("App", () => {
     await screen.findByTestId("workspace-sidebar");
 
     expect(screen.getByRole("button", { name: "Sync now" })).toBeDisabled();
+  });
+
+  it("shows unsynced changes and enables Sync when editor content is dirty", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      getAutoSyncStatus: async () => ({
+        enabled: true,
+        hasUncommittedChanges: false,
+        lastSyncedAt: new Date().toISOString(),
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+    const titleInput = await screen.findByDisplayValue("Architecture");
+
+    await act(async () => {
+      fireEvent.change(titleInput, {
+        target: { value: "Architecture updated" },
+      });
+    });
+
+    expect(screen.getByText("Changes pending")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync now" })).toBeEnabled();
+  });
+
+  it("saves dirty editor content before manual Sync", async () => {
+    const workspace = createWorkspace();
+    const saveDocument = vi.fn().mockImplementation(async (input) => ({
+      relativePath: input.relativePath,
+      fileName: input.relativePath.split("/").at(-1) ?? input.relativePath,
+      displayTitle: input.title,
+      markdown: input.markdown,
+      titleMode: input.titleMode,
+      savedAt: new Date().toISOString(),
+    }));
+    const syncWorkspaceChanges = vi.fn().mockResolvedValue({
+      committed: true,
+      commitSha: "abc123",
+      syncedAt: new Date().toISOString(),
+      message: "Synced.",
+    });
+
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      saveDocument,
+      syncWorkspaceChanges,
+      getAutoSyncStatus: async () => ({
+        enabled: true,
+        hasUncommittedChanges: false,
+        lastSyncedAt: new Date().toISOString(),
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+    const titleInput = await screen.findByDisplayValue("Architecture");
+
+    await act(async () => {
+      fireEvent.change(titleInput, {
+        target: { value: "Architecture updated" },
+      });
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    });
+
+    expect(saveDocument).toHaveBeenCalled();
+    expect(syncWorkspaceChanges).toHaveBeenCalledTimes(1);
+
+    const saveCallOrder = saveDocument.mock.invocationCallOrder.at(0) ?? 0;
+    const syncCallOrder = syncWorkspaceChanges.mock.invocationCallOrder.at(0) ?? 0;
+    expect(saveCallOrder).toBeGreaterThan(0);
+    expect(syncCallOrder).toBeGreaterThan(0);
+    expect(saveCallOrder).toBeLessThan(syncCallOrder);
   });
 
   it("shows concise synced status with floored relative time", async () => {

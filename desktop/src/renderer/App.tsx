@@ -524,6 +524,7 @@ export function App() {
 
     try {
       setIsSyncingNow(true);
+      await editor.saveNow().catch(() => undefined);
       await window.mohio.syncWorkspaceChanges();
       setSyncNowError(null);
       await refreshSyncState();
@@ -606,6 +607,14 @@ export function App() {
   }, [activeDocumentPath, activeDraftMarkdown, activeDraftTitle, workspace?.path]);
 
   useEffect(() => {
+    if (!workspace || !activeDocumentPath || editor.saveState !== "saved") {
+      return;
+    }
+
+    void refreshAutoSyncStatus();
+  }, [activeDocumentPath, editor.saveState, workspace?.path]);
+
+  useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
     };
@@ -648,7 +657,7 @@ export function App() {
     hasWorkspace: Boolean(workspace),
     isOnline,
     isSyncingNow,
-    hasUncommittedChanges: autoSyncStatus?.hasUncommittedChanges ?? false,
+    hasPendingChanges: editor.isDirty || (autoSyncStatus?.hasUncommittedChanges ?? false),
     lastSyncedAt: autoSyncStatus?.lastSyncedAt ?? null,
     hasSyncError: Boolean(syncNowError || syncError),
   });
@@ -690,42 +699,45 @@ export function App() {
           </button>
 
           <div className="top-bar__context-actions">
-            <button
-              aria-label="Quick New Document"
-              className="top-bar__icon-action"
-              disabled={!workspace}
-              onClick={() => {
-                void handleCreateDocument();
-              }}
-              type="button"
-            >
-              <SquarePen aria-hidden="true" className="top-bar__icon-action-icon" />
-            </button>
+            {hasWorkspace ? (
+              <button
+                aria-label="Quick New Document"
+                className="top-bar__icon-action"
+                onClick={() => {
+                  void handleCreateDocument();
+                }}
+                type="button"
+              >
+                <SquarePen aria-hidden="true" className="top-bar__icon-action-icon" />
+              </button>
+            ) : null}
           </div>
         </div>
 
         <div className="top-bar__actions">
-          <button
-            aria-label="Sync now"
-            className={`top-bar__sync-status-action${syncControlState.variant === "offline" ? " top-bar__sync-status-action--offline" : ""}${syncControlState.variant === "error" ? " top-bar__sync-status-action--error" : ""}`}
-            disabled={syncControlState.isDisabled}
-            onClick={() => {
-              void handleSyncNow();
-            }}
-            type="button"
-          >
-            <span className="top-bar__sync-status-label">{syncControlState.label}</span>
-            {syncControlState.icon === "alert" ? (
-              <CircleAlert aria-hidden="true" className="top-bar__sync-icon" />
-            ) : syncControlState.icon === "offline" ? (
-              <GlobeOff aria-hidden="true" className="top-bar__sync-icon" />
-            ) : (
-              <RefreshCw
-                aria-hidden="true"
-                className={`top-bar__sync-icon${syncControlState.isSpinning ? " top-bar__sync-icon--spinning" : ""}`}
-              />
-            )}
-          </button>
+          {hasWorkspace ? (
+            <button
+              aria-label="Sync now"
+              className={`top-bar__sync-status-action${syncControlState.variant === "offline" ? " top-bar__sync-status-action--offline" : ""}${syncControlState.variant === "error" ? " top-bar__sync-status-action--error" : ""}`}
+              disabled={syncControlState.isDisabled}
+              onClick={() => {
+                void handleSyncNow();
+              }}
+              type="button"
+            >
+              <span className="top-bar__sync-status-label">{syncControlState.label}</span>
+              {syncControlState.icon === "alert" ? (
+                <CircleAlert aria-hidden="true" className="top-bar__sync-icon" />
+              ) : syncControlState.icon === "offline" ? (
+                <GlobeOff aria-hidden="true" className="top-bar__sync-icon" />
+              ) : (
+                <RefreshCw
+                  aria-hidden="true"
+                  className={`top-bar__sync-icon${syncControlState.isSpinning ? " top-bar__sync-icon--spinning" : ""}`}
+                />
+              )}
+            </button>
+          ) : null}
           <button
             aria-label={isRightPanelOpen ? "Collapse right panel" : "Open right panel"}
             className="top-bar__icon-action"
@@ -1118,7 +1130,7 @@ function EditorPane({
 }
 
 type SyncControlIcon = "alert" | "offline" | "refresh";
-type SyncControlVariant = "error" | "normal" | "offline" | "syncing";
+type SyncControlVariant = "error" | "normal" | "offline" | "pending" | "syncing";
 
 interface SyncControlState {
   icon: SyncControlIcon;
@@ -1132,18 +1144,18 @@ function getSyncControlState({
   hasWorkspace,
   isOnline,
   isSyncingNow,
-  hasUncommittedChanges,
+  hasPendingChanges,
   lastSyncedAt,
   hasSyncError,
 }: {
   hasWorkspace: boolean;
   isOnline: boolean;
   isSyncingNow: boolean;
-  hasUncommittedChanges: boolean;
+  hasPendingChanges: boolean;
   lastSyncedAt: string | null;
   hasSyncError: boolean;
 }): SyncControlState {
-  const isDisabled = !hasWorkspace || isSyncingNow || !hasUncommittedChanges;
+  const isDisabled = !hasWorkspace || !isOnline || isSyncingNow || !hasPendingChanges;
 
   if (!hasWorkspace) {
     return {
@@ -1184,6 +1196,16 @@ function getSyncControlState({
       isSpinning: false,
       label: "Sync paused",
       variant: "error",
+    };
+  }
+
+  if (hasPendingChanges) {
+    return {
+      icon: "refresh",
+      isDisabled: false,
+      isSpinning: false,
+      label: "Changes pending",
+      variant: "pending",
     };
   }
 
