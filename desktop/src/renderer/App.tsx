@@ -524,12 +524,20 @@ export function App() {
 
     try {
       setIsSyncingNow(true);
+      console.info("[mohio-sync-debug] renderer syncNow:start", {
+        hasDirtyEditor: editor.isDirty,
+        workspacePath: workspace.path,
+      });
       await editor.saveNow().catch(() => undefined);
-      await window.mohio.syncWorkspaceChanges();
+      console.info("[mohio-sync-debug] renderer syncNow:after-save");
+      const result = await window.mohio.syncWorkspaceChanges();
+      console.info("[mohio-sync-debug] renderer syncNow:result", result);
       setSyncNowError(null);
       await refreshSyncState();
       await refreshAutoSyncStatus();
+      console.info("[mohio-sync-debug] renderer syncNow:status-refreshed");
     } catch {
+      console.info("[mohio-sync-debug] renderer syncNow:error");
       setSyncNowError("Mohio could not sync your workspace changes.");
     } finally {
       setIsSyncingNow(false);

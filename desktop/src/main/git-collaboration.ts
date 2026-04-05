@@ -31,7 +31,6 @@ const defaultSyncState: SyncState = {
 };
 
 export function createGitCollaborationService() {
-  const lastCommittedFingerprintByWorkspace = new Map<string, string>();
   const syncStateByWorkspace = new Map<string, SyncState>();
 
   const getSyncState = async (workspacePath: string): Promise<SyncState> => {
@@ -174,32 +173,59 @@ export function createGitCollaborationService() {
       minLineDelta: number;
       syncBeforeCommit?: boolean;
       autoPush?: boolean;
+      debugContext?: string;
     },
   ): Promise<boolean> => {
+    const context = options.debugContext ?? "write-commit";
+    debugSyncLog("writeCommit:start", {
+      autoPush: options.autoPush !== false,
+      context,
+      force: Boolean(options.force),
+      minLineDelta: options.minLineDelta,
+      syncBeforeCommit: options.syncBeforeCommit !== false,
+      workspacePath,
+    });
+
     if (options.syncBeforeCommit !== false) {
       const syncState = await syncIncomingChanges(workspacePath, "before-commit");
       if (syncState.status === "conflict" || syncState.status === "error") {
+        debugSyncLog("writeCommit:blocked-by-sync-state", {
+          context,
+          status: syncState.status,
+          syncMessage: syncState.message,
+          workspacePath,
+        });
         return false;
       }
     }
 
     const material = await getMaterialChanges(workspacePath);
     if (!material.hasChanges) {
-      return false;
-    }
-
-    const previousFingerprint = lastCommittedFingerprintByWorkspace.get(workspacePath);
-    if (previousFingerprint && previousFingerprint === material.fingerprint) {
+      debugSyncLog("writeCommit:skip-no-material", { context, workspacePath });
       return false;
     }
 
     if (!options.force && material.lineDelta < options.minLineDelta) {
+      debugSyncLog("writeCommit:skip-below-threshold", {
+        context,
+        lineDelta: material.lineDelta,
+        minLineDelta: options.minLineDelta,
+        workspacePath,
+      });
       return false;
     }
 
     if (material.changedPaths.length === 0) {
+      debugSyncLog("writeCommit:skip-empty-changed-paths", { context, workspacePath });
       return false;
     }
+
+    debugSyncLog("writeCommit:material-ready", {
+      changedPaths: material.changedPaths,
+      context,
+      lineDelta: material.lineDelta,
+      workspacePath,
+    });
 
     await runGit(workspacePath, ["add", "-A", "--", ...material.changedPaths]);
     const stagedResult = await runGit(
@@ -209,6 +235,12 @@ export function createGitCollaborationService() {
     );
 
     if (stagedResult.code !== 0 || !stagedResult.stdout.trim()) {
+      debugSyncLog("writeCommit:skip-no-staged-diff", {
+        context,
+        stagedCode: stagedResult.code,
+        stagedStdout: stagedResult.stdout.trim(),
+        workspacePath,
+      });
       return false;
     }
 
@@ -220,12 +252,22 @@ export function createGitCollaborationService() {
       "--",
       ...material.changedPaths,
     ]);
-    lastCommittedFingerprintByWorkspace.set(workspacePath, material.fingerprint);
+    debugSyncLog("writeCommit:committed", {
+      changedPaths: material.changedPaths,
+      context,
+      workspacePath,
+    });
 
     if (options.autoPush !== false) {
       try {
-        await pushWorkspace(workspacePath);
+        const pushed = await pushWorkspace(workspacePath);
+        debugSyncLog("writeCommit:auto-push-result", {
+          context,
+          pushed,
+          workspacePath,
+        });
       } catch {
+        debugSyncLog("writeCommit:auto-push-error", { context, workspacePath });
         // Keep commits durable even when sharing is temporarily unavailable.
       }
     }
@@ -258,13 +300,18 @@ export function createGitCollaborationService() {
 
   const syncWorkspaceChanges = async (workspacePath: string): Promise<SyncWorkspaceResult> => {
     await ensureGitWorkspace(workspacePath);
+    debugSyncLog("manualSync:start", { workspacePath });
+
     const committed = await writeCommit(workspacePath, {
       force: true,
       minLineDelta: 0,
       autoPush: false,
+      debugContext: "manual-sync",
     });
+    debugSyncLog("manualSync:after-write-commit", { committed, workspacePath });
 
     const pushed = await pushWorkspace(workspacePath);
+    debugSyncLog("manualSync:after-push", { pushed, workspacePath });
     if (!pushed) {
       return {
         committed,
@@ -312,6 +359,7 @@ export function createGitCollaborationService() {
 
   const syncIncomingChanges = async (workspacePath: string, reason: string): Promise<SyncState> => {
     await ensureGitWorkspace(workspacePath);
+    debugSyncLog("syncIncoming:start", { reason, workspacePath });
     const checkedAt = new Date().toISOString();
     syncStateByWorkspace.set(workspacePath, {
       ...defaultSyncState,
@@ -330,6 +378,7 @@ export function createGitCollaborationService() {
         message: "No shared upstream is configured for this workspace branch yet.",
       };
       syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:no-upstream", { reason, workspacePath });
       return state;
     }
 
@@ -346,6 +395,11 @@ export function createGitCollaborationService() {
         message: "Workspace is already up to date.",
       };
       syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:up-to-date", {
+        behindCount: Number.isFinite(behindCount) ? behindCount : null,
+        reason,
+        workspacePath,
+      });
       return state;
     }
 
@@ -382,6 +436,11 @@ export function createGitCollaborationService() {
         message: "Incoming updates were applied successfully.",
       };
       syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:merged", {
+        behindCount,
+        reason,
+        workspacePath,
+      });
       return state;
     }
 
@@ -395,6 +454,11 @@ export function createGitCollaborationService() {
         conflicts,
       };
       syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:conflict", {
+        conflictCount: conflicts.length,
+        reason,
+        workspacePath,
+      });
       return state;
     }
 
@@ -405,6 +469,11 @@ export function createGitCollaborationService() {
       message: mergeResult.stderr.trim() || "Mohio could not apply incoming updates.",
     };
     syncStateByWorkspace.set(workspacePath, state);
+    debugSyncLog("syncIncoming:error", {
+      reason,
+      stderr: mergeResult.stderr.trim(),
+      workspacePath,
+    });
     return state;
   };
 
@@ -531,15 +600,14 @@ async function ensureGitWorkspace(workspacePath: string): Promise<void> {
 
 async function getMaterialChanges(
   workspacePath: string,
-): Promise<{ hasChanges: boolean; lineDelta: number; fingerprint: string; changedPaths: string[] }> {
+): Promise<{ hasChanges: boolean; lineDelta: number; changedPaths: string[] }> {
   const status = await runGit(workspacePath, ["status", "--porcelain", "-z", "--", ...MARKDOWN_PATHS]);
-  const fingerprint = status.stdout.trim();
+  const statusOutput = status.stdout.trim();
 
-  if (!fingerprint) {
+  if (!statusOutput) {
     return {
       hasChanges: false,
       lineDelta: 0,
-      fingerprint: "",
       changedPaths: [],
     };
   }
@@ -582,7 +650,6 @@ async function getMaterialChanges(
   return {
     hasChanges: true,
     lineDelta,
-    fingerprint,
     changedPaths: Array.from(new Set(changedPaths)),
   };
 }
@@ -596,20 +663,36 @@ async function getAheadCommitCount(workspacePath: string, upstream: string): Pro
 
 async function pushWorkspace(workspacePath: string): Promise<boolean> {
   const upstream = await getUpstreamBranch(workspacePath);
+  debugSyncLog("pushWorkspace:start", { upstream, workspacePath });
+
   if (upstream) {
     const aheadCount = await getAheadCommitCount(workspacePath, upstream);
+    debugSyncLog("pushWorkspace:upstream-status", {
+      aheadCount,
+      upstream,
+      workspacePath,
+    });
+
     if (aheadCount === 0) {
+      debugSyncLog("pushWorkspace:skip-not-ahead", { upstream, workspacePath });
       return false;
     }
 
     await runGit(workspacePath, ["push"]);
+    debugSyncLog("pushWorkspace:pushed", { upstream, workspacePath });
     return true;
   }
 
   const branchResult = await runGit(workspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]);
   const branchName = branchResult.stdout.trim();
   await runGit(workspacePath, ["push", "-u", "origin", branchName]);
+  debugSyncLog("pushWorkspace:pushed-with-upstream", { branchName, workspacePath });
   return true;
+}
+
+function debugSyncLog(event: string, details: Record<string, unknown>): void {
+  const timestamp = new Date().toISOString();
+  console.info(`[mohio-sync-debug] ${timestamp} ${event}`, details);
 }
 
 function createSnapshotCommitMessage(): string {

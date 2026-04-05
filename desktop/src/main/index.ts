@@ -311,7 +311,11 @@ function registerMohioHandlers() {
       throw new Error("Open a folder before syncing.");
     }
 
+    console.info("[mohio-sync-debug] ipc syncWorkspaceChanges:start", {
+      workspacePath: currentWorkspacePath,
+    });
     const result = await gitCollaboration.syncWorkspaceChanges(currentWorkspacePath);
+    console.info("[mohio-sync-debug] ipc syncWorkspaceChanges:result", result);
     const workspace = await loadCurrentWorkspace();
     broadcastWorkspaceChange(workspace);
     return result;
@@ -321,7 +325,9 @@ function registerMohioHandlers() {
       throw new Error("Open a folder before loading sync status.");
     }
 
-    return gitCollaboration.getAutoSyncStatus(currentWorkspacePath);
+    const status = await gitCollaboration.getAutoSyncStatus(currentWorkspacePath);
+    console.info("[mohio-sync-debug] ipc getAutoSyncStatus:result", status);
+    return status;
   });
   ipcMain.handle(MOHIO_CHANNELS.syncIncomingChanges, async (_event, reason: string) => {
     if (!currentWorkspacePath) {
