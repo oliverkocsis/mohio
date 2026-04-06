@@ -24,42 +24,14 @@ Planned focus areas:
 - snapshots and visible history for page-level changes
 - explicit publish flow for shared updates
 
-### Automatic Sharing & Versioning
-
-**Objective:** Simplify the commit messaging system, automate workspace syncing, and refine the layout to keep the interface as clean and non-technical as possible.
-
-#### 1. Updated Commit Heuristics (The "Pulse")
-Trigger a Git commit on the following events. **Every single commit** will use the exact same message schema: `Snapshot: [ISO-Date]`.
-
-* **Idle Pulse:** After **3 minutes** of inactivity following a change.
-* **Context Switch:** Immediately when the user switches to a different document.
-* **Assistant Dispatch:** Immediately before a message is sent to the AI assistant (to ensure the AI has the latest context).
-* **Safety Guard:** Immediately before Rename, Delete, or merging incoming changes.
-* **Lifecycle Guard:** Immediately when the app loses focus and immediately before app exit.
-
-#### 2. Fully Automated "Publishing" (Sharing)
-The concept of "Unpublished" files is removed. Sharing is now a background process linked directly to the heuristics.
-* **Auto-Sync:** Every time a commit is created by the heuristics above, Mohio will automatically push the changes to the Git remote.
-* **Left Sidebar:** Remove the `Unpublished` documents tab entirely. The file tree should just be a clean list of the team's documents.
-* **Right Sidebar:**  **UI Copy Change:** Rename the right sidebar's `History` tab to `Versions`.
-* **Manual Sync Control Placement:** Place the manual `Sync` status control at the top right of the application layout. It should be aligned to the **right of the main panel**, sitting immediately to the **left of the icon used to hide the right panel**. Even though syncing is automatic, users should be able to force an immediate push if they are about to close their laptop or need someone to see a change *right now*.
-
-#### Definition of Done
-- [x] All Git commits use the uniform `Snapshot: [ISO-Date]` format.
-- [x] Commits are triggered before sending messages to the assistant.
-- [x] The `Unpublished` view is removed from the left sidebar.
-- [x] Commits automatically trigger a `git push` in the background.
-- [x] The manual sync control is correctly positioned to the left of the "Hide Right Panel" icon.
-- [x] The right sidebar tab is labeled `Versions`.
-
-
 ### Git v2
-- Create a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
-- When the user clicks `Sync` and there is no remote git repo, prompt the user to connect a remote git repository (GitHub, GitLab, Bitbucket, or custom).
-- The user can decide to login with their github ceredentials and select a repository to connect to, or they can choose to create a new private repository for the workspace.
-- The user can open a remote git repository directly from the start screen and choose to connect it to the workspace.
+- The user can open a remote git repository directly from the start screen and choose to connect it to the workspace. The user can login with their github ceredentials. 
+- When the user clicks `Sync` and there is no remote git repo, prompt the user to connect a remote git repository (GitHub).
+- The user can login with their github ceredentials then decide to  and select a repository to connect to, or they can choose to create a new private repository for the workspace.
+- when the user opens a simple folder init a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
+- what if the user has no git installed? is there a way to bundle a minimal git client with the app? if not, we need to detect this and prompt the user to install git before they can connect a remote repository.
 
-### Semantic Summaries (The "Secret Sauce")
+### Phase: Semantic Summaries (The "Secret Sauce")
 Since you have a "technical" person, use a small LLM call (or a simple regex) to look at the diff before committing. Instead of auto-save, use a summary:
 - If 1 line changed: Update (Small edit)
 - If 20+ lines changed: Update (Major revision)
