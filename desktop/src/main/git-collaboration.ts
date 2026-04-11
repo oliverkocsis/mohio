@@ -30,6 +30,8 @@ const legacyCheckpointCleanupDone = new Set<string>();
 const defaultSyncState: SyncState = {
   status: "synced",
   lastSyncedAt: null,
+  incomingCommitCount: 0,
+  outgoingCommitCount: 0,
   message: null,
 };
 
@@ -411,10 +413,25 @@ export function createGitCollaborationService() {
     const committed = await writeCommit(workspacePath, {
       force: true,
       minLineDelta: 0,
+      syncBeforeCommit: false,
       autoPush: false,
       debugContext: "manual-sync",
     });
     debugSyncLog("manualSync:after-write-commit", { committed, workspacePath });
+
+    const incomingState = await syncIncomingChanges(workspacePath, "manual-sync");
+    if (incomingState.status === "local-changes") {
+      return {
+        committed: false,
+        commitSha: null,
+        syncedAt: null,
+        message: incomingState.message ?? "Incoming updates need your attention before syncing.",
+        remoteConnected: workspaceStatus.remoteConnected,
+        requiresRemoteConnect: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
+      };
+    }
 
     if (!workspaceStatus.remoteConnected) {
       return {
@@ -467,6 +484,8 @@ export function createGitCollaborationService() {
         enabled: false,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: null,
         remoteConnected: false,
         requiresIdentitySetup: false,
@@ -479,6 +498,8 @@ export function createGitCollaborationService() {
         enabled: false,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: null,
         remoteConnected: workspaceStatus.remoteConnected,
         requiresIdentitySetup: true,
@@ -493,9 +514,15 @@ export function createGitCollaborationService() {
     const hasUncommittedChanges = status.code === 0 && statusOutput.length > 0;
     const changedFileCount = hasUncommittedChanges ? statusOutput.split('\n').filter(line => line.trim().length > 0).length : 0;
     const upstream = await getUpstreamBranch(workspacePath);
+    let incomingCommitCount = 0;
+    let outgoingCommitCount = 0;
     let lastSyncedAt: string | null = null;
 
     if (upstream) {
+      const aheadBehind = await getAheadBehindCounts(workspacePath, upstream);
+      incomingCommitCount = aheadBehind.behindCount;
+      outgoingCommitCount = aheadBehind.aheadCount;
+
       const lastSyncedResult = await runGit(workspacePath, ["log", "-1", "--format=%cI", upstream], {
         allowFailure: true,
       });
@@ -508,6 +535,8 @@ export function createGitCollaborationService() {
       enabled: true,
       hasUncommittedChanges,
       changedFileCount,
+      incomingCommitCount,
+      outgoingCommitCount,
       lastSyncedAt,
       remoteConnected: workspaceStatus.remoteConnected,
       requiresIdentitySetup: false,
@@ -540,6 +569,29 @@ export function createGitCollaborationService() {
     }
 
     debugSyncLog("syncIncoming:start", { reason, workspacePath });
+
+    const mergeInProgress = await hasMergeInProgress(workspacePath);
+    if (mergeInProgress) {
+      const conflicts = await readMergeConflicts(workspacePath);
+      const counts = await getSyncDirectionCounts(workspacePath);
+      const state: SyncState = {
+        ...defaultSyncState,
+        status: "local-changes",
+        incomingCommitCount: counts.incomingCommitCount,
+        outgoingCommitCount: counts.outgoingCommitCount,
+        message: conflicts.length > 0
+          ? `Merge is still in progress. Resolve ${conflicts.length} conflict file(s) first.`
+          : "Merge is still in progress. Finish or abort the merge before syncing.",
+      };
+      syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:merge-in-progress", {
+        conflictCount: conflicts.length,
+        reason,
+        workspacePath,
+      });
+      return state;
+    }
+
     syncStateByWorkspace.set(workspacePath, {
       ...defaultSyncState,
       status: "syncing",
@@ -553,6 +605,8 @@ export function createGitCollaborationService() {
         ...defaultSyncState,
         status: "synced",
         lastSyncedAt: new Date().toISOString(),
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         message: "No shared upstream is configured for this workspace branch yet.",
       };
       syncStateByWorkspace.set(workspacePath, state);
@@ -561,20 +615,40 @@ export function createGitCollaborationService() {
     }
 
     await runGit(workspacePath, ["fetch"]);
-    const aheadBehind = await runGit(workspacePath, ["rev-list", "--left-right", "--count", `HEAD...${upstream}`]);
-    const [, behindRaw] = aheadBehind.stdout.trim().split(/\s+/);
-    const behindCount = Number.parseInt(behindRaw ?? "0", 10);
+    const { aheadCount, behindCount } = await getAheadBehindCounts(workspacePath, upstream);
 
     if (!Number.isFinite(behindCount) || behindCount === 0) {
       const state: SyncState = {
         ...defaultSyncState,
         status: "synced",
         lastSyncedAt: new Date().toISOString(),
-        message: "Workspace is already up to date.",
+        incomingCommitCount: 0,
+        outgoingCommitCount: aheadCount,
+        message: `Incoming 0, outgoing ${aheadCount}. Workspace is up to date.`,
       };
       syncStateByWorkspace.set(workspacePath, state);
       debugSyncLog("syncIncoming:up-to-date", {
+        aheadCount,
         behindCount: Number.isFinite(behindCount) ? behindCount : null,
+        reason,
+        workspacePath,
+      });
+      return state;
+    }
+
+    const isWorkingTreeClean = await isWorkingTreeCleanForSync(workspacePath);
+    if (!isWorkingTreeClean) {
+      const state: SyncState = {
+        ...defaultSyncState,
+        status: "local-changes",
+        incomingCommitCount: behindCount,
+        outgoingCommitCount: aheadCount,
+        message: `Incoming ${behindCount}, outgoing ${aheadCount}. Local changes detected, fetched only. Use Sync to commit and merge.`,
+      };
+      syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:dirty-working-tree-fetch-only", {
+        aheadCount,
+        behindCount,
         reason,
         workspacePath,
       });
@@ -592,12 +666,32 @@ export function createGitCollaborationService() {
     });
 
     if (mergeResult.code === 0) {
+      const finalizedMerge = await finalizePendingMergeCommit(workspacePath, "incoming-sync");
+
+      if (!finalizedMerge) {
+        const state: SyncState = {
+          ...defaultSyncState,
+          status: "local-changes",
+          incomingCommitCount: behindCount,
+          outgoingCommitCount: aheadCount,
+          message: "Incoming updates were merged but Mohio could not finalize the merge commit.",
+        };
+        syncStateByWorkspace.set(workspacePath, state);
+        debugSyncLog("syncIncoming:merge-finalize-failed", {
+          reason,
+          workspacePath,
+        });
+        return state;
+      }
+
       const appliedAt = new Date().toISOString();
       const state: SyncState = {
         ...defaultSyncState,
         status: "synced",
         lastSyncedAt: appliedAt,
-        message: "Incoming updates were applied successfully.",
+        incomingCommitCount: 0,
+        outgoingCommitCount: aheadCount + 1,
+        message: `Incoming updates were applied successfully. Incoming 0, outgoing ${aheadCount + 1}.`,
       };
       syncStateByWorkspace.set(workspacePath, state);
       debugSyncLog("syncIncoming:merged", {
@@ -613,6 +707,8 @@ export function createGitCollaborationService() {
       const state: SyncState = {
         ...defaultSyncState,
         status: "local-changes",
+        incomingCommitCount: behindCount,
+        outgoingCommitCount: aheadCount,
         message: `Merge conflict detected. ${conflicts.length} file(s) to resolve.`,
       };
       syncStateByWorkspace.set(workspacePath, state);
@@ -627,6 +723,8 @@ export function createGitCollaborationService() {
     const state: SyncState = {
       ...defaultSyncState,
       status: "local-changes",
+      incomingCommitCount: behindCount,
+      outgoingCommitCount: aheadCount,
       message: mergeResult.stderr.trim() || "Mohio could not apply incoming updates.",
     };
     syncStateByWorkspace.set(workspacePath, state);
@@ -677,11 +775,23 @@ export function createGitCollaborationService() {
       return state;
     }
 
+    const finalizedMerge = await finalizePendingMergeCommit(workspacePath, "conflict-resolution");
+
+    if (!finalizedMerge) {
+      const state: SyncState = {
+        ...defaultSyncState,
+        status: "local-changes",
+        message: "Conflicts were staged, but Mohio could not finalize the merge commit.",
+      };
+      syncStateByWorkspace.set(workspacePath, state);
+      return state;
+    }
+
     const resolvedState: SyncState = {
       ...defaultSyncState,
       status: "synced",
       lastSyncedAt: new Date().toISOString(),
-      message: "Incoming updates are resolved locally. Use Sync now to commit and push.",
+      message: "Incoming updates were resolved and merged. Use Sync now to push.",
     };
     syncStateByWorkspace.set(workspacePath, resolvedState);
     return resolvedState;
@@ -762,10 +872,84 @@ async function getMaterialChanges(
 }
 
 async function getAheadCommitCount(workspacePath: string, upstream: string): Promise<number> {
+  const counts = await getAheadBehindCounts(workspacePath, upstream);
+  return counts.aheadCount;
+}
+
+async function getAheadBehindCounts(
+  workspacePath: string,
+  upstream: string,
+): Promise<{ aheadCount: number; behindCount: number }> {
   const aheadBehind = await runGit(workspacePath, ["rev-list", "--left-right", "--count", `HEAD...${upstream}`]);
-  const [aheadRaw] = aheadBehind.stdout.trim().split(/\s+/);
+  const [aheadRaw, behindRaw] = aheadBehind.stdout.trim().split(/\s+/);
   const aheadCount = Number.parseInt(aheadRaw ?? "0", 10);
-  return Number.isFinite(aheadCount) ? aheadCount : 0;
+  const behindCount = Number.parseInt(behindRaw ?? "0", 10);
+
+  return {
+    aheadCount: Number.isFinite(aheadCount) ? aheadCount : 0,
+    behindCount: Number.isFinite(behindCount) ? behindCount : 0,
+  };
+}
+
+async function getSyncDirectionCounts(
+  workspacePath: string,
+): Promise<{ incomingCommitCount: number; outgoingCommitCount: number }> {
+  const upstream = await getUpstreamBranch(workspacePath);
+
+  if (!upstream) {
+    return {
+      incomingCommitCount: 0,
+      outgoingCommitCount: 0,
+    };
+  }
+
+  const counts = await getAheadBehindCounts(workspacePath, upstream);
+  return {
+    incomingCommitCount: counts.behindCount,
+    outgoingCommitCount: counts.aheadCount,
+  };
+}
+
+async function isWorkingTreeCleanForSync(workspacePath: string): Promise<boolean> {
+  const status = await runGit(workspacePath, ["status", "--porcelain"], {
+    allowFailure: true,
+  });
+
+  return status.code === 0 && status.stdout.trim().length === 0;
+}
+
+async function hasMergeInProgress(workspacePath: string): Promise<boolean> {
+  const mergeHead = await runGit(workspacePath, ["rev-parse", "-q", "--verify", "MERGE_HEAD"], {
+    allowFailure: true,
+  });
+
+  return mergeHead.code === 0;
+}
+
+async function finalizePendingMergeCommit(workspacePath: string, context: string): Promise<boolean> {
+  const mergeInProgress = await hasMergeInProgress(workspacePath);
+
+  if (!mergeInProgress) {
+    return true;
+  }
+
+  const commitResult = await runGit(
+    workspacePath,
+    ["commit", "-m", createMergeCommitMessage(), "--no-edit"],
+    { allowFailure: true },
+  );
+
+  if (commitResult.code === 0) {
+    debugSyncLog("merge:finalized", { context, workspacePath });
+    return true;
+  }
+
+  debugSyncLog("merge:finalize-failed", {
+    context,
+    stderr: commitResult.stderr.trim(),
+    workspacePath,
+  });
+  return false;
 }
 
 async function pushWorkspace(workspacePath: string): Promise<boolean> {
@@ -815,6 +999,10 @@ function debugSyncLog(event: string, details: Record<string, unknown>): void {
 
 function createSnapshotCommitMessage(): string {
   return `Snapshot: ${new Date().toISOString()}`;
+}
+
+function createMergeCommitMessage(): string {
+  return `Merge incoming updates: ${new Date().toISOString()}`;
 }
 
 function isShortStatLine(line: string): boolean {

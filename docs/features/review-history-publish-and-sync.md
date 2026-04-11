@@ -64,8 +64,8 @@ The top bar includes an explicit `Sync` status action (to the left of the right-
 When the sync status action is clicked:
 
 1. Mohio saves the active editor draft
-2. Mohio performs incoming fetch/merge preflight
-3. Mohio attempts a snapshot commit with `Snapshot: <ISO date-time>`
+2. Mohio attempts a snapshot commit with `Snapshot: <ISO date-time>`
+3. Mohio performs incoming fetch/merge using merge commits (no rebase)
 4. If no remote is connected, Mohio returns `requiresRemoteConnect` and opens the remote-URL connect flow
 5. If identity is missing, Mohio returns `requiresIdentitySetup` and blocks commit/sync
 6. Mohio pushes local commits when an upstream is configured
@@ -73,8 +73,7 @@ When the sync status action is clicked:
 
 Top-bar status states:
 
-- `Synced <relative time>` with green dot + cloud-check icon
-- `N local changes` with amber dot + cloud-upload icon
+- `Remote Changes <count> · Local Changes <count>` with icon + dot state
 - `Pulling updates...` with blue dot + cloud-download icon
 - `Syncing...` with blue dot + spinning refresh icon
 - `Offline (last synced <relative time>)` with gray dot + refresh icon
@@ -101,7 +100,9 @@ Incoming sync checks run:
 
 ### Safe Apply Path
 
-When incoming commits exist and merge cleanly, Mohio merges incoming updates and updates sync state without creating any automatic commit.
+When incoming commits exist and merge cleanly, Mohio merges incoming updates and updates sync state without creating any automatic publish commit.
+
+When local uncommitted changes exist, incoming sync degrades to fetch-only and reports divergence counts. Local files are not touched until explicit manual sync.
 
 ### Overlap Path
 

@@ -140,6 +140,8 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
       enabled: true,
       hasUncommittedChanges: false,
       changedFileCount: 0,
+      incomingCommitCount: 0,
+      outgoingCommitCount: 0,
       lastSyncedAt: null,
       remoteConnected: false,
       requiresIdentitySetup: false,
@@ -448,6 +450,8 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: true,
         changedFileCount: 1,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -496,6 +500,8 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: true,
         changedFileCount: 1,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: null,
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -534,6 +540,8 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: "2026-04-04T11:56:01.000Z",
         remoteConnected: false,
         requiresIdentitySetup: false,
@@ -654,6 +662,8 @@ describe("App", () => {
         enabled: false,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: null,
         remoteConnected: false,
         requiresIdentitySetup: true,
@@ -681,6 +691,8 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -703,6 +715,8 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -721,7 +735,7 @@ describe("App", () => {
       });
     });
 
-    expect(screen.getByText("1 local change")).toBeInTheDocument();
+    expect(screen.getByText("Remote Changes 0 · Local Changes 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sync now" })).toBeEnabled();
   });
 
@@ -754,6 +768,8 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         changedFileCount: 0,
+        incomingCommitCount: 0,
+        outgoingCommitCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -798,6 +814,8 @@ describe("App", () => {
           enabled: true,
           hasUncommittedChanges: false,
           changedFileCount: 0,
+          incomingCommitCount: 0,
+          outgoingCommitCount: 0,
           lastSyncedAt: "2026-04-04T11:56:01.000Z",
           remoteConnected: true,
           requiresIdentitySetup: false,
@@ -809,7 +827,7 @@ describe("App", () => {
 
       await screen.findByTestId("workspace-sidebar");
 
-      expect(screen.getByText("Synced 3 minutes ago")).toBeInTheDocument();
+      expect(screen.getByText("Remote Changes 0 · Local Changes 0")).toBeInTheDocument();
     } finally {
       dateNowSpy.mockRestore();
     }
@@ -827,6 +845,8 @@ describe("App", () => {
           enabled: true,
           hasUncommittedChanges: false,
           changedFileCount: 0,
+          incomingCommitCount: 0,
+          outgoingCommitCount: 0,
           lastSyncedAt: "2026-04-04T11:56:01.000Z",
           remoteConnected: true,
           requiresIdentitySetup: false,
