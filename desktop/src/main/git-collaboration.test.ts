@@ -134,14 +134,13 @@ describe("git-collaboration", () => {
     const remotePath = await mkdtemp(path.join(os.tmpdir(), "mohio-sync-remote-"));
     tempDirectories.push(remotePath);
 
-    runGit(repoA, ["init", "--bare", remotePath], repoA);
+    runGit(remotePath, ["init", "--bare"]);
     runGit(repoA, ["remote", "add", "origin", remotePath]);
-    runGit(repoA, ["branch", "-M", "main"]);
-    runGit(repoA, ["push", "-u", "origin", "main"]);
+    runGit(repoA, ["push", "-u", "origin", "master"]);
 
     const repoB = await mkdtemp(path.join(os.tmpdir(), "mohio-sync-b-"));
     tempDirectories.push(repoB);
-    runGit(repoA, ["clone", remotePath, repoB], repoA);
+    execFileSync("git", ["clone", remotePath, "."], { cwd: repoB, encoding: "utf8" });
     runGit(repoB, ["config", "user.name", "Mohio Test"]);
     runGit(repoB, ["config", "user.email", "mohio@example.com"]);
 
