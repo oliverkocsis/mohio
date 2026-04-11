@@ -4,6 +4,7 @@ This section is developer-facing. It records Mohio's shipped changes, their cont
 
 ## Current Entries
 
+- [2026-04-11: Manual-Only Publish Sync with Improved Status UI](feature-20260411-replace-auto-sync-with-manual-push-and-status-ui.md)
 - [2026-04-06: Git v2 Remote URL Connect and Workspace Git Bootstrap](feature-20260406-git-v2-github-remote-connect.md)
 - [2026-03-31: Navigation and Discovery](feature-20260331-navigation-and-discovery.md)
 - [2026-03-28: Git-Backed Collaboration Workflow](feature-20260328-git-backed-collaboration-workflow.md)
