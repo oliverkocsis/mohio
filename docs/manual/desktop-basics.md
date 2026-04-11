@@ -91,12 +91,12 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 
 - Use the top-bar sync status control (left of the right-panel toggle) when you want to commit and push local changes.
 - Automatic background sync is incoming-only (fetch/pull/merge) and does not commit or push.
+- If local uncommitted changes exist, automatic incoming sync fetches only and waits for manual `Sync now` before touching local files.
 - If no remote is connected, Sync prompts you to connect a remote URL.
 - If workspace Git identity is missing, Mohio asks for name and email before sync can continue.
 - If Git is not installed, Mohio prompts you to install Git before connect/sync actions.
 - Status labels:
-  - `Synced <relative time>`
-  - `N local changes`
+  - `Remote Changes <count> · Local Changes <count>`
   - `Pulling updates...`
   - `Syncing...`
   - `Offline (last synced <relative time>)`
