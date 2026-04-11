@@ -24,12 +24,8 @@ Planned focus areas:
 - snapshots and visible history for page-level changes
 - explicit publish flow for shared updates
 
-### Git v2
-- The user can open a remote git repository directly from the start screen and choose to connect it to the workspace. The user can login with their github ceredentials. 
-- When the user clicks `Sync` and there is no remote git repo, prompt the user to connect a remote git repository (GitHub).
-- The user can login with their github ceredentials then decide to  and select a repository to connect to, or they can choose to create a new private repository for the workspace.
-- when the user opens a simple folder init a git repository in the background for each workspace to track changes and support collaboration (users should not need to interact with Git directly).
-- what if the user has no git installed? is there a way to bundle a minimal git client with the app? if not, we need to detect this and prompt the user to install git before they can connect a remote repository.
+### Phase: Elegant Them
+- Use a serif font and a light yellow backgriund to evoke the feeling of a physical notebook.
 
 ### Phase: Semantic Summaries (The "Secret Sauce")
 Since you have a "technical" person, use a small LLM call (or a simple regex) to look at the diff before committing. Instead of auto-save, use a summary:

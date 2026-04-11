@@ -17,10 +17,28 @@ You can open a workspace in either of these ways:
 - Use the shortcut `CmdOrCtrl+O`
 
 After you choose a folder, Mohio shows its Markdown documents in the left sidebar.
+If Git is available and the folder is not already a repository, Mohio initializes Git in the background.
 
-When no workspace is open, the main empty-state button is labeled `Open Folder`.
+When no workspace is open, Mohio shows a centered welcome card:
+- `Open a folder as workspace`
+- `Connect to a remote workspace`
+- `Recent workspaces` (up to 5, most recent first), when available
+
+The connect flow replaces card content in place (no separate page). It asks for:
+- `Workspace address`
+- `Save location`
+
+After both fields are filled, Mohio shows the final local path preview and enables `Connect workspace`.
 When a workspace is open, the top-bar quick `New Document` action creates a new document in the currently selected document folder.
 If no document is selected yet, `New Document` creates the file at workspace root.
+
+## Connect a Remote Repository
+
+- Click `Connect to a remote workspace` from the welcome card, or click `Sync` in a workspace with no connected remote.
+- Enter the remote Git URL.
+- For clone flow, choose a destination folder.
+- For existing local workspaces, Mohio only supports connecting to empty remotes.
+- If the selected remote already has commits, Mohio asks you to use the clone flow instead.
 
 ## Browse Documents
 
@@ -74,11 +92,16 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 
 - Sync runs automatically in the background after Mohio creates snapshot commits.
 - Use the top-bar sync status control (left of the right-panel toggle) when you want to force an immediate push.
+- If no remote is connected, Sync prompts you to connect a remote URL.
+- If workspace Git identity is missing, Mohio asks for name and email before sync can continue.
+- If Git is not installed, Mohio prompts you to install Git before connect/sync actions.
 - Status labels:
   - `Synced <relative time>`
   - `Syncing...`
   - `Sync paused`
   - `Offline (last synced <relative time>)`
+  - `Install Git`
+  - `Set Git identity`
 
 ## Versions
 

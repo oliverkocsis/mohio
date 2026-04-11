@@ -38,17 +38,25 @@ Current API surface:
 - `getAppInfo()`
 - `getCurrentWorkspace()`
 - `openWorkspace()`
+- `openWorkspacePath(workspacePath)`
+- `listRecentWorkspaces()`
 - `searchWorkspace(query)`
 - `readDocument(relativePath)`
 - `createDocument({ directoryRelativePath })`
 - `deleteDocument(relativePath)`
 - `saveDocument(input)`
 - `getPublishSummary()`
+- `getGitCapabilityState()`
+- `getWorkspaceGitStatus()`
+- `setWorkspaceGitIdentity(input)`
 - `syncWorkspaceChanges()`
 - `getAutoSyncStatus()`
 - `syncIncomingChanges(reason)`
 - `getSyncState()`
 - `resolveSyncConflict(input)`
+- `connectRemoteRepository(input)`
+- `chooseCloneDestination()`
+- `cloneRemoteRepository(input)`
 - `watchDocument(relativePath | null)`
 - `listAssistantThreads()`
 - `createAssistantThread()`
@@ -64,6 +72,7 @@ Current API surface:
 ## Workspace Enumeration
 
 - A workspace is a local folder selected by the user.
+- If Git is available and the selected folder is not already a repository, Mohio initializes a local Git repository in the background.
 - Indexed document extensions:
   - `.md`
   - `.markdown`
@@ -97,9 +106,15 @@ Current API surface:
 
 ### No Workspace Open
 
-- Left and right sidebars keep tab structure visible without workspace-empty placeholder copy.
-- Center panel shows a single CTA to choose a folder.
-- Search tab remains visible; its input is disabled until a folder is open.
+- Top bar is hidden.
+- Left and right sidebars are not rendered.
+- Center panel shows a fixed-size welcome card with two in-place states:
+  - `Welcome to Mohio` with `Open a folder as workspace` and `Connect to a remote workspace`
+  - `Connect to a workspace` with `Workspace address` and `Save location` fields
+- The welcome state conditionally shows up to 5 recent workspaces (most recent first), persisted in local app storage.
+- Recent entries show folder names only; full paths are exposed via native hover tooltips.
+- Missing recent folders stay visible as muted entries with tooltip `Folder not found`.
+- The connect form reveals a derived destination path preview only after both fields are populated.
 
 ### Workspace With No Markdown Documents
 
@@ -113,6 +128,7 @@ Current API surface:
 - The active row is highlighted in the workspace tree.
 - The top bar keeps quick `New Document`, manual `Sync` status action, and panel visibility controls.
 - The right sidebar supports assistant and versions flows.
+- If repository-local Git identity is missing, the top sync control shows `Set Git identity` and opens a popup for name/email before commit/sync actions continue.
 
 ### Search and Discovery
 
