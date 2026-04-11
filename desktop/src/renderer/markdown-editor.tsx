@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
-import { Compartment, EditorSelection, EditorState, RangeSetBuilder } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, insertTab } from "@codemirror/commands";
 import { insertNewlineContinueMarkup, markdown as markdownLanguage } from "@codemirror/lang-markdown";
 import {
@@ -117,7 +117,7 @@ export function RichTextEditor({
         doc: markdown,
         extensions: [
           history(),
-          keymap.of([
+          Prec.highest(keymap.of([
             {
               key: "Enter",
               run: handleMarkdownEnter,
@@ -126,6 +126,8 @@ export function RichTextEditor({
               key: "Tab",
               run: handleMarkdownTab,
             },
+          ])),
+          keymap.of([
             ...defaultKeymap,
             ...historyKeymap,
           ]),
@@ -1129,8 +1131,9 @@ export function handleMarkdownTab(view: EditorView): boolean {
 }
 
 function handleEmptyMarkupLine(view: EditorView, lineFrom: number, lineTo: number, lineText: string): boolean {
-  const bulletOrOrderedMatch = lineText.match(/^(\s*)((?:[-*+])|(?:\d+\.))\s*$/u);
-  const taskMatch = lineText.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s*$/u);
+  const normalizedLineText = normalizeStructuredLine(lineText);
+  const bulletOrOrderedMatch = normalizedLineText.match(/^(\s*)((?:[-*+])|(?:\d+\.))\s*$/u);
+  const taskMatch = normalizedLineText.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s*$/u);
 
   if (bulletOrOrderedMatch || taskMatch) {
     const leadingWhitespace = (bulletOrOrderedMatch?.[1] ?? taskMatch?.[1] ?? "").replace(/\t/gu, "    ");
@@ -1146,7 +1149,7 @@ function handleEmptyMarkupLine(view: EditorView, lineFrom: number, lineTo: numbe
     return replaceCurrentLine(view, lineFrom, lineTo, "");
   }
 
-  const quoteMatch = lineText.match(/^(\s*)(>+)\s*$/u);
+  const quoteMatch = normalizedLineText.match(/^(\s*)(>+)\s*$/u);
 
   if (!quoteMatch) {
     return false;
@@ -1167,19 +1170,21 @@ function continueStructuredLine(view: EditorView, lineText: string, cursorHead: 
     return false;
   }
 
-  const taskMatch = lineText.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s+/u);
+  const normalizedLineText = normalizeStructuredLine(lineText);
+
+  const taskMatch = normalizedLineText.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s+/u);
 
   if (taskMatch) {
     return insertStructuredPrefix(view, cursorHead, `${taskMatch[1]}${taskMatch[2]} [ ] `);
   }
 
-  const listMatch = lineText.match(/^(\s*)((?:[-*+])|(?:\d+\.))\s+/u);
+  const listMatch = normalizedLineText.match(/^(\s*)((?:[-*+])|(?:\d+\.))\s+/u);
 
   if (listMatch) {
     return insertStructuredPrefix(view, cursorHead, `${listMatch[1]}${listMatch[2]} `);
   }
 
-  const quoteMatch = lineText.match(/^(\s*)(>+)\s+/u);
+  const quoteMatch = normalizedLineText.match(/^(\s*)(>+)\s+/u);
 
   if (quoteMatch) {
     return insertStructuredPrefix(view, cursorHead, `${quoteMatch[1]}${quoteMatch[2]} `);
@@ -1199,6 +1204,12 @@ function insertStructuredPrefix(view: EditorView, cursorHead: number, prefix: st
   });
 
   return true;
+}
+
+function normalizeStructuredLine(lineText: string): string {
+  return lineText
+    .replace(/\u00a0/gu, " ")
+    .replace(/[\u200b\u200c\u200d\ufeff]/gu, "");
 }
 
 function replaceCurrentLine(view: EditorView, lineFrom: number, lineTo: number, text: string): boolean {
