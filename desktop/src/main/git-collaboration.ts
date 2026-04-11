@@ -1,13 +1,18 @@
-import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
 import { resolveWorkspacePath } from "./document-store";
+import {
+  bootstrapWorkspaceGitRepository,
+  getGitCapabilityState,
+  runGit,
+  setWorkspaceGitIdentity,
+} from "./git-runtime";
 import type {
   AutoSyncStatus,
   CommitHistoryEntry,
   DocumentPublishState,
   DocumentPublishStatus,
+  GitCapabilityState,
   PublishSummary,
   RecordRiskyCommitInput,
   ResolveConflictInput,
@@ -15,10 +20,9 @@ import type {
   SyncConflict,
   SyncState,
   UnpublishedDiffResult,
+  WorkspaceGitStatus,
   WorkspaceTreeNode,
 } from "@shared/mohio-types";
-
-const execFileAsync = promisify(execFile);
 const MARKDOWN_PATHS = ["*.md", "*.markdown", "*.mdx"];
 const SYNC_DEBUG_ENABLED = process.env.MOHIO_SYNC_DEBUG === "1";
 const legacyCheckpointCleanupDone = new Set<string>();
@@ -34,8 +38,48 @@ const defaultSyncState: SyncState = {
 export function createGitCollaborationService() {
   const syncStateByWorkspace = new Map<string, SyncState>();
 
+  const bootstrapWorkspace = async (workspacePath: string): Promise<WorkspaceGitStatus> => {
+    const status = await bootstrapWorkspaceGitRepository(workspacePath);
+
+    if (status.gitAvailable && status.isRepository && !legacyCheckpointCleanupDone.has(workspacePath)) {
+      await cleanupLegacyCheckpointArtifacts(workspacePath);
+      legacyCheckpointCleanupDone.add(workspacePath);
+    }
+
+    return status;
+  };
+
+  const getGitCapability = async (): Promise<GitCapabilityState> => {
+    return getGitCapabilityState();
+  };
+
+  const getWorkspaceStatus = async (workspacePath: string): Promise<WorkspaceGitStatus> => {
+    return bootstrapWorkspace(workspacePath);
+  };
+
+  const setWorkspaceIdentity = async (
+    workspacePath: string,
+    input: {
+      email: string;
+      name: string;
+    },
+  ): Promise<WorkspaceGitStatus> => {
+    const status = await setWorkspaceGitIdentity({
+      workspacePath,
+      name: input.name,
+      email: input.email,
+    });
+
+    if (!legacyCheckpointCleanupDone.has(workspacePath)) {
+      await cleanupLegacyCheckpointArtifacts(workspacePath);
+      legacyCheckpointCleanupDone.add(workspacePath);
+    }
+
+    return status;
+  };
+
   const getSyncState = async (workspacePath: string): Promise<SyncState> => {
-    await ensureGitWorkspace(workspacePath);
+    await bootstrapWorkspace(workspacePath);
     return syncStateByWorkspace.get(workspacePath) ?? defaultSyncState;
   };
 
@@ -43,7 +87,11 @@ export function createGitCollaborationService() {
     workspacePath: string,
     input: RecordRiskyCommitInput,
   ): Promise<boolean> => {
-    await ensureGitWorkspace(workspacePath);
+    const status = await bootstrapWorkspace(workspacePath);
+    if (!status.gitAvailable || !status.isRepository || status.requiresIdentitySetup) {
+      return false;
+    }
+
     return writeCommit(workspacePath, {
       force: input.force,
       minLineDelta: 0,
@@ -51,7 +99,11 @@ export function createGitCollaborationService() {
   };
 
   const recordAutoSaveCommit = async (workspacePath: string): Promise<boolean> => {
-    await ensureGitWorkspace(workspacePath);
+    const status = await bootstrapWorkspace(workspacePath);
+    if (!status.gitAvailable || !status.isRepository || status.requiresIdentitySetup) {
+      return false;
+    }
+
     return writeCommit(workspacePath, {
       force: false,
       minLineDelta: 0,
@@ -62,7 +114,11 @@ export function createGitCollaborationService() {
     workspacePath: string,
     relativePath: string | null,
   ): Promise<CommitHistoryEntry[]> => {
-    await ensureGitWorkspace(workspacePath);
+    const status = await bootstrapWorkspace(workspacePath);
+    if (!status.gitAvailable || !status.isRepository) {
+      return [];
+    }
+
     const logArgs = [
       "log",
       "--date=iso-strict",
@@ -128,7 +184,17 @@ export function createGitCollaborationService() {
     workspacePath: string,
     relativePath: string,
   ): Promise<UnpublishedDiffResult> => {
-    await ensureGitWorkspace(workspacePath);
+    const status = await bootstrapWorkspace(workspacePath);
+
+    if (!status.gitAvailable || !status.isRepository) {
+      return {
+        relativePath,
+        hasRemoteVersion: false,
+        patch: "",
+        message: "Install Git to compare local and remote versions.",
+      };
+    }
+
     const upstream = await getUpstreamBranch(workspacePath);
 
     if (!upstream) {
@@ -280,8 +346,23 @@ export function createGitCollaborationService() {
     workspacePath: string,
     workspaceDocuments: WorkspaceTreeNode[],
   ): Promise<PublishSummary> => {
-    await ensureGitWorkspace(workspacePath);
+    const status = await bootstrapWorkspace(workspacePath);
     const markdownPaths = flattenDocumentRelativePaths(workspaceDocuments);
+
+    if (!status.gitAvailable || !status.isRepository) {
+      const documents = markdownPaths.map((relativePath) => ({
+        relativePath,
+        state: "never-published" as const,
+        lastPublishedAt: null,
+      }));
+
+      return {
+        documents,
+        unpublishedCount: documents.length,
+        unpublishedTree: workspaceDocuments,
+      };
+    }
+
     const upstream = await getUpstreamBranch(workspacePath);
     const statuses = await Promise.all(
       markdownPaths.map(async (relativePath) => {
@@ -300,8 +381,47 @@ export function createGitCollaborationService() {
   };
 
   const syncWorkspaceChanges = async (workspacePath: string): Promise<SyncWorkspaceResult> => {
-    await ensureGitWorkspace(workspacePath);
+    const workspaceStatus = await bootstrapWorkspace(workspacePath);
     debugSyncLog("manualSync:start", { workspacePath });
+
+    if (!workspaceStatus.gitAvailable) {
+      return {
+        committed: false,
+        commitSha: null,
+        syncedAt: null,
+        message: "Install Git to enable snapshot history and sync.",
+        remoteConnected: false,
+        requiresRemoteConnect: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: true,
+      };
+    }
+
+    if (!workspaceStatus.isRepository) {
+      return {
+        committed: false,
+        commitSha: null,
+        syncedAt: null,
+        message: "Mohio could not initialize a Git repository for this workspace.",
+        remoteConnected: false,
+        requiresRemoteConnect: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
+      };
+    }
+
+    if (workspaceStatus.requiresIdentitySetup) {
+      return {
+        committed: false,
+        commitSha: null,
+        syncedAt: null,
+        message: "Set a workspace Git identity before syncing.",
+        remoteConnected: workspaceStatus.remoteConnected,
+        requiresRemoteConnect: false,
+        requiresIdentitySetup: true,
+        requiresGitInstall: false,
+      };
+    }
 
     const committed = await writeCommit(workspacePath, {
       force: true,
@@ -311,6 +431,19 @@ export function createGitCollaborationService() {
     });
     debugSyncLog("manualSync:after-write-commit", { committed, workspacePath });
 
+    if (!workspaceStatus.remoteConnected) {
+      return {
+        committed,
+        commitSha: null,
+        syncedAt: null,
+        message: "Connect a remote repository to sync this workspace.",
+        remoteConnected: false,
+        requiresRemoteConnect: true,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
+      };
+    }
+
     const pushed = await pushWorkspace(workspacePath);
     debugSyncLog("manualSync:after-push", { pushed, workspacePath });
     if (!pushed) {
@@ -319,6 +452,10 @@ export function createGitCollaborationService() {
         commitSha: null,
         syncedAt: null,
         message: "No local commits were ready to sync.",
+        remoteConnected: true,
+        requiresRemoteConnect: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
       };
     }
 
@@ -330,11 +467,38 @@ export function createGitCollaborationService() {
       commitSha: shaResult.stdout.trim(),
       syncedAt,
       message: "Synced your latest workspace snapshot.",
+      remoteConnected: true,
+      requiresRemoteConnect: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     };
   };
 
   const getAutoSyncStatus = async (workspacePath: string): Promise<AutoSyncStatus> => {
-    await ensureGitWorkspace(workspacePath);
+    const workspaceStatus = await bootstrapWorkspace(workspacePath);
+
+    if (!workspaceStatus.gitAvailable || !workspaceStatus.isRepository) {
+      return {
+        enabled: false,
+        hasUncommittedChanges: false,
+        lastSyncedAt: null,
+        remoteConnected: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: !workspaceStatus.gitAvailable,
+      };
+    }
+
+    if (workspaceStatus.requiresIdentitySetup) {
+      return {
+        enabled: false,
+        hasUncommittedChanges: false,
+        lastSyncedAt: null,
+        remoteConnected: workspaceStatus.remoteConnected,
+        requiresIdentitySetup: true,
+        requiresGitInstall: false,
+      };
+    }
+
     const status = await runGit(workspacePath, ["status", "--porcelain", "--", ...MARKDOWN_PATHS], {
       allowFailure: true,
     });
@@ -355,11 +519,39 @@ export function createGitCollaborationService() {
       enabled: true,
       hasUncommittedChanges,
       lastSyncedAt,
+      remoteConnected: workspaceStatus.remoteConnected,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     };
   };
 
   const syncIncomingChanges = async (workspacePath: string, reason: string): Promise<SyncState> => {
-    await ensureGitWorkspace(workspacePath);
+    const workspaceStatus = await bootstrapWorkspace(workspacePath);
+
+    if (!workspaceStatus.gitAvailable) {
+      return {
+        ...defaultSyncState,
+        status: "idle",
+        message: "Install Git to check incoming updates.",
+      };
+    }
+
+    if (!workspaceStatus.isRepository) {
+      return {
+        ...defaultSyncState,
+        status: "idle",
+        message: "Mohio could not initialize Git for this workspace.",
+      };
+    }
+
+    if (workspaceStatus.requiresIdentitySetup) {
+      return {
+        ...defaultSyncState,
+        status: "idle",
+        message: "Set a workspace Git identity before applying incoming updates.",
+      };
+    }
+
     debugSyncLog("syncIncoming:start", { reason, workspacePath });
     const checkedAt = new Date().toISOString();
     syncStateByWorkspace.set(workspacePath, {
@@ -482,7 +674,14 @@ export function createGitCollaborationService() {
     workspacePath: string,
     input: ResolveConflictInput,
   ): Promise<SyncState> => {
-    await ensureGitWorkspace(workspacePath);
+    const workspaceStatus = await bootstrapWorkspace(workspacePath);
+    if (!workspaceStatus.gitAvailable || !workspaceStatus.isRepository || workspaceStatus.requiresIdentitySetup) {
+      return {
+        ...defaultSyncState,
+        status: "idle",
+        message: "Set up Git and workspace identity before resolving conflicts.",
+      };
+    }
 
     if (input.resolution === "keep-local") {
       await runGit(workspacePath, ["checkout", "--ours", "--", input.relativePath]);
@@ -532,6 +731,10 @@ export function createGitCollaborationService() {
   };
 
   return {
+    bootstrapWorkspace,
+    getGitCapability,
+    getWorkspaceStatus,
+    setWorkspaceIdentity,
     recordRiskyCommit,
     recordAutoSaveCommit,
     listCommitHistory,
@@ -543,60 +746,6 @@ export function createGitCollaborationService() {
     getSyncState,
     resolveSyncConflict,
   };
-}
-
-async function runGit(
-  cwd: string,
-  args: string[],
-  options: { allowFailure?: boolean } = {},
-): Promise<{ stdout: string; stderr: string; code: number }> {
-  try {
-    const result = await execFileAsync("git", args, {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 8 * 1024 * 1024,
-    });
-
-    return {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      code: 0,
-    };
-  } catch (error) {
-    const executionError = error as {
-      code?: number;
-      stderr?: string;
-      stdout?: string;
-      message: string;
-    };
-
-    if (options.allowFailure) {
-      return {
-        stdout: executionError.stdout ?? "",
-        stderr: executionError.stderr ?? executionError.message,
-        code: Number.isInteger(executionError.code) ? Number(executionError.code) : 1,
-      };
-    }
-
-    throw new Error(executionError.stderr?.trim() || executionError.message);
-  }
-}
-
-async function ensureGitWorkspace(workspacePath: string): Promise<void> {
-  const gitCheck = await runGit(workspacePath, ["rev-parse", "--is-inside-work-tree"], {
-    allowFailure: true,
-  });
-
-  if (gitCheck.code !== 0 || gitCheck.stdout.trim() !== "true") {
-    throw new Error("Mohio needs a valid Git workspace to use history, publish, and sync.");
-  }
-
-  if (legacyCheckpointCleanupDone.has(workspacePath)) {
-    return;
-  }
-
-  await cleanupLegacyCheckpointArtifacts(workspacePath);
-  legacyCheckpointCleanupDone.add(workspacePath);
 }
 
 async function getMaterialChanges(
@@ -682,6 +831,14 @@ async function pushWorkspace(workspacePath: string): Promise<boolean> {
     await runGit(workspacePath, ["push"]);
     debugSyncLog("pushWorkspace:pushed", { upstream, workspacePath });
     return true;
+  }
+
+  const remoteResult = await runGit(workspacePath, ["remote", "get-url", "origin"], {
+    allowFailure: true,
+  });
+  if (remoteResult.code !== 0 || !remoteResult.stdout.trim()) {
+    debugSyncLog("pushWorkspace:skip-no-origin", { workspacePath });
+    return false;
   }
 
   const branchResult = await runGit(workspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]);

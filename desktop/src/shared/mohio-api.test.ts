@@ -27,6 +27,14 @@ describe("createMohioApi", () => {
 
     const getCurrentWorkspace = vi.fn().mockResolvedValue(workspace);
     const openWorkspace = vi.fn().mockResolvedValue(workspace);
+    const openWorkspacePath = vi.fn().mockResolvedValue(workspace);
+    const listRecentWorkspaces = vi.fn().mockResolvedValue([
+      {
+        name: "mohio",
+        path: "/workspace/mohio",
+        exists: true,
+      },
+    ]);
     const searchWorkspace = vi.fn().mockResolvedValue([
       {
         relativePath: "README.md",
@@ -62,16 +70,50 @@ describe("createMohioApi", () => {
       unpublishedCount: 0,
       unpublishedTree: [],
     });
+    const getGitCapabilityState = vi.fn().mockResolvedValue({
+      gitAvailable: true,
+      gitVersion: "git version 2.47.0",
+      installHint: null,
+    });
+    const getWorkspaceGitStatus = vi.fn().mockResolvedValue({
+      gitAvailable: true,
+      isRepository: true,
+      remoteConnected: false,
+      remoteName: null,
+      remoteUrl: null,
+      identityConfigured: true,
+      userName: "Mohio Test",
+      userEmail: "mohio@example.com",
+      requiresIdentitySetup: false,
+    });
+    const setWorkspaceGitIdentity = vi.fn().mockResolvedValue({
+      gitAvailable: true,
+      isRepository: true,
+      remoteConnected: false,
+      remoteName: null,
+      remoteUrl: null,
+      identityConfigured: true,
+      userName: "Mohio Test",
+      userEmail: "mohio@example.com",
+      requiresIdentitySetup: false,
+    });
     const syncWorkspaceChanges = vi.fn().mockResolvedValue({
       committed: false,
       commitSha: null,
       syncedAt: null,
       message: "No Markdown changes were ready to sync.",
+      remoteConnected: false,
+      requiresRemoteConnect: true,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     });
     const getAutoSyncStatus = vi.fn().mockResolvedValue({
       enabled: true,
       hasUncommittedChanges: false,
       lastSyncedAt: null,
+      remoteConnected: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     });
     const syncIncomingChanges = vi.fn().mockResolvedValue({
       status: "idle" as const,
@@ -94,6 +136,13 @@ describe("createMohioApi", () => {
       message: null,
       conflicts: [],
     });
+    const connectRemoteRepository = vi.fn().mockResolvedValue({
+      message: "Connected.",
+      remoteConnected: true,
+      requiresCloneForNonEmptyRemote: false,
+    });
+    const chooseCloneDestination = vi.fn().mockResolvedValue("/tmp");
+    const cloneRemoteRepository = vi.fn().mockResolvedValue(workspace);
     const watchDocument = vi.fn().mockResolvedValue(undefined);
     const listAssistantThreads = vi.fn().mockResolvedValue([
       {
@@ -154,6 +203,8 @@ describe("createMohioApi", () => {
       },
       getCurrentWorkspace,
       openWorkspace,
+      openWorkspacePath,
+      listRecentWorkspaces,
       searchWorkspace,
       readDocument,
       createDocument,
@@ -164,11 +215,17 @@ describe("createMohioApi", () => {
       listCommitHistory,
       getUnpublishedDiff,
       getPublishSummary,
+      getGitCapabilityState,
+      getWorkspaceGitStatus,
+      setWorkspaceGitIdentity,
       syncWorkspaceChanges,
       getAutoSyncStatus,
       syncIncomingChanges,
       getSyncState,
       resolveSyncConflict,
+      connectRemoteRepository,
+      chooseCloneDestination,
+      cloneRemoteRepository,
       watchDocument,
       listAssistantThreads,
       createAssistantThread,
@@ -189,6 +246,14 @@ describe("createMohioApi", () => {
     });
     await expect(api.getCurrentWorkspace()).resolves.toEqual(workspace);
     await expect(api.openWorkspace()).resolves.toEqual(workspace);
+    await expect(api.openWorkspacePath("/workspace/mohio")).resolves.toEqual(workspace);
+    await expect(api.listRecentWorkspaces()).resolves.toEqual([
+      {
+        name: "mohio",
+        path: "/workspace/mohio",
+        exists: true,
+      },
+    ]);
     await expect(api.searchWorkspace("readme")).resolves.toEqual([
       {
         relativePath: "README.md",
@@ -222,16 +287,53 @@ describe("createMohioApi", () => {
       unpublishedCount: 0,
       unpublishedTree: [],
     });
+    await expect(api.getGitCapabilityState()).resolves.toEqual({
+      gitAvailable: true,
+      gitVersion: "git version 2.47.0",
+      installHint: null,
+    });
+    await expect(api.getWorkspaceGitStatus()).resolves.toEqual({
+      gitAvailable: true,
+      isRepository: true,
+      remoteConnected: false,
+      remoteName: null,
+      remoteUrl: null,
+      identityConfigured: true,
+      userName: "Mohio Test",
+      userEmail: "mohio@example.com",
+      requiresIdentitySetup: false,
+    });
+    await expect(api.setWorkspaceGitIdentity({
+      name: "Mohio Test",
+      email: "mohio@example.com",
+    })).resolves.toEqual({
+      gitAvailable: true,
+      isRepository: true,
+      remoteConnected: false,
+      remoteName: null,
+      remoteUrl: null,
+      identityConfigured: true,
+      userName: "Mohio Test",
+      userEmail: "mohio@example.com",
+      requiresIdentitySetup: false,
+    });
     await expect(api.syncWorkspaceChanges()).resolves.toEqual({
       committed: false,
       commitSha: null,
       syncedAt: null,
       message: "No Markdown changes were ready to sync.",
+      remoteConnected: false,
+      requiresRemoteConnect: true,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     });
     await expect(api.getAutoSyncStatus()).resolves.toEqual({
       enabled: true,
       hasUncommittedChanges: false,
       lastSyncedAt: null,
+      remoteConnected: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     });
     await expect(api.syncIncomingChanges("manual")).resolves.toEqual({
       status: "idle",
@@ -257,6 +359,18 @@ describe("createMohioApi", () => {
       message: null,
       conflicts: [],
     });
+    await expect(api.connectRemoteRepository({
+      remoteUrl: "https://example.com/octocat/mohio-test.git",
+    })).resolves.toEqual({
+      message: "Connected.",
+      remoteConnected: true,
+      requiresCloneForNonEmptyRemote: false,
+    });
+    await expect(api.chooseCloneDestination()).resolves.toBe("/tmp");
+    await expect(api.cloneRemoteRepository({
+      remoteUrl: "https://example.com/octocat/mohio-test.git",
+      parentDirectory: "/tmp",
+    })).resolves.toEqual(workspace);
     await expect(api.saveDocument({
       relativePath: "README.md",
       title: "README",
@@ -328,6 +442,8 @@ describe("createMohioApi", () => {
     expect(api.onAssistantEvent(() => undefined)).toEqual(expect.any(Function));
     expect(getCurrentWorkspace).toHaveBeenCalledTimes(1);
     expect(openWorkspace).toHaveBeenCalledTimes(1);
+    expect(openWorkspacePath).toHaveBeenCalledWith("/workspace/mohio");
+    expect(listRecentWorkspaces).toHaveBeenCalledTimes(1);
     expect(searchWorkspace).toHaveBeenCalledWith("readme");
     expect(readDocument).toHaveBeenCalledWith("README.md");
     expect(createDocument).toHaveBeenCalledWith({ directoryRelativePath: null });
@@ -339,6 +455,12 @@ describe("createMohioApi", () => {
     expect(listCommitHistory).toHaveBeenCalledWith("README.md");
     expect(getUnpublishedDiff).toHaveBeenCalledWith("README.md");
     expect(getPublishSummary).toHaveBeenCalledTimes(1);
+    expect(getGitCapabilityState).toHaveBeenCalledTimes(1);
+    expect(getWorkspaceGitStatus).toHaveBeenCalledTimes(1);
+    expect(setWorkspaceGitIdentity).toHaveBeenCalledWith({
+      name: "Mohio Test",
+      email: "mohio@example.com",
+    });
     expect(syncWorkspaceChanges).toHaveBeenCalledTimes(1);
     expect(getAutoSyncStatus).toHaveBeenCalledTimes(1);
     expect(syncIncomingChanges).toHaveBeenCalledWith("manual");
@@ -346,6 +468,14 @@ describe("createMohioApi", () => {
     expect(resolveSyncConflict).toHaveBeenCalledWith({
       relativePath: "README.md",
       resolution: "keep-local",
+    });
+    expect(connectRemoteRepository).toHaveBeenCalledWith({
+      remoteUrl: "https://example.com/octocat/mohio-test.git",
+    });
+    expect(chooseCloneDestination).toHaveBeenCalledTimes(1);
+    expect(cloneRemoteRepository).toHaveBeenCalledWith({
+      remoteUrl: "https://example.com/octocat/mohio-test.git",
+      parentDirectory: "/tmp",
     });
     expect(saveDocument).toHaveBeenCalledWith({
       relativePath: "README.md",

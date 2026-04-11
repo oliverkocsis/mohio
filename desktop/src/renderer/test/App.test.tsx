@@ -53,6 +53,8 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     }),
     getCurrentWorkspace: async () => null,
     openWorkspace: async () => null,
+    openWorkspacePath: async () => createWorkspace(),
+    listRecentWorkspaces: async () => [],
     searchWorkspace: async () => [],
     readDocument: async (relativePath) => ({
       relativePath,
@@ -97,16 +99,50 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
       unpublishedCount: 0,
       unpublishedTree: [],
     }),
+    getGitCapabilityState: async () => ({
+      gitAvailable: true,
+      gitVersion: "git version 2.47.0",
+      installHint: null,
+    }),
+    getWorkspaceGitStatus: async () => ({
+      gitAvailable: true,
+      isRepository: true,
+      remoteConnected: false,
+      remoteName: null,
+      remoteUrl: null,
+      identityConfigured: true,
+      userName: "Mohio Test",
+      userEmail: "mohio@example.com",
+      requiresIdentitySetup: false,
+    }),
+    setWorkspaceGitIdentity: async () => ({
+      gitAvailable: true,
+      isRepository: true,
+      remoteConnected: false,
+      remoteName: null,
+      remoteUrl: null,
+      identityConfigured: true,
+      userName: "Mohio Test",
+      userEmail: "mohio@example.com",
+      requiresIdentitySetup: false,
+    }),
     syncWorkspaceChanges: async () => ({
       committed: false,
       commitSha: null,
       syncedAt: null,
       message: "No changes",
+      remoteConnected: false,
+      requiresRemoteConnect: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     }),
     getAutoSyncStatus: async () => ({
       enabled: true,
       hasUncommittedChanges: false,
       lastSyncedAt: null,
+      remoteConnected: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     }),
     syncIncomingChanges: async () => ({
       status: "idle",
@@ -129,6 +165,13 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
       message: null,
       conflicts: [],
     }),
+    connectRemoteRepository: async () => ({
+      message: "Connected.",
+      remoteConnected: true,
+      requiresCloneForNonEmptyRemote: false,
+    }),
+    chooseCloneDestination: async () => "/tmp",
+    cloneRemoteRepository: async () => createWorkspace(),
     watchDocument: async () => undefined,
     listAssistantThreads: async () => [],
     createAssistantThread: async () => ({
@@ -174,32 +217,31 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(screen.getByTestId("top-bar")).toBeInTheDocument();
-    expect(screen.getByLabelText("Collapse left panel")).toBeInTheDocument();
-    expect(screen.getByLabelText("Collapse right panel")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Documents" })).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "Search" })).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "Assistant" })).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "Versions" })).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByRole("tab", { name: "Assistant" })).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByRole("tab", { name: "Versions" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.queryByTestId("top-bar")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Collapse left panel")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Collapse right panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("assistant-sidebar")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Unpublished" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Quick New Document" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sync now" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Search workspace")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Related" })).not.toBeInTheDocument();
-    expect(await screen.findByTestId("document-state-primary-empty")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Folder" })).toBeInTheDocument();
+    expect(await screen.findByTestId("workspace-entry")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome to Mohio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open a folder as workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect to a remote workspace" })).toBeInTheDocument();
   });
 
   it("collapses and reopens left and right panels from top bar controls", async () => {
-    window.mohio = createMohioMock();
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+    });
 
     render(<App />);
 
-    await screen.findByTestId("document-state-primary-empty");
+    await screen.findByTestId("workspace-sidebar");
 
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Collapse left panel"));
@@ -399,6 +441,10 @@ describe("App", () => {
       commitSha: "abc123",
       syncedAt: new Date().toISOString(),
       message: "Synced.",
+      remoteConnected: true,
+      requiresRemoteConnect: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     });
     window.mohio = createMohioMock({
       getCurrentWorkspace: async () => workspace,
@@ -407,6 +453,9 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: true,
         lastSyncedAt: new Date().toISOString(),
+        remoteConnected: true,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
       }),
     });
 
@@ -421,6 +470,210 @@ describe("App", () => {
     expect(syncWorkspaceChanges).toHaveBeenCalledTimes(1);
   });
 
+  it("opens connect prompt when Sync requires a remote repository", async () => {
+    const workspace = createWorkspace();
+    const syncWorkspaceChanges = vi.fn().mockResolvedValue({
+      committed: true,
+      commitSha: "abc123",
+      syncedAt: null,
+      message: "Connect a remote repository to sync this workspace.",
+      remoteConnected: false,
+      requiresRemoteConnect: true,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
+    });
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      getWorkspaceGitStatus: async () => ({
+        gitAvailable: true,
+        isRepository: true,
+        remoteConnected: true,
+        remoteName: "origin",
+        remoteUrl: "https://git.example.com/example/existing.git",
+        identityConfigured: true,
+        userName: "Mohio Test",
+        userEmail: "mohio@example.com",
+        requiresIdentitySetup: false,
+      }),
+      syncWorkspaceChanges,
+      getAutoSyncStatus: async () => ({
+        enabled: true,
+        hasUncommittedChanges: true,
+        lastSyncedAt: null,
+        remoteConnected: true,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    });
+
+    expect(syncWorkspaceChanges).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("dialog", { name: "Remote repository" })).toBeInTheDocument();
+  });
+
+  it("shows connect-remote CTA when workspace has no remote and opens connect dialog on click", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      getWorkspaceGitStatus: async () => ({
+        gitAvailable: true,
+        isRepository: true,
+        remoteConnected: false,
+        remoteName: null,
+        remoteUrl: null,
+        identityConfigured: true,
+        userName: "Mohio Test",
+        userEmail: "mohio@example.com",
+        requiresIdentitySetup: false,
+      }),
+      getAutoSyncStatus: async () => ({
+        enabled: true,
+        hasUncommittedChanges: false,
+        lastSyncedAt: "2026-04-04T11:56:01.000Z",
+        remoteConnected: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    const syncButton = screen.getByRole("button", { name: "Sync now" });
+    expect(screen.getByText("Connect remote repo to share")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(syncButton);
+    });
+
+    expect(await screen.findByRole("dialog", { name: "Remote repository" })).toBeInTheDocument();
+  });
+
+  it("replaces welcome card with in-place connect form and enables connect only when complete", async () => {
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => null,
+      chooseCloneDestination: async () => "/Users/oliver/Documents",
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-entry");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Connect to a remote workspace" }));
+    });
+
+    expect(screen.getByRole("heading", { name: "Connect to a workspace" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Workspace address")).toBeInTheDocument();
+    expect(screen.getByLabelText("Save location")).toBeInTheDocument();
+
+    const connectButton = screen.getByRole("button", { name: "Connect workspace" });
+    expect(connectButton).toBeDisabled();
+    expect(screen.getByText("The link your team shared. Works with GitHub, GitLab, or any Git address.")).toBeInTheDocument();
+    expect(screen.queryByText("/Users/oliver/Documents/workspace")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Workspace address"), {
+        target: { value: "github.com/your-team/workspace.git" },
+      });
+    });
+    expect(connectButton).toBeDisabled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Choose" }));
+    });
+
+    expect(connectButton).toBeEnabled();
+    expect(screen.getByText("/Users/oliver/Documents/workspace")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    });
+
+    expect(screen.getByRole("heading", { name: "Welcome to Mohio" })).toBeInTheDocument();
+  });
+
+  it("renders recent workspaces with missing-folder mute state and opens existing entries", async () => {
+    const openWorkspacePath = vi.fn().mockResolvedValue(createWorkspace());
+    window.mohio = createMohioMock({
+      listRecentWorkspaces: async () => [
+        {
+          name: "alpha",
+          path: "/workspaces/alpha",
+          exists: true,
+        },
+        {
+          name: "missing-workspace",
+          path: "/workspaces/missing-workspace",
+          exists: false,
+        },
+      ],
+      openWorkspacePath,
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-entry");
+
+    const existingRecentButton = screen.getByRole("button", { name: "alpha" });
+    const missingRecentButton = screen.getByRole("button", { name: "missing-workspace" });
+
+    expect(existingRecentButton).toHaveAttribute("title", "/workspaces/alpha");
+    expect(missingRecentButton).toBeDisabled();
+    expect(missingRecentButton).toHaveAttribute("title", "Folder not found");
+
+    await act(async () => {
+      fireEvent.click(existingRecentButton);
+    });
+
+    expect(openWorkspacePath).toHaveBeenCalledWith("/workspaces/alpha");
+  });
+
+  it("opens identity popup when Set Git identity warning is clicked", async () => {
+    const workspace = createWorkspace();
+    window.mohio = createMohioMock({
+      getCurrentWorkspace: async () => workspace,
+      getWorkspaceGitStatus: async () => ({
+        gitAvailable: true,
+        isRepository: true,
+        remoteConnected: false,
+        remoteName: null,
+        remoteUrl: null,
+        identityConfigured: false,
+        userName: null,
+        userEmail: null,
+        requiresIdentitySetup: true,
+      }),
+      getAutoSyncStatus: async () => ({
+        enabled: false,
+        hasUncommittedChanges: false,
+        lastSyncedAt: null,
+        remoteConnected: false,
+        requiresIdentitySetup: true,
+        requiresGitInstall: false,
+      }),
+    });
+
+    render(<App />);
+
+    await screen.findByTestId("workspace-sidebar");
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Set Git identity"));
+    });
+
+    expect(await screen.findByRole("dialog", { name: "Set Git identity" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Workspace Git identity")).not.toBeInTheDocument();
+  });
+
   it("keeps Sync disabled when no uncommitted changes are present", async () => {
     const workspace = createWorkspace();
     window.mohio = createMohioMock({
@@ -429,6 +682,9 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         lastSyncedAt: new Date().toISOString(),
+        remoteConnected: true,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
       }),
     });
 
@@ -447,6 +703,9 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         lastSyncedAt: new Date().toISOString(),
+        remoteConnected: true,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
       }),
     });
 
@@ -480,6 +739,10 @@ describe("App", () => {
       commitSha: "abc123",
       syncedAt: new Date().toISOString(),
       message: "Synced.",
+      remoteConnected: true,
+      requiresRemoteConnect: false,
+      requiresIdentitySetup: false,
+      requiresGitInstall: false,
     });
 
     window.mohio = createMohioMock({
@@ -490,6 +753,9 @@ describe("App", () => {
         enabled: true,
         hasUncommittedChanges: false,
         lastSyncedAt: new Date().toISOString(),
+        remoteConnected: true,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
       }),
     });
 
@@ -530,6 +796,9 @@ describe("App", () => {
           enabled: true,
           hasUncommittedChanges: false,
           lastSyncedAt: "2026-04-04T11:56:01.000Z",
+          remoteConnected: true,
+          requiresIdentitySetup: false,
+          requiresGitInstall: false,
         }),
       });
 
@@ -555,6 +824,9 @@ describe("App", () => {
           enabled: true,
           hasUncommittedChanges: false,
           lastSyncedAt: "2026-04-04T11:56:01.000Z",
+          remoteConnected: true,
+          requiresIdentitySetup: false,
+          requiresGitInstall: false,
         }),
       });
 

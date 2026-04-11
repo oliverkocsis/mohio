@@ -3,7 +3,12 @@ import type {
   AssistantThread,
   AssistantThreadSummary,
   AutoSyncStatus,
+  CloneRemoteRepositoryInput,
   CommitHistoryEntry,
+  ConnectRemoteRepositoryInput,
+  ConnectRemoteRepositoryResult,
+  GitCapabilityState,
+  RecentWorkspaceSummary,
   UnpublishedDiffResult,
   RecordRiskyCommitInput,
   AppInfo,
@@ -13,12 +18,14 @@ import type {
   PublishSummary,
   ResolveConflictInput,
   RenameAssistantThreadInput,
+  SetWorkspaceGitIdentityInput,
   SendAssistantMessageInput,
   SaveDocumentInput,
   SaveDocumentResult,
   SyncWorkspaceResult,
   SyncState,
   WorkspaceDocument,
+  WorkspaceGitStatus,
   WorkspaceSearchMatch,
   WorkspaceSummary,
 } from "./mohio-types";
@@ -26,6 +33,8 @@ import type {
 export const MOHIO_CHANNELS = {
   getCurrentWorkspace: "mohio:workspace:get-current",
   openWorkspace: "mohio:workspace:open",
+  openWorkspacePath: "mohio:workspace:open-path",
+  listRecentWorkspaces: "mohio:workspace:list-recent",
   searchWorkspace: "mohio:workspace:search",
   readDocument: "mohio:document:read",
   createDocument: "mohio:document:create",
@@ -36,11 +45,17 @@ export const MOHIO_CHANNELS = {
   listCommitHistory: "mohio:history:commits",
   getUnpublishedDiff: "mohio:history:unpublished-diff",
   getPublishSummary: "mohio:publish:summary",
+  getGitCapabilityState: "mohio:git:capability",
+  getWorkspaceGitStatus: "mohio:git:workspace-status",
+  setWorkspaceGitIdentity: "mohio:git:set-identity",
   syncWorkspaceChanges: "mohio:sync:workspace-changes",
   getAutoSyncStatus: "mohio:sync:auto-status",
   syncIncomingChanges: "mohio:sync:incoming",
   getSyncState: "mohio:sync:state",
   resolveSyncConflict: "mohio:sync:resolve-conflict",
+  connectRemoteRepository: "mohio:remote:connect-repository",
+  chooseCloneDestination: "mohio:remote:choose-clone-destination",
+  cloneRemoteRepository: "mohio:remote:clone-repository",
   watchDocument: "mohio:document:watch",
   listAssistantThreads: "mohio:assistant:list-threads",
   createAssistantThread: "mohio:assistant:create-thread",
@@ -58,6 +73,8 @@ interface CreateMohioApiOptions {
   appInfo: AppInfo;
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
+  openWorkspacePath: (workspacePath: string) => Promise<WorkspaceSummary | null>;
+  listRecentWorkspaces: () => Promise<RecentWorkspaceSummary[]>;
   searchWorkspace: (query: string) => Promise<WorkspaceSearchMatch[]>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
@@ -68,11 +85,17 @@ interface CreateMohioApiOptions {
   listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
   getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
   getPublishSummary: () => Promise<PublishSummary>;
+  getGitCapabilityState: () => Promise<GitCapabilityState>;
+  getWorkspaceGitStatus: () => Promise<WorkspaceGitStatus>;
+  setWorkspaceGitIdentity: (input: SetWorkspaceGitIdentityInput) => Promise<WorkspaceGitStatus>;
   syncWorkspaceChanges: () => Promise<SyncWorkspaceResult>;
   getAutoSyncStatus: () => Promise<AutoSyncStatus>;
   syncIncomingChanges: (reason: string) => Promise<SyncState>;
   getSyncState: () => Promise<SyncState>;
   resolveSyncConflict: (input: ResolveConflictInput) => Promise<SyncState>;
+  connectRemoteRepository: (input: ConnectRemoteRepositoryInput) => Promise<ConnectRemoteRepositoryResult>;
+  chooseCloneDestination: () => Promise<string | null>;
+  cloneRemoteRepository: (input: CloneRemoteRepositoryInput) => Promise<WorkspaceSummary>;
   watchDocument: (relativePath: string | null) => Promise<void>;
   listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
   createAssistantThread: () => Promise<AssistantThread>;
@@ -96,6 +119,8 @@ export function createMohioApi({
   appInfo,
   getCurrentWorkspace,
   openWorkspace,
+  openWorkspacePath,
+  listRecentWorkspaces,
   searchWorkspace,
   readDocument,
   createDocument,
@@ -106,11 +131,17 @@ export function createMohioApi({
   listCommitHistory,
   getUnpublishedDiff,
   getPublishSummary,
+  getGitCapabilityState,
+  getWorkspaceGitStatus,
+  setWorkspaceGitIdentity,
   syncWorkspaceChanges,
   getAutoSyncStatus,
   syncIncomingChanges,
   getSyncState,
   resolveSyncConflict,
+  connectRemoteRepository,
+  chooseCloneDestination,
+  cloneRemoteRepository,
   watchDocument,
   listAssistantThreads,
   createAssistantThread,
@@ -127,6 +158,8 @@ export function createMohioApi({
     getAppInfo: () => appInfo,
     getCurrentWorkspace,
     openWorkspace,
+    openWorkspacePath,
+    listRecentWorkspaces,
     searchWorkspace,
     readDocument,
     createDocument,
@@ -137,11 +170,17 @@ export function createMohioApi({
     listCommitHistory,
     getUnpublishedDiff,
     getPublishSummary,
+    getGitCapabilityState,
+    getWorkspaceGitStatus,
+    setWorkspaceGitIdentity,
     syncWorkspaceChanges,
     getAutoSyncStatus,
     syncIncomingChanges,
     getSyncState,
     resolveSyncConflict,
+    connectRemoteRepository,
+    chooseCloneDestination,
+    cloneRemoteRepository,
     watchDocument,
     listAssistantThreads,
     createAssistantThread,

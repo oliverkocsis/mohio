@@ -22,8 +22,11 @@ import type {
   AssistantThread,
   AssistantThreadSummary,
   CommitHistoryEntry,
+  GitCapabilityState,
+  RecentWorkspaceSummary,
   SyncState,
   WorkspaceDocument,
+  WorkspaceGitStatus,
   WorkspaceSummary,
   WorkspaceTreeNode,
   WorkspaceSearchMatch,
@@ -233,6 +236,12 @@ export function App() {
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(true);
   const [isWorkspaceOpening, setIsWorkspaceOpening] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [workspaceEntryScreen, setWorkspaceEntryScreen] = useState<"connect" | "welcome">("welcome");
+  const [workspaceAddressInput, setWorkspaceAddressInput] = useState("");
+  const [workspaceSaveLocationInput, setWorkspaceSaveLocationInput] = useState("");
+  const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspaceSummary[]>([]);
+  const [workspaceEntryError, setWorkspaceEntryError] = useState<string | null>(null);
+  const [isWorkspaceEntryConnecting, setIsWorkspaceEntryConnecting] = useState(false);
   const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("documents");
   const [rightSidebarTab, setRightSidebarTab] = useState<RightSidebarTab>("assistant");
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
@@ -245,6 +254,20 @@ export function App() {
   const [autoSyncStatus, setAutoSyncStatus] = useState<AutoSyncStatus | null>(null);
   const [, setSyncState] = useState<SyncState | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [gitCapabilityState, setGitCapabilityState] = useState<GitCapabilityState | null>(null);
+  const [workspaceGitStatus, setWorkspaceGitStatus] = useState<WorkspaceGitStatus | null>(null);
+  const [isRemoteDialogOpen, setIsRemoteDialogOpen] = useState(false);
+  const [remoteDialogMode, setRemoteDialogMode] = useState<"connect" | "clone">("connect");
+  const [remoteUrlInput, setRemoteUrlInput] = useState("");
+  const [cloneDestination, setCloneDestination] = useState("");
+  const [remoteDialogError, setRemoteDialogError] = useState<string | null>(null);
+  const [remoteDialogNotice, setRemoteDialogNotice] = useState<string | null>(null);
+  const [isRemoteActionInFlight, setIsRemoteActionInFlight] = useState(false);
+  const [identityName, setIdentityName] = useState("");
+  const [identityEmail, setIdentityEmail] = useState("");
+  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const [isIdentityDialogOpen, setIsIdentityDialogOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(() => window.navigator.onLine);
   const [commitHistory, setCommitHistory] = useState<CommitHistoryEntry[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -294,8 +317,19 @@ export function App() {
     }
   };
 
+  const refreshRecentWorkspaces = async () => {
+    try {
+      const nextRecentWorkspaces = await window.mohio.listRecentWorkspaces();
+      setRecentWorkspaces(nextRecentWorkspaces);
+    } catch {
+      setRecentWorkspaces([]);
+    }
+  };
+
   useEffect(() => {
     void refreshWorkspaceSummary();
+    void refreshGitCapabilityState();
+    void refreshRecentWorkspaces();
 
     const disposeWorkspaceListener = window.mohio.onWorkspaceChanged((nextWorkspace) => {
       setWorkspace(nextWorkspace);
@@ -336,16 +370,47 @@ export function App() {
     }
   };
 
+  const refreshGitCapabilityState = async () => {
+    try {
+      const capability = await window.mohio.getGitCapabilityState();
+      setGitCapabilityState(capability);
+    } catch {
+      setGitCapabilityState(null);
+    }
+  };
+
+  const refreshWorkspaceGitStatus = async () => {
+    if (!workspace) {
+      setWorkspaceGitStatus(null);
+      return;
+    }
+
+    try {
+      const status = await window.mohio.getWorkspaceGitStatus();
+      setWorkspaceGitStatus(status);
+      if (status.userName) {
+        setIdentityName(status.userName);
+      }
+      if (status.userEmail) {
+        setIdentityEmail(status.userEmail);
+      }
+    } catch {
+      setWorkspaceGitStatus(null);
+    }
+  };
+
   useEffect(() => {
     if (!workspace) {
       setSyncState(null);
       setAutoSyncStatus(null);
+      setWorkspaceGitStatus(null);
       setSyncNowError(null);
       return;
     }
 
     void refreshSyncState();
     void refreshAutoSyncStatus();
+    void refreshWorkspaceGitStatus();
   }, [workspace?.path]);
 
   useEffect(() => {
@@ -437,23 +502,61 @@ export function App() {
     : [];
   const leftSidebarDocumentCount = countWorkspaceDocuments(leftSidebarNodes);
 
+  const applyOpenedWorkspace = (nextWorkspace: WorkspaceSummary | null) => {
+    setWorkspace(nextWorkspace);
+    setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
+    setWorkspaceError(null);
+    setActiveDocumentPath(getPreferredDocumentId(nextWorkspace));
+    setSearchQuery("");
+  };
+
   const handleOpenWorkspace = async () => {
     try {
       setIsWorkspaceOpening(true);
       const nextWorkspace = await window.mohio.openWorkspace();
-      setWorkspace(nextWorkspace);
-      setExpandedDirectoryIds(getExpandedDirectoryIds(nextWorkspace));
-      setWorkspaceError(null);
-
-      const preferredPath = getPreferredDocumentId(nextWorkspace);
-      setActiveDocumentPath(preferredPath);
-      setSearchQuery("");
+      applyOpenedWorkspace(nextWorkspace);
+      setWorkspaceEntryScreen("welcome");
+      setWorkspaceAddressInput("");
+      setWorkspaceSaveLocationInput("");
+      setWorkspaceEntryError(null);
     } catch {
       setWorkspaceError("Mohio could not open that folder as a workspace.");
     } finally {
       setIsWorkspaceLoading(false);
       setIsWorkspaceOpening(false);
     }
+  };
+
+  const handleOpenRecentWorkspace = async (workspacePath: string) => {
+    try {
+      setIsWorkspaceOpening(true);
+      setWorkspaceEntryError(null);
+      const nextWorkspace = await window.mohio.openWorkspacePath(workspacePath);
+      applyOpenedWorkspace(nextWorkspace);
+      setWorkspaceEntryScreen("welcome");
+      setWorkspaceAddressInput("");
+      setWorkspaceSaveLocationInput("");
+    } catch {
+      setWorkspaceEntryError("Mohio could not open that workspace.");
+      await refreshRecentWorkspaces();
+    } finally {
+      setIsWorkspaceLoading(false);
+      setIsWorkspaceOpening(false);
+    }
+  };
+
+  const openRemoteDialog = (mode: "connect" | "clone") => {
+    setRemoteDialogMode(mode);
+    setRemoteDialogError(null);
+    setRemoteDialogNotice(null);
+    setRemoteUrlInput("");
+    setCloneDestination("");
+    setIsRemoteDialogOpen(true);
+  };
+
+  const openIdentityDialog = () => {
+    setIdentityError(null);
+    setIsIdentityDialogOpen(true);
   };
 
   const openDocument = async (documentId: string) => {
@@ -525,14 +628,159 @@ export function App() {
     try {
       setIsSyncingNow(true);
       await editor.saveNow().catch(() => undefined);
-      await window.mohio.syncWorkspaceChanges();
+      const result = await window.mohio.syncWorkspaceChanges();
       setSyncNowError(null);
+      if (result.requiresGitInstall) {
+        setSyncNowError(result.message);
+      } else if (result.requiresIdentitySetup) {
+        setSyncNowError(result.message);
+        openIdentityDialog();
+      } else if (result.requiresRemoteConnect) {
+        openRemoteDialog("connect");
+      }
       await refreshSyncState();
       await refreshAutoSyncStatus();
+      await refreshWorkspaceGitStatus();
     } catch {
       setSyncNowError("Mohio could not sync your workspace changes.");
     } finally {
       setIsSyncingNow(false);
+    }
+  };
+
+  const handleChooseCloneDestination = async () => {
+    try {
+      const selectedPath = await window.mohio.chooseCloneDestination();
+      if (selectedPath) {
+        setCloneDestination(selectedPath);
+      }
+    } catch {
+      setRemoteDialogError("Mohio could not open the folder picker.");
+    }
+  };
+
+  const handleChooseWorkspaceSaveLocation = async () => {
+    try {
+      const selectedPath = await window.mohio.chooseCloneDestination();
+      if (selectedPath) {
+        setWorkspaceSaveLocationInput(selectedPath);
+      }
+    } catch {
+      setWorkspaceEntryError("Mohio could not open the folder picker.");
+    }
+  };
+
+  const handleConnectRemoteRepository = async () => {
+    const remoteUrl = remoteUrlInput.trim();
+    if (!remoteUrl) {
+      setRemoteDialogError("Enter a remote Git URL first.");
+      return;
+    }
+
+    try {
+      setIsRemoteActionInFlight(true);
+      setRemoteDialogError(null);
+      const result = await window.mohio.connectRemoteRepository({
+        remoteUrl,
+      });
+
+      if (result.requiresCloneForNonEmptyRemote) {
+        setRemoteDialogError(result.message);
+        return;
+      }
+
+      setRemoteDialogNotice(result.message);
+      await refreshAutoSyncStatus();
+      await refreshWorkspaceGitStatus();
+      setIsRemoteDialogOpen(false);
+    } catch {
+      setRemoteDialogError("Mohio could not connect that repository.");
+    } finally {
+      setIsRemoteActionInFlight(false);
+    }
+  };
+
+  const handleCloneRemoteRepository = async () => {
+    const remoteUrl = remoteUrlInput.trim();
+    if (!remoteUrl) {
+      setRemoteDialogError("Enter a remote Git URL first.");
+      return;
+    }
+
+    if (!cloneDestination) {
+      setRemoteDialogError("Choose a destination folder first.");
+      return;
+    }
+
+    try {
+      setIsRemoteActionInFlight(true);
+      setRemoteDialogError(null);
+      const nextWorkspace = await window.mohio.cloneRemoteRepository({
+        remoteUrl,
+        parentDirectory: cloneDestination,
+      });
+      applyOpenedWorkspace(nextWorkspace);
+      setIsRemoteDialogOpen(false);
+      await refreshWorkspaceGitStatus();
+      await refreshAutoSyncStatus();
+    } catch {
+      setRemoteDialogError("Mohio could not clone and open that repository.");
+    } finally {
+      setIsRemoteActionInFlight(false);
+    }
+  };
+
+  const handleConnectWorkspaceFromEntry = async () => {
+    if (!normalizedWorkspaceAddress || !workspaceSaveLocationInput.trim()) {
+      return;
+    }
+
+    if (gitCapabilityState && !gitCapabilityState.gitAvailable) {
+      setWorkspaceEntryError("Install Git before connecting a workspace.");
+      return;
+    }
+
+    try {
+      setIsWorkspaceEntryConnecting(true);
+      setWorkspaceEntryError(null);
+      const nextWorkspace = await window.mohio.cloneRemoteRepository({
+        remoteUrl: normalizedWorkspaceAddress,
+        parentDirectory: workspaceSaveLocationInput,
+      });
+      applyOpenedWorkspace(nextWorkspace);
+      setWorkspaceEntryScreen("welcome");
+      setWorkspaceAddressInput("");
+      setWorkspaceSaveLocationInput("");
+      await refreshWorkspaceGitStatus();
+      await refreshAutoSyncStatus();
+    } catch {
+      setWorkspaceEntryError("Mohio could not connect that workspace.");
+    } finally {
+      setIsWorkspaceEntryConnecting(false);
+    }
+  };
+
+  const handleSaveWorkspaceIdentity = async () => {
+    if (!workspace) {
+      return;
+    }
+
+    try {
+      setIsSavingIdentity(true);
+      setIdentityError(null);
+      const status = await window.mohio.setWorkspaceGitIdentity({
+        name: identityName,
+        email: identityEmail,
+      });
+      setWorkspaceGitStatus(status);
+      await refreshAutoSyncStatus();
+      if (!status.requiresIdentitySetup) {
+        setIsIdentityDialogOpen(false);
+      }
+    } catch {
+      setIdentityError("Mohio could not save the workspace Git identity.");
+    } finally {
+      setIsSavingIdentity(false);
     }
   };
 
@@ -658,48 +906,65 @@ export function App() {
     isOnline,
     isSyncingNow,
     hasPendingChanges: editor.isDirty || (autoSyncStatus?.hasUncommittedChanges ?? false),
+    remoteConnected: (workspaceGitStatus?.remoteConnected ?? false) || (autoSyncStatus?.remoteConnected ?? false),
     lastSyncedAt: autoSyncStatus?.lastSyncedAt ?? null,
     hasSyncError: Boolean(syncNowError || syncError),
+    hasGitAvailable: !(autoSyncStatus?.requiresGitInstall ?? false) && (workspaceGitStatus?.gitAvailable ?? true),
+    requiresIdentitySetup: (autoSyncStatus?.requiresIdentitySetup ?? false) || (workspaceGitStatus?.requiresIdentitySetup ?? false),
   });
   const hasWorkspace = Boolean(workspace);
+  const workspaceNameFromAddress = getWorkspaceNameFromAddress(workspaceAddressInput);
+  const normalizedWorkspaceAddress = normalizeWorkspaceAddress(workspaceAddressInput);
+  const hasValidWorkspaceAddress = isWorkspaceAddressValid(workspaceAddressInput);
+  const canConnectWorkspaceFromEntry = Boolean(
+    normalizedWorkspaceAddress &&
+    hasValidWorkspaceAddress &&
+    workspaceSaveLocationInput.trim() &&
+    workspaceNameFromAddress,
+  );
+  const workspacePathPreview = canConnectWorkspaceFromEntry && workspaceNameFromAddress
+    ? joinPathForPreview(workspaceSaveLocationInput, workspaceNameFromAddress)
+    : null;
   const activeLeftSidebarTab: LeftSidebarTab | null = hasWorkspace ? leftSidebarTab : null;
   const activeRightSidebarTab: RightSidebarTab | null = hasWorkspace ? rightSidebarTab : null;
-  const workspaceShellClassName = `workspace-shell${isLeftPanelOpen ? "" : " workspace-shell--left-collapsed"}${isRightPanelOpen ? "" : " workspace-shell--right-collapsed"}`;
+  const workspaceShellClassName = hasWorkspace
+    ? `workspace-shell${isLeftPanelOpen ? "" : " workspace-shell--left-collapsed"}${isRightPanelOpen ? "" : " workspace-shell--right-collapsed"}`
+    : "workspace-shell workspace-shell--no-workspace";
 
   return (
     <div className="app-shell">
-      <header className="top-bar" data-testid="top-bar">
-        <div className="top-bar__context">
-          <button
-            aria-label={isLeftPanelOpen ? "Collapse left panel" : "Open left panel"}
-            className="top-bar__icon-action"
-            onClick={() => {
-              setIsLeftPanelOpen((currentState) => !currentState);
-            }}
-            type="button"
-          >
-            {isLeftPanelOpen
-              ? <PanelLeftClose aria-hidden="true" className="top-bar__icon-action-icon" />
-              : <PanelLeft aria-hidden="true" className="top-bar__icon-action-icon" />}
-          </button>
+      {hasWorkspace ? (
+        <header className="top-bar" data-testid="top-bar">
+          <div className="top-bar__context">
+            <button
+              aria-label={isLeftPanelOpen ? "Collapse left panel" : "Open left panel"}
+              className="top-bar__icon-action"
+              onClick={() => {
+                setIsLeftPanelOpen((currentState) => !currentState);
+              }}
+              type="button"
+            >
+              {isLeftPanelOpen
+                ? <PanelLeftClose aria-hidden="true" className="top-bar__icon-action-icon" />
+                : <PanelLeft aria-hidden="true" className="top-bar__icon-action-icon" />}
+            </button>
 
-          <button
-            aria-label={workspace ? `Switch workspace from ${workspace.name}` : "Select workspace"}
-            className="workspace-label workspace-label--button"
-            disabled={isWorkspaceOpening}
-            onClick={() => {
-              void handleOpenWorkspace();
-            }}
-            type="button"
-          >
-            <span className="workspace-label__name">{workspace?.name ?? "Open Folder"}</span>
-            <span className="workspace-label__chevron" aria-hidden="true">
-              <ChevronDown aria-hidden="true" className="toolbar-chevron-icon" />
-            </span>
-          </button>
+            <button
+              aria-label={workspace ? `Switch workspace from ${workspace.name}` : "Select workspace"}
+              className="workspace-label workspace-label--button"
+              disabled={isWorkspaceOpening}
+              onClick={() => {
+                void handleOpenWorkspace();
+              }}
+              type="button"
+            >
+              <span className="workspace-label__name">{workspace?.name ?? "Open Folder"}</span>
+              <span className="workspace-label__chevron" aria-hidden="true">
+                <ChevronDown aria-hidden="true" className="toolbar-chevron-icon" />
+              </span>
+            </button>
 
-          <div className="top-bar__context-actions">
-            {hasWorkspace ? (
+            <div className="top-bar__context-actions">
               <button
                 aria-label="Quick New Document"
                 className="top-bar__icon-action"
@@ -710,18 +975,22 @@ export function App() {
               >
                 <SquarePen aria-hidden="true" className="top-bar__icon-action-icon" />
               </button>
-            ) : null}
+            </div>
           </div>
-        </div>
 
-        <div className="top-bar__actions">
-          {hasWorkspace ? (
+          <div className="top-bar__actions">
             <button
               aria-label="Sync now"
               className={`top-bar__sync-status-action${syncControlState.variant === "offline" ? " top-bar__sync-status-action--offline" : ""}${syncControlState.variant === "error" ? " top-bar__sync-status-action--error" : ""}`}
               disabled={syncControlState.isDisabled}
               onClick={() => {
-                void handleSyncNow();
+                if (syncControlState.action === "identity") {
+                  openIdentityDialog();
+                } else if (syncControlState.action === "connect-remote") {
+                  openRemoteDialog("connect");
+                } else {
+                  void handleSyncNow();
+                }
               }}
               type="button"
             >
@@ -737,24 +1006,25 @@ export function App() {
                 />
               )}
             </button>
-          ) : null}
-          <button
-            aria-label={isRightPanelOpen ? "Collapse right panel" : "Open right panel"}
-            className="top-bar__icon-action"
-            onClick={() => {
-              setIsRightPanelOpen((currentState) => !currentState);
-            }}
-            type="button"
-          >
-            {isRightPanelOpen
-              ? <PanelRightClose aria-hidden="true" className="top-bar__icon-action-icon" />
-              : <PanelRight aria-hidden="true" className="top-bar__icon-action-icon" />}
-          </button>
-        </div>
-      </header>
+
+            <button
+              aria-label={isRightPanelOpen ? "Collapse right panel" : "Open right panel"}
+              className="top-bar__icon-action"
+              onClick={() => {
+                setIsRightPanelOpen((currentState) => !currentState);
+              }}
+              type="button"
+            >
+              {isRightPanelOpen
+                ? <PanelRightClose aria-hidden="true" className="top-bar__icon-action-icon" />
+                : <PanelRight aria-hidden="true" className="top-bar__icon-action-icon" />}
+            </button>
+          </div>
+        </header>
+      ) : null}
 
       <div className={workspaceShellClassName}>
-        {isLeftPanelOpen ? (
+        {hasWorkspace && isLeftPanelOpen ? (
           <aside className="sidebar sidebar--left" data-testid="workspace-sidebar">
             <section className="sidebar__section sidebar__section--edge-tabs">
               <div className="sidebar-tabs sidebar-tabs--underlined" role="tablist" aria-label="Workspace views">
@@ -883,6 +1153,11 @@ export function App() {
                 {workspaceError ? <p className="workspace-panel__error" role="status">{workspaceError}</p> : null}
                 {syncNowError ? <p className="workspace-panel__error" role="status">{syncNowError}</p> : null}
                 {syncError ? <p className="workspace-panel__error" role="status">{syncError}</p> : null}
+                {workspace && workspaceGitStatus && !workspaceGitStatus.gitAvailable ? (
+                  <p className="workspace-panel__error" role="status">
+                    Install Git to enable snapshots and remote sync.
+                  </p>
+                ) : null}
 
                 {documentContextMenu ? (
                   <div
@@ -912,19 +1187,48 @@ export function App() {
         ) : null}
 
         <main className="editor-panel">
-          <EditorPane
-            dataTestId="document-state-primary"
-            editor={editor}
-            highlightQuery={searchQuery}
-            isWorkspaceOpening={isWorkspaceOpening}
-            onOpenWorkspace={() => {
-              void handleOpenWorkspace();
-            }}
-            onOpenInternalLink={openRelativePathFromLink}
-          />
+          {hasWorkspace ? (
+            <EditorPane
+              dataTestId="document-state-primary"
+              editor={editor}
+              hasWorkspace={hasWorkspace}
+              highlightQuery={searchQuery}
+              onOpenInternalLink={openRelativePathFromLink}
+            />
+          ) : null}
+          {!hasWorkspace ? (
+            <WorkspaceEntryCard
+              canConnectWorkspace={canConnectWorkspaceFromEntry}
+              recentWorkspaces={recentWorkspaces}
+              isWorkspaceOpening={isWorkspaceOpening}
+              isConnectingWorkspace={isWorkspaceEntryConnecting}
+              pathPreview={workspacePathPreview}
+              saveLocation={workspaceSaveLocationInput}
+              screen={workspaceEntryScreen}
+              workspaceAddress={workspaceAddressInput}
+              error={workspaceEntryError}
+              onChooseSaveLocation={() => {
+                void handleChooseWorkspaceSaveLocation();
+              }}
+              onConnectWorkspace={() => {
+                void handleConnectWorkspaceFromEntry();
+              }}
+              onOpenWorkspace={() => {
+                void handleOpenWorkspace();
+              }}
+              onOpenRecentWorkspace={(workspacePath) => {
+                void handleOpenRecentWorkspace(workspacePath);
+              }}
+              onSetScreen={(nextScreen) => {
+                setWorkspaceEntryScreen(nextScreen);
+                setWorkspaceEntryError(null);
+              }}
+              onWorkspaceAddressChange={setWorkspaceAddressInput}
+            />
+          ) : null}
         </main>
 
-        {isRightPanelOpen ? (
+        {hasWorkspace && isRightPanelOpen ? (
           <aside className="sidebar sidebar--right" data-testid="assistant-sidebar">
             <section className="sidebar__section sidebar__section--edge-tabs">
               <div className="sidebar-tabs sidebar-tabs--underlined" role="tablist" aria-label="Right panel views">
@@ -1078,6 +1382,143 @@ export function App() {
           </aside>
         ) : null}
       </div>
+
+      {isIdentityDialogOpen ? (
+        <div className="dialog-backdrop" role="presentation">
+          <section className="modal-dialog" role="dialog" aria-modal="true" aria-label="Set Git identity">
+            <header className="modal-dialog__header">
+              <h2>Set Git identity</h2>
+              <button
+                aria-label="Close Git identity dialog"
+                className="top-bar__icon-action"
+                onClick={() => {
+                  setIsIdentityDialogOpen(false);
+                }}
+                type="button"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </header>
+            <p className="workspace-panel__copy">
+              Mohio uses this identity for workspace snapshots and sync commits.
+            </p>
+            <div className="modal-dialog__section">
+              <label className="modal-dialog__label" htmlFor="git-identity-name">Name</label>
+              <input
+                aria-label="Git author name"
+                className="search-input"
+                id="git-identity-name"
+                onChange={(event) => {
+                  setIdentityName(event.target.value);
+                }}
+                placeholder="Name"
+                type="text"
+                value={identityName}
+              />
+              <label className="modal-dialog__label" htmlFor="git-identity-email">Email</label>
+              <input
+                aria-label="Git author email"
+                className="search-input"
+                id="git-identity-email"
+                onChange={(event) => {
+                  setIdentityEmail(event.target.value);
+                }}
+                placeholder="Email"
+                type="email"
+                value={identityEmail}
+              />
+            </div>
+            <div className="modal-dialog__actions">
+              <button
+                className="primary-button"
+                disabled={isSavingIdentity}
+                onClick={() => {
+                  void handleSaveWorkspaceIdentity();
+                }}
+                type="button"
+              >
+                {isSavingIdentity ? "Saving..." : "Save identity"}
+              </button>
+            </div>
+            {identityError ? <p className="workspace-panel__error" role="status">{identityError}</p> : null}
+          </section>
+        </div>
+      ) : null}
+
+      {isRemoteDialogOpen ? (
+        <div className="dialog-backdrop" role="presentation">
+          <section className="modal-dialog" role="dialog" aria-modal="true" aria-label="Remote repository">
+            <header className="modal-dialog__header">
+              <h2>{remoteDialogMode === "clone" ? "Open Remote Repository" : "Connect Remote Repository"}</h2>
+              <button
+                aria-label="Close remote repository dialog"
+                className="top-bar__icon-action"
+                onClick={() => {
+                  setIsRemoteDialogOpen(false);
+                }}
+                type="button"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </header>
+            <div className="modal-dialog__section">
+              <label className="modal-dialog__label" htmlFor="remote-repository-url">Workspace address</label>
+              <input
+                aria-label="Workspace address"
+                className="search-input"
+                id="remote-repository-url"
+                onChange={(event) => {
+                  setRemoteUrlInput(event.target.value);
+                }}
+                placeholder="e.g. github.com/your-team/workspace"
+                type="text"
+                value={remoteUrlInput}
+              />
+              <p className="modal-dialog__hint">
+                The link your team shared. Works with GitHub, GitLab, or any Git address.
+              </p>
+            </div>
+
+            {remoteDialogMode === "clone" ? (
+              <div className="modal-dialog__section">
+                <label className="modal-dialog__label" htmlFor="clone-destination">Clone destination</label>
+                <div className="modal-dialog__destination-row">
+                  <input className="search-input" id="clone-destination" readOnly type="text" value={cloneDestination} />
+                  <button className="secondary-button" onClick={() => {
+                    void handleChooseCloneDestination();
+                  }} type="button">
+                    Choose
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="modal-dialog__actions">
+              <button
+                className="primary-button"
+                disabled={isRemoteActionInFlight}
+                onClick={() => {
+                  if (remoteDialogMode === "clone") {
+                    void handleCloneRemoteRepository();
+                  } else {
+                    void handleConnectRemoteRepository();
+                  }
+                }}
+                type="button"
+              >
+                {isRemoteActionInFlight
+                  ? "Working..."
+                  : remoteDialogMode === "clone"
+                    ? "Clone and Open"
+                    : "Connect Repository"}
+              </button>
+            </div>
+
+            {remoteDialogNotice ? <p className="workspace-panel__copy" role="status">{remoteDialogNotice}</p> : null}
+            {remoteDialogError ? <p className="workspace-panel__error" role="status">{remoteDialogError}</p> : null}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1085,16 +1526,14 @@ export function App() {
 function EditorPane({
   dataTestId,
   editor,
+  hasWorkspace,
   highlightQuery,
-  isWorkspaceOpening,
-  onOpenWorkspace,
   onOpenInternalLink,
 }: {
   dataTestId: string;
   editor: DocumentEditorSession;
+  hasWorkspace: boolean;
   highlightQuery: string;
-  isWorkspaceOpening: boolean;
-  onOpenWorkspace: () => void;
   onOpenInternalLink: (rawTarget: string) => void;
 }) {
   return (
@@ -1114,17 +1553,179 @@ function EditorPane({
         />
       ) : (
         <section className="empty-workspace-state" data-testid={`${dataTestId}-empty`}>
-          <p className="empty-workspace-state__copy">Choose a folder to open your Mohio workspace.</p>
-          <button
-            className="primary-button empty-workspace-state__button"
-            disabled={isWorkspaceOpening}
-            onClick={onOpenWorkspace}
-            type="button"
-          >
-            {isWorkspaceOpening ? "Opening Folder..." : "Open Folder"}
-          </button>
+          <p className="empty-workspace-state__copy">
+            {hasWorkspace
+              ? "Select a document to start writing."
+              : "Choose a folder to open your Mohio workspace."}
+          </p>
         </section>
       )}
+    </section>
+  );
+}
+
+function WorkspaceEntryCard({
+  canConnectWorkspace,
+  error,
+  isConnectingWorkspace,
+  isWorkspaceOpening,
+  onChooseSaveLocation,
+  onConnectWorkspace,
+  onOpenWorkspace,
+  onOpenRecentWorkspace,
+  onSetScreen,
+  onWorkspaceAddressChange,
+  pathPreview,
+  recentWorkspaces,
+  saveLocation,
+  screen,
+  workspaceAddress,
+}: {
+  canConnectWorkspace: boolean;
+  error: string | null;
+  isConnectingWorkspace: boolean;
+  isWorkspaceOpening: boolean;
+  onChooseSaveLocation: () => void;
+  onConnectWorkspace: () => void;
+  onOpenWorkspace: () => void;
+  onOpenRecentWorkspace: (workspacePath: string) => void;
+  onSetScreen: (nextScreen: "connect" | "welcome") => void;
+  onWorkspaceAddressChange: (nextValue: string) => void;
+  pathPreview: string | null;
+  recentWorkspaces: RecentWorkspaceSummary[];
+  saveLocation: string;
+  screen: "connect" | "welcome";
+  workspaceAddress: string;
+}) {
+  const hasRecentWorkspaces = recentWorkspaces.length > 0;
+
+  return (
+    <section className="workspace-entry" data-testid="workspace-entry">
+      <article className="workspace-entry__card">
+        {screen === "welcome" ? (
+          <div className="workspace-entry__welcome">
+            <div className="workspace-entry__intro">
+              <h1 className="workspace-entry__title">Welcome to Mohio</h1>
+              <p className="workspace-entry__description">
+                A simple workspace for your team to capture and share knowledge in plain text files that you own, built to work with your favourite AI.
+              </p>
+            </div>
+
+            {hasRecentWorkspaces ? (
+              <section className="workspace-entry__recent">
+                <h2 className="workspace-entry__recent-title">Recent workspaces</h2>
+                <ul className="workspace-entry__recent-list">
+                  {recentWorkspaces.map((recentWorkspace) => (
+                    <li key={recentWorkspace.path} className="workspace-entry__recent-item">
+                      <button
+                        className={`workspace-entry__cta-link${recentWorkspace.exists ? "" : " workspace-entry__recent-link--missing"}`}
+                        disabled={!recentWorkspace.exists || isWorkspaceOpening}
+                        onClick={() => {
+                          onOpenRecentWorkspace(recentWorkspace.path);
+                        }}
+                        title={recentWorkspace.exists ? recentWorkspace.path : "Folder not found"}
+                        type="button"
+                      >
+                        {recentWorkspace.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {hasRecentWorkspaces ? <hr className="workspace-entry__divider" /> : null}
+
+            <div className="workspace-entry__actions">
+              <button
+                className="primary-button workspace-entry__action-button"
+                disabled={isWorkspaceOpening}
+                onClick={onOpenWorkspace}
+                type="button"
+              >
+                {isWorkspaceOpening ? "Opening..." : "Open a folder as workspace"}
+              </button>
+              <button
+                className="secondary-button workspace-entry__action-button"
+                onClick={() => {
+                  onSetScreen("connect");
+                }}
+                type="button"
+              >
+                Connect to a remote workspace
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="workspace-entry__title">Connect to a workspace</h1>
+            <div className="workspace-entry__form">
+              <label className="workspace-entry__label" htmlFor="workspace-address-input">Workspace address</label>
+              <input
+                className="search-input"
+                id="workspace-address-input"
+                onChange={(event) => {
+                  onWorkspaceAddressChange(event.target.value);
+                }}
+                placeholder="e.g. github.com/your-team/workspace"
+                type="text"
+                value={workspaceAddress}
+              />
+              <p className="workspace-entry__hint">
+                The link your team shared. Works with GitHub, GitLab, or any Git address.
+              </p>
+
+              <label className="workspace-entry__label" htmlFor="workspace-save-location-input">Save location</label>
+              <div className="workspace-entry__location-row">
+                <input
+                  className="search-input"
+                  id="workspace-save-location-input"
+                  placeholder="Choose a folder..."
+                  readOnly
+                  type="text"
+                  value={saveLocation}
+                />
+                <button
+                  className="secondary-button"
+                  onClick={onChooseSaveLocation}
+                  type="button"
+                >
+                  Choose
+                </button>
+              </div>
+              <p className="workspace-entry__hint">
+                A new folder will be created here using the workspace name.
+              </p>
+
+              <p className={`workspace-entry__path-preview${pathPreview ? " workspace-entry__path-preview--visible" : ""}`} aria-hidden={!pathPreview}>
+                {pathPreview ?? ""}
+              </p>
+            </div>
+
+            <div className="workspace-entry__footer">
+              <button
+                className="primary-button workspace-entry__action-button"
+                disabled={!canConnectWorkspace || isConnectingWorkspace}
+                onClick={onConnectWorkspace}
+                type="button"
+              >
+                {isConnectingWorkspace ? "Connecting..." : "Connect workspace"}
+              </button>
+              <button
+                className="secondary-button workspace-entry__action-button"
+                onClick={() => {
+                  onSetScreen("welcome");
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+
+        {error ? <p className="workspace-panel__error workspace-entry__error" role="status">{error}</p> : null}
+      </article>
     </section>
   );
 }
@@ -1133,6 +1734,7 @@ type SyncControlIcon = "alert" | "offline" | "refresh";
 type SyncControlVariant = "error" | "normal" | "offline" | "pending" | "syncing";
 
 interface SyncControlState {
+  action: "connect-remote" | "identity" | "sync";
   icon: SyncControlIcon;
   isDisabled: boolean;
   isSpinning: boolean;
@@ -1145,20 +1747,27 @@ function getSyncControlState({
   isOnline,
   isSyncingNow,
   hasPendingChanges,
+  remoteConnected,
   lastSyncedAt,
   hasSyncError,
+  hasGitAvailable,
+  requiresIdentitySetup,
 }: {
   hasWorkspace: boolean;
   isOnline: boolean;
   isSyncingNow: boolean;
   hasPendingChanges: boolean;
+  remoteConnected: boolean;
   lastSyncedAt: string | null;
   hasSyncError: boolean;
+  hasGitAvailable: boolean;
+  requiresIdentitySetup: boolean;
 }): SyncControlState {
   const isDisabled = !hasWorkspace || !isOnline || isSyncingNow || !hasPendingChanges;
 
   if (!hasWorkspace) {
     return {
+      action: "sync",
       icon: "refresh",
       isDisabled: true,
       isSpinning: false,
@@ -1169,6 +1778,7 @@ function getSyncControlState({
 
   if (isSyncingNow) {
     return {
+      action: "sync",
       icon: "refresh",
       isDisabled: true,
       isSpinning: true,
@@ -1179,8 +1789,42 @@ function getSyncControlState({
 
   const relative = lastSyncedAt ? formatRelativeTime(lastSyncedAt) : null;
 
+  if (!hasGitAvailable) {
+    return {
+      action: "sync",
+      icon: "alert",
+      isDisabled: true,
+      isSpinning: false,
+      label: "Install Git",
+      variant: "error",
+    };
+  }
+
+  if (requiresIdentitySetup) {
+    return {
+      action: "identity",
+      icon: "alert",
+      isDisabled: false,
+      isSpinning: false,
+      label: "Set Git identity",
+      variant: "error",
+    };
+  }
+
+  if (!remoteConnected) {
+    return {
+      action: "connect-remote",
+      icon: "alert",
+      isDisabled: false,
+      isSpinning: false,
+      label: "Connect remote repo to share",
+      variant: "pending",
+    };
+  }
+
   if (!isOnline) {
     return {
+      action: "sync",
       icon: "offline",
       isDisabled,
       isSpinning: false,
@@ -1191,6 +1835,7 @@ function getSyncControlState({
 
   if (hasSyncError) {
     return {
+      action: "sync",
       icon: "alert",
       isDisabled,
       isSpinning: false,
@@ -1201,6 +1846,7 @@ function getSyncControlState({
 
   if (hasPendingChanges) {
     return {
+      action: "sync",
       icon: "refresh",
       isDisabled: false,
       isSpinning: false,
@@ -1210,6 +1856,7 @@ function getSyncControlState({
   }
 
   return {
+    action: "sync",
     icon: "refresh",
     isDisabled,
     isSpinning: false,
@@ -1279,6 +1926,70 @@ function formatCommitFileCount(shortStat: string | null): string {
 
   const fileLabel = fileMatch[1] === "1" ? "file changed" : "files changed";
   return `${fileMatch[1]} ${fileLabel}`;
+}
+
+function normalizeWorkspaceAddress(rawAddress: string): string | null {
+  const trimmed = rawAddress.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (
+    /^[a-z][a-z0-9+.-]*:\/\//iu.test(trimmed) ||
+    /^[^@\s]+@[^:\s]+:.+/u.test(trimmed)
+  ) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
+function getWorkspaceNameFromAddress(rawAddress: string): string | null {
+  const normalizedAddress = normalizeWorkspaceAddress(rawAddress);
+  if (!normalizedAddress) {
+    return null;
+  }
+
+  const withoutQuery = normalizedAddress
+    .replace(/[?#].*$/u, "")
+    .replace(/\/+$/u, "");
+  const normalizedPath = withoutQuery.replace(/^([^@]+@[^:]+):/u, "$1/");
+  const segment = normalizedPath.split("/").at(-1)?.trim() ?? "";
+  if (!segment) {
+    return null;
+  }
+
+  const withoutGitSuffix = segment.replace(/\.git$/iu, "");
+  return withoutGitSuffix || null;
+}
+
+function isWorkspaceAddressValid(rawAddress: string): boolean {
+  const normalizedAddress = normalizeWorkspaceAddress(rawAddress);
+  if (!normalizedAddress) {
+    return false;
+  }
+
+  if (/^[^@\s]+@[^:\s]+:.+/u.test(normalizedAddress)) {
+    const pathPart = normalizedAddress.split(":").slice(1).join(":");
+    return pathPart.split("/").filter((segment) => segment.trim().length > 0).length > 0;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedAddress);
+    return parsedUrl.pathname.split("/").filter((segment) => segment.trim().length > 0).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function joinPathForPreview(parentPath: string, childName: string): string {
+  const trimmedParentPath = parentPath.trim().replace(/[\\/]+$/u, "");
+  if (!trimmedParentPath) {
+    return childName;
+  }
+
+  const separator = trimmedParentPath.includes("\\") ? "\\" : "/";
+  return `${trimmedParentPath}${separator}${childName}`;
 }
 
 function renderWorkspaceNode({

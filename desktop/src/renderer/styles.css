@@ -54,6 +54,10 @@ button {
   padding: 0 16px;
 }
 
+.top-bar__placeholder {
+  flex: 1;
+}
+
 .top-bar__context,
 .top-bar__actions {
   display: flex;
@@ -211,6 +215,15 @@ button {
 
 .workspace-shell--left-collapsed.workspace-shell--right-collapsed {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace-shell--no-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  height: 100vh;
+}
+
+.workspace-shell--no-workspace .editor-panel {
+  background: var(--muted-surface-strong);
 }
 
 .sidebar {
@@ -381,6 +394,7 @@ button {
 }
 
 .primary-button,
+.secondary-button,
 .ghost-button,
 .toolbar-button {
   display: inline-flex;
@@ -400,6 +414,16 @@ button {
 
 .primary-button:hover {
   background: var(--accent-blue-hover);
+}
+
+.secondary-button {
+  border-color: var(--border);
+  background: var(--background);
+  color: var(--text-primary);
+}
+
+.secondary-button:hover {
+  background: var(--muted-surface);
 }
 
 .ghost-button {
@@ -1062,6 +1086,270 @@ button {
   min-width: 168px;
 }
 
+.workspace-entry {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+.workspace-entry__card {
+  width: min(100%, 440px);
+  min-height: 460px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.workspace-entry__title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.workspace-entry__description {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.workspace-entry__welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.workspace-entry__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspace-entry__recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace-entry__recent-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.workspace-entry__recent-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-entry__recent-item {
+  margin: 0;
+}
+
+.workspace-entry__recent-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: left;
+}
+
+.workspace-entry__recent-link:hover:not(:disabled) {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.workspace-entry__recent-link--missing,
+.workspace-entry__recent-link:disabled {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.workspace-entry__divider {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.workspace-entry__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.workspace-entry__cta-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--accent-blue);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.workspace-entry__cta-link:hover:not(:disabled) {
+  color: var(--accent-blue-hover);
+  text-decoration: underline;
+}
+
+.workspace-entry__cta-link:disabled {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.workspace-entry__action-button {
+  width: 100%;
+}
+
+.workspace-entry__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace-entry__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.workspace-entry__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.workspace-entry__location-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.workspace-entry__path-preview {
+  margin: 2px 0 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 160ms ease, max-height 160ms ease, padding 160ms ease, color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.workspace-entry__path-preview--visible {
+  max-height: 42px;
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+.workspace-entry__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace-entry__error {
+  margin: 0;
+}
+
+.workspace-identity-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.workspace-identity-panel__input {
+  color: var(--text-primary);
+}
+
+.workspace-identity-panel__save {
+  align-self: flex-start;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.35);
+  padding: 24px;
+}
+
+.modal-dialog {
+  width: min(720px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-dialog__header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.modal-dialog__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-dialog__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.modal-dialog__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.modal-dialog__destination-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.modal-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .assistant-panel-header {
   gap: 6px;
   flex: 0 0 auto;
@@ -1499,6 +1787,7 @@ button {
 
 .ghost-button:disabled,
 .primary-button:disabled,
+.secondary-button:disabled,
 .chat-composer:disabled,
 .assistant-composer__send-button:disabled,
 .top-bar__sync-status-action:disabled,

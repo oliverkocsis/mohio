@@ -29,6 +29,12 @@ export interface WorkspaceSummary {
   documentCount: number;
 }
 
+export interface RecentWorkspaceSummary {
+  exists: boolean;
+  name: string;
+  path: string;
+}
+
 export type WorkspaceSearchMatchType = "content" | "path" | "title";
 
 export interface WorkspaceSearchMatch {
@@ -130,6 +136,10 @@ export interface SyncWorkspaceResult {
   commitSha: string | null;
   syncedAt: string | null;
   message: string;
+  remoteConnected: boolean;
+  requiresRemoteConnect: boolean;
+  requiresIdentitySetup: boolean;
+  requiresGitInstall: boolean;
 }
 
 export type PublishResult = SyncWorkspaceResult;
@@ -138,6 +148,47 @@ export interface AutoSyncStatus {
   enabled: boolean;
   hasUncommittedChanges: boolean;
   lastSyncedAt: string | null;
+  remoteConnected: boolean;
+  requiresIdentitySetup: boolean;
+  requiresGitInstall: boolean;
+}
+
+export interface GitCapabilityState {
+  gitAvailable: boolean;
+  gitVersion: string | null;
+  installHint: string | null;
+}
+
+export interface WorkspaceGitStatus {
+  gitAvailable: boolean;
+  isRepository: boolean;
+  remoteConnected: boolean;
+  remoteName: string | null;
+  remoteUrl: string | null;
+  identityConfigured: boolean;
+  userName: string | null;
+  userEmail: string | null;
+  requiresIdentitySetup: boolean;
+}
+
+export interface SetWorkspaceGitIdentityInput {
+  email: string;
+  name: string;
+}
+
+export interface ConnectRemoteRepositoryInput {
+  remoteUrl: string;
+}
+
+export interface ConnectRemoteRepositoryResult {
+  message: string;
+  remoteConnected: boolean;
+  requiresCloneForNonEmptyRemote: boolean;
+}
+
+export interface CloneRemoteRepositoryInput {
+  parentDirectory: string;
+  remoteUrl: string;
 }
 
 export interface SyncConflict {
@@ -227,6 +278,8 @@ export interface MohioApi {
   getAppInfo: () => AppInfo;
   getCurrentWorkspace: () => Promise<WorkspaceSummary | null>;
   openWorkspace: () => Promise<WorkspaceSummary | null>;
+  openWorkspacePath: (workspacePath: string) => Promise<WorkspaceSummary | null>;
+  listRecentWorkspaces: () => Promise<RecentWorkspaceSummary[]>;
   searchWorkspace: (query: string) => Promise<WorkspaceSearchMatch[]>;
   readDocument: (relativePath: string) => Promise<WorkspaceDocument>;
   createDocument: (input: CreateDocumentInput) => Promise<WorkspaceDocument>;
@@ -237,11 +290,17 @@ export interface MohioApi {
   listCommitHistory: (relativePath: string | null) => Promise<CommitHistoryEntry[]>;
   getUnpublishedDiff: (relativePath: string) => Promise<UnpublishedDiffResult>;
   getPublishSummary: () => Promise<PublishSummary>;
+  getGitCapabilityState: () => Promise<GitCapabilityState>;
+  getWorkspaceGitStatus: () => Promise<WorkspaceGitStatus>;
+  setWorkspaceGitIdentity: (input: SetWorkspaceGitIdentityInput) => Promise<WorkspaceGitStatus>;
   syncWorkspaceChanges: () => Promise<SyncWorkspaceResult>;
   getAutoSyncStatus: () => Promise<AutoSyncStatus>;
   syncIncomingChanges: (reason: string) => Promise<SyncState>;
   getSyncState: () => Promise<SyncState>;
   resolveSyncConflict: (input: ResolveConflictInput) => Promise<SyncState>;
+  connectRemoteRepository: (input: ConnectRemoteRepositoryInput) => Promise<ConnectRemoteRepositoryResult>;
+  chooseCloneDestination: () => Promise<string | null>;
+  cloneRemoteRepository: (input: CloneRemoteRepositoryInput) => Promise<WorkspaceSummary>;
   watchDocument: (relativePath: string | null) => Promise<void>;
   listAssistantThreads: () => Promise<AssistantThreadSummary[]>;
   createAssistantThread: () => Promise<AssistantThread>;

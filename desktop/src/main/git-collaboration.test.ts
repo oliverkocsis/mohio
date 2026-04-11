@@ -17,6 +17,18 @@ afterEach(async () => {
 });
 
 describe("git-collaboration", () => {
+  it("bootstraps a plain folder into a git workspace", async () => {
+    const workspacePath = await mkdtemp(path.join(os.tmpdir(), "mohio-bootstrap-"));
+    tempDirectories.push(workspacePath);
+    await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n", "utf8");
+
+    const service = createGitCollaborationService();
+    const status = await service.bootstrapWorkspace(workspacePath);
+
+    expect(status.gitAvailable).toBe(true);
+    expect(status.isRepository).toBe(true);
+  });
+
   it("creates risky commits and lists commit history with stats", async () => {
     const workspacePath = await createWorkspace("history");
     const service = createGitCollaborationService();
@@ -154,6 +166,46 @@ describe("git-collaboration", () => {
     });
 
     expect(resolvedState.status).toBe("idle");
+  });
+
+  it("returns connect-required sync result when no remote is configured", async () => {
+    const workspacePath = await createWorkspace("sync-connect-required");
+    const service = createGitCollaborationService();
+
+    await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nchange\n", "utf8");
+    const result = await service.syncWorkspaceChanges(workspacePath);
+
+    expect(result.requiresRemoteConnect).toBe(true);
+    expect(result.remoteConnected).toBe(false);
+    expect(result.requiresIdentitySetup).toBe(false);
+    expect(result.requiresGitInstall).toBe(false);
+  });
+
+  it("returns identity-required sync result when local identity is missing", async () => {
+    const workspacePath = await createWorkspace("sync-identity-required");
+    runGit(workspacePath, ["config", "--local", "--unset", "user.name"]);
+    runGit(workspacePath, ["config", "--local", "--unset", "user.email"]);
+    const previousGlobalConfig = process.env.GIT_CONFIG_GLOBAL;
+    const emptyGlobalConfigPath = path.join(workspacePath, "empty-global.gitconfig");
+    await writeFile(emptyGlobalConfigPath, "", "utf8");
+    process.env.GIT_CONFIG_GLOBAL = emptyGlobalConfigPath;
+
+    try {
+      const service = createGitCollaborationService();
+      const status = await service.getWorkspaceStatus(workspacePath);
+
+      expect(status.requiresIdentitySetup).toBe(true);
+
+      const result = await service.syncWorkspaceChanges(workspacePath);
+      expect(result.requiresIdentitySetup).toBe(true);
+      expect(result.requiresRemoteConnect).toBe(false);
+    } finally {
+      if (typeof previousGlobalConfig === "string") {
+        process.env.GIT_CONFIG_GLOBAL = previousGlobalConfig;
+      } else {
+        delete process.env.GIT_CONFIG_GLOBAL;
+      }
+    }
   });
 });
 
