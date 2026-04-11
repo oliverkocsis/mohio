@@ -900,6 +900,8 @@ export function App() {
     syncActivity,
     hasPendingChanges: editor.isDirty || (autoSyncStatus?.hasUncommittedChanges ?? false),
     changedFileCount: Math.max(autoSyncStatus?.changedFileCount ?? 0, editor.isDirty ? 1 : 0),
+    incomingCommitCount: autoSyncStatus?.incomingCommitCount ?? 0,
+    outgoingCommitCount: autoSyncStatus?.outgoingCommitCount ?? 0,
     remoteConnected: (workspaceGitStatus?.remoteConnected ?? false) || (autoSyncStatus?.remoteConnected ?? false),
     lastSyncedAt: autoSyncStatus?.lastSyncedAt ?? null,
     hasSyncError: Boolean(syncNowError || syncError),
@@ -1759,6 +1761,8 @@ function getSyncControlState({
   syncActivity,
   hasPendingChanges,
   changedFileCount,
+  incomingCommitCount,
+  outgoingCommitCount,
   remoteConnected,
   lastSyncedAt,
   hasSyncError,
@@ -1771,6 +1775,8 @@ function getSyncControlState({
   syncActivity: SyncActivity;
   hasPendingChanges: boolean;
   changedFileCount?: number;
+  incomingCommitCount: number;
+  outgoingCommitCount: number;
   remoteConnected: boolean;
   lastSyncedAt: string | null;
   hasSyncError: boolean;
@@ -1869,7 +1875,8 @@ function getSyncControlState({
   // 3-state model: Syncing (handled above), Local Changes, or Synced
   if (hasPendingChanges) {
     const changeCount = changedFileCount ?? 1;
-    const label = changeCount === 1 ? "1 local change" : `${changeCount} local changes`;
+    const localLabel = changeCount === 1 ? "1 local change" : `${changeCount} local changes`;
+    const label = `${localLabel} · Incoming ${incomingCommitCount} · Outgoing ${outgoingCommitCount}`;
     return {
       action: "sync",
       icon: "cloud-upload",
@@ -1887,7 +1894,9 @@ function getSyncControlState({
     dotTone: "green",
     isDisabled,
     isSpinning: false,
-    label: relative ? `Synced ${relative}` : "Synced",
+    label: relative
+      ? `Incoming ${incomingCommitCount} · Outgoing ${outgoingCommitCount} · Synced ${relative}`
+      : `Incoming ${incomingCommitCount} · Outgoing ${outgoingCommitCount}`,
     variant: "normal",
   };
 }

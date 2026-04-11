@@ -194,6 +194,78 @@ describe("git-collaboration", () => {
       }
     }
   });
+
+  it("fetches only and reports incoming/outgoing when local working tree is dirty", async () => {
+    const repoA = await createWorkspace("sync-fetch-only");
+    const remotePath = await mkdtemp(path.join(os.tmpdir(), "mohio-fetch-only-remote-"));
+    tempDirectories.push(remotePath);
+
+    runGit(remotePath, ["init", "--bare"]);
+    runGit(repoA, ["remote", "add", "origin", remotePath]);
+    runGit(repoA, ["push", "-u", "origin", "master"]);
+
+    const repoB = await mkdtemp(path.join(os.tmpdir(), "mohio-fetch-only-peer-"));
+    tempDirectories.push(repoB);
+    execFileSync("git", ["clone", remotePath, "."], { cwd: repoB, encoding: "utf8" });
+    runGit(repoB, ["config", "user.name", "Mohio Test"]);
+    runGit(repoB, ["config", "user.email", "mohio@example.com"]);
+
+    await writeFile(path.join(repoB, "README.md"), "# Mohio\n\nincoming only\n", "utf8");
+    runGit(repoB, ["add", "README.md"]);
+    runGit(repoB, ["commit", "-m", "incoming update"]);
+    runGit(repoB, ["push"]);
+
+    await writeFile(path.join(repoA, "README.md"), "# Mohio\n\nlocal uncommitted draft\n", "utf8");
+
+    const service = createGitCollaborationService();
+    const state = await service.syncIncomingChanges(repoA, "periodic-sync");
+
+    expect(state.status).toBe("local-changes");
+    expect(state.message).toContain("fetched only");
+    expect(state.incomingCommitCount).toBe(1);
+    expect(state.outgoingCommitCount).toBe(0);
+
+    const porcelain = runGit(repoA, ["status", "--porcelain"]);
+    expect(porcelain).not.toMatch(/^(AA|DD|UU|AU|UA|UD|DU)/m);
+  });
+
+  it("uses commit-pull-push manual sync flow and creates merge commit when needed", async () => {
+    const repoA = await createWorkspace("manual-sandwich-a");
+    const remotePath = await mkdtemp(path.join(os.tmpdir(), "mohio-manual-sandwich-remote-"));
+    tempDirectories.push(remotePath);
+
+    runGit(remotePath, ["init", "--bare"]);
+    runGit(repoA, ["remote", "add", "origin", remotePath]);
+    runGit(repoA, ["push", "-u", "origin", "master"]);
+
+    const repoB = await mkdtemp(path.join(os.tmpdir(), "mohio-manual-sandwich-peer-"));
+    tempDirectories.push(repoB);
+    execFileSync("git", ["clone", remotePath, "."], { cwd: repoB, encoding: "utf8" });
+    runGit(repoB, ["config", "user.name", "Mohio Test"]);
+    runGit(repoB, ["config", "user.email", "mohio@example.com"]);
+
+    await writeFile(path.join(repoA, "LOCAL.md"), "# Local\n\nA side change\n", "utf8");
+    await writeFile(path.join(repoB, "INCOMING.md"), "# Incoming\n\nB side change\n", "utf8");
+    runGit(repoB, ["add", "INCOMING.md"]);
+    runGit(repoB, ["commit", "-m", "incoming update"]);
+    runGit(repoB, ["push"]);
+
+    const service = createGitCollaborationService();
+    const result = await service.syncWorkspaceChanges(repoA);
+
+    expect(result.remoteConnected).toBe(true);
+    expect(result.commitSha).not.toBeNull();
+    expect(result.message).toContain("Synced");
+
+    const mergeSubject = runGit(repoA, ["log", "-1", "--pretty=%s"]);
+    expect(mergeSubject).toMatch(/^Merge incoming updates:/);
+
+    const remoteClone = await mkdtemp(path.join(os.tmpdir(), "mohio-manual-sandwich-verify-"));
+    tempDirectories.push(remoteClone);
+    execFileSync("git", ["clone", remotePath, "."], { cwd: remoteClone, encoding: "utf8" });
+    const remoteTopSubject = runGit(remoteClone, ["log", "-1", "--pretty=%s"]);
+    expect(remoteTopSubject).toMatch(/^Merge incoming updates:/);
+  }, 20000);
 });
 
 async function createWorkspace(prefix: string): Promise<string> {

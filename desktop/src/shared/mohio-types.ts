@@ -148,6 +148,8 @@ export interface AutoSyncStatus {
   enabled: boolean;
   hasUncommittedChanges: boolean;
   changedFileCount: number;
+  incomingCommitCount: number;
+  outgoingCommitCount: number;
   lastSyncedAt: string | null;
   remoteConnected: boolean;
   requiresIdentitySetup: boolean;
@@ -205,6 +207,8 @@ export interface SyncState {
   status: SyncStatus;
   lastSyncedAt: string | null;
   changedFileCount?: number;
+  incomingCommitCount?: number;
+  outgoingCommitCount?: number;
   message: string | null;
 }
 
