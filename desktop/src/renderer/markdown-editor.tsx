@@ -772,14 +772,15 @@ function addInlineDecorations(
     });
   };
 
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark);
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
-  addInlineCodeDecorations(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText);
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark);
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark);
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /__([^_\n]+)__/gu, 2, strongMark);
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!\*)\*([^*\n]+)\*(?!\*)/gu, 1, emphasisMark);
-  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!_)_([^_\n]+)_(?!_)/gu, 1, emphasisMark);
+  const inlineCodeRanges = addInlineCodeDecorations(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText);
+
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark, inlineCodeRanges);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark, inlineCodeRanges);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark, inlineCodeRanges);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark, inlineCodeRanges);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /__([^_\n]+)__/gu, 2, strongMark, inlineCodeRanges);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!\*)\*([^*\n]+)\*(?!\*)/gu, 1, emphasisMark, inlineCodeRanges);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!_)_([^_\n]+)_(?!_)/gu, 1, emphasisMark, inlineCodeRanges);
 
   pendingDecorations
     .sort((left, right) => left.from - right.from || left.to - right.to)
@@ -794,8 +795,9 @@ function addInlineCodeDecorations(
   selectionTo: number,
   lineFrom: number,
   lineText: string,
-) {
+): InlineDecorationRange[] {
   const inlineCodePattern = /(`+)([^`\n]+?)\1/gu;
+  const ranges: InlineDecorationRange[] = [];
 
   for (const match of lineText.matchAll(inlineCodePattern)) {
     const fullMatch = match[0];
@@ -810,6 +812,8 @@ function addInlineCodeDecorations(
       continue;
     }
 
+    ranges.push({ from: start, to: end });
+
     if (canHideRange(selectionFrom, selectionTo, start, contentStart)) {
       collectDecoration(start, contentStart, hiddenSyntax);
     }
@@ -819,6 +823,8 @@ function addInlineCodeDecorations(
       collectDecoration(contentEnd, end, hiddenSyntax);
     }
   }
+
+  return ranges;
 }
 
 function addWrappedRanges(
@@ -830,6 +836,7 @@ function addWrappedRanges(
   pattern: RegExp,
   delimiterLength: number,
   mark: Decoration,
+  excludedRanges: InlineDecorationRange[] = [],
 ) {
   for (const match of lineText.matchAll(pattern)) {
     const fullMatch = match[0];
@@ -838,6 +845,10 @@ function addWrappedRanges(
     const contentStart = start + delimiterLength;
     const contentEnd = contentStart + content.length;
     const end = start + fullMatch.length;
+
+    if (rangeOverlapsAny(start, end, excludedRanges)) {
+      continue;
+    }
 
     if (canHideRange(selectionFrom, selectionTo, start, contentStart)) {
       collectDecoration(start, contentStart, hiddenSyntax);
@@ -854,6 +865,15 @@ interface PendingInlineDecoration {
   decoration: Decoration;
   from: number;
   to: number;
+}
+
+interface InlineDecorationRange {
+  from: number;
+  to: number;
+}
+
+function rangeOverlapsAny(from: number, to: number, ranges: InlineDecorationRange[]): boolean {
+  return ranges.some((range) => from < range.to && to > range.from);
 }
 
 function canHideRange(selectionFrom: number, selectionTo: number, rangeFrom: number, rangeTo: number): boolean {

@@ -1783,7 +1783,13 @@ function getSyncControlState({
   hasGitAvailable: boolean;
   requiresIdentitySetup: boolean;
 }): SyncControlState {
-  const isDisabled = !hasWorkspace || !isOnline || isSyncingNow || !hasPendingChanges;
+  const remoteChangeCount = Math.max(0, incomingCommitCount);
+  const committedLocalChangeCount = Math.max(0, outgoingCommitCount);
+  const draftLocalChangeCount = hasPendingChanges ? Math.max(1, changedFileCount ?? 1) : 0;
+  const localChangeCount = Math.max(committedLocalChangeCount, draftLocalChangeCount);
+  const hasAnySyncChanges = remoteChangeCount > 0 || localChangeCount > 0;
+  const syncLabel = `Remote Changes ${remoteChangeCount} · Local Changes ${localChangeCount}`;
+  const isDisabled = !hasWorkspace || !isOnline || isSyncingNow || !hasAnySyncChanges;
 
   if (!hasWorkspace) {
     return {
@@ -1872,32 +1878,27 @@ function getSyncControlState({
     };
   }
 
-  // 3-state model: Syncing (handled above), Local Changes, or Synced
+  // 3-state model: Syncing (handled above), Local/Remote Changes, or Synced
   if (hasPendingChanges) {
-    const changeCount = changedFileCount ?? 1;
-    const localLabel = changeCount === 1 ? "1 local change" : `${changeCount} local changes`;
-    const label = `${localLabel} · Incoming ${incomingCommitCount} · Outgoing ${outgoingCommitCount}`;
     return {
       action: "sync",
       icon: "cloud-upload",
       dotTone: "amber",
       isDisabled: false,
       isSpinning: false,
-      label,
+      label: syncLabel,
       variant: "pending",
     };
   }
 
   return {
     action: "sync",
-    icon: "cloud-check",
-    dotTone: "green",
+    icon: hasAnySyncChanges ? "cloud-upload" : "cloud-check",
+    dotTone: hasAnySyncChanges ? "amber" : "green",
     isDisabled,
     isSpinning: false,
-    label: relative
-      ? `Incoming ${incomingCommitCount} · Outgoing ${outgoingCommitCount} · Synced ${relative}`
-      : `Incoming ${incomingCommitCount} · Outgoing ${outgoingCommitCount}`,
-    variant: "normal",
+    label: syncLabel,
+    variant: hasAnySyncChanges ? "pending" : "normal",
   };
 }
 

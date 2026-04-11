@@ -735,7 +735,7 @@ describe("App", () => {
       });
     });
 
-    expect(screen.getByText("1 local change · Incoming 0 · Outgoing 0")).toBeInTheDocument();
+    expect(screen.getByText("Remote Changes 0 · Local Changes 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sync now" })).toBeEnabled();
   });
 
@@ -827,7 +827,7 @@ describe("App", () => {
 
       await screen.findByTestId("workspace-sidebar");
 
-      expect(screen.getByText("Incoming 0 · Outgoing 0 · Synced 3 minutes ago")).toBeInTheDocument();
+      expect(screen.getByText("Remote Changes 0 · Local Changes 0")).toBeInTheDocument();
     } finally {
       dateNowSpy.mockRestore();
     }

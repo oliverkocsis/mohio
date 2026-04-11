@@ -133,6 +133,30 @@ describe("markdown editor toolbar transforms", () => {
     expect(container.querySelectorAll(".cm-md-strong").length).toBeGreaterThanOrEqual(2);
   });
 
+  it("does not decorate inline styles inside inline code spans", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "_this makes italic_ but `in_this_text_should_be_NO_italic`",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-md-emphasis")).toHaveLength(1);
+    expect(container.querySelectorAll(".cm-md-inline-code")).toHaveLength(1);
+  });
+
+  it("does not decorate inline styles inside fenced code blocks", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "_outside_\n\n```\n_inside_\n**bold**\n```",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    expect(container.querySelectorAll(".cm-md-emphasis")).toHaveLength(1);
+    expect(container.querySelectorAll(".cm-md-strong")).toHaveLength(0);
+  });
+
   it("highlights search matches in the visible document text", () => {
     const { container, rerender } = render(createElement(RichTextEditor, {
       highlightQuery: "alpha",
