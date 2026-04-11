@@ -102,8 +102,10 @@ function useDocumentEditorSession({
     loadTokenRef.current = loadToken;
     setSaveState("loading");
 
+    console.time(`📖 Load document: ${relativePath}`);
     void window.mohio.readDocument(relativePath).then(
       (nextDocument) => {
+        console.timeEnd(`📖 Load document: ${relativePath}`);
         if (loadToken !== loadTokenRef.current) {
           return;
         }
@@ -119,6 +121,7 @@ function useDocumentEditorSession({
         setSaveState("saved");
       },
       () => {
+        console.timeEnd(`📖 Load document: ${relativePath}`);
         if (loadToken !== loadTokenRef.current) {
           return;
         }
@@ -564,13 +567,26 @@ export function App() {
       return;
     }
 
+    console.time("🎯 Total document switch");
+    console.time("💾 Save current document");
     await editor.saveNow().catch(() => undefined);
+    console.timeEnd("💾 Save current document");
+
+    console.time("📝 Record risky commit");
     await window.mohio.recordRiskyCommit({
       trigger: "document-switch",
       force: true,
     }).catch(() => undefined);
+    console.timeEnd("📝 Record risky commit");
+
+    console.time("🔄 Refresh auto-sync status");
     await refreshAutoSyncStatus();
+    console.timeEnd("🔄 Refresh auto-sync status");
+
+    console.time("🔀 Set active document path");
     setActiveDocumentPath(documentId);
+    console.timeEnd("🔀 Set active document path");
+    console.timeEnd("🎯 Total document switch");
   };
 
   const handleSelectDocument = (documentId: string) => {

@@ -110,6 +110,7 @@ export function RichTextEditor({
       return;
     }
 
+    console.time("🔧 Initialize CodeMirror editor");
     const view = new EditorView({
       state: EditorState.create({
         doc: markdown,
@@ -171,12 +172,15 @@ export function RichTextEditor({
       }),
       parent: containerRef.current,
     });
+    console.timeEnd("🔧 Initialize CodeMirror editor");
 
     viewRef.current = view;
     latestMarkdownRef.current = markdown;
 
     return () => {
+      console.time("🗑️ Destroy CodeMirror editor");
       view.destroy();
+      console.timeEnd("🗑️ Destroy CodeMirror editor");
       viewRef.current = null;
     };
   }, []);
@@ -188,6 +192,7 @@ export function RichTextEditor({
       return;
     }
 
+    console.time("✏️ Update markdown in editor");
     isApplyingExternalUpdateRef.current = true;
     view.dispatch({
       changes: {
@@ -198,6 +203,7 @@ export function RichTextEditor({
       selection: EditorSelection.cursor(Math.min(markdown.length, view.state.selection.main.head)),
     });
     isApplyingExternalUpdateRef.current = false;
+    console.timeEnd("✏️ Update markdown in editor");
     latestMarkdownRef.current = markdown;
   }, [markdown]);
 
