@@ -644,6 +644,9 @@ export function App() {
       await editor.saveNow().catch(() => undefined);
       const result = await window.mohio.syncWorkspaceChanges();
       setSyncNowError(null);
+      if (!result.commitSha && result.message) {
+        setSyncNowError(result.message);
+      }
       if (result.requiresGitInstall) {
         setSyncNowError(result.message);
       } else if (result.requiresIdentitySetup) {

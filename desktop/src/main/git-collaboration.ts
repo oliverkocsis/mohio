@@ -416,6 +416,20 @@ export function createGitCollaborationService() {
     });
     debugSyncLog("manualSync:after-write-commit", { committed, workspacePath });
 
+    const postCommitSyncState = syncStateByWorkspace.get(workspacePath);
+    if (!committed && postCommitSyncState?.status === "local-changes") {
+      return {
+        committed: false,
+        commitSha: null,
+        syncedAt: null,
+        message: postCommitSyncState.message ?? "Incoming updates need your attention before syncing.",
+        remoteConnected: workspaceStatus.remoteConnected,
+        requiresRemoteConnect: false,
+        requiresIdentitySetup: false,
+        requiresGitInstall: false,
+      };
+    }
+
     if (!workspaceStatus.remoteConnected) {
       return {
         committed,
@@ -540,6 +554,26 @@ export function createGitCollaborationService() {
     }
 
     debugSyncLog("syncIncoming:start", { reason, workspacePath });
+
+    const mergeInProgress = await hasMergeInProgress(workspacePath);
+    if (mergeInProgress) {
+      const conflicts = await readMergeConflicts(workspacePath);
+      const state: SyncState = {
+        ...defaultSyncState,
+        status: "local-changes",
+        message: conflicts.length > 0
+          ? `Merge is still in progress. Resolve ${conflicts.length} conflict file(s) first.`
+          : "Merge is still in progress. Finish or abort the merge before syncing.",
+      };
+      syncStateByWorkspace.set(workspacePath, state);
+      debugSyncLog("syncIncoming:merge-in-progress", {
+        conflictCount: conflicts.length,
+        reason,
+        workspacePath,
+      });
+      return state;
+    }
+
     syncStateByWorkspace.set(workspacePath, {
       ...defaultSyncState,
       status: "syncing",
@@ -592,6 +626,22 @@ export function createGitCollaborationService() {
     });
 
     if (mergeResult.code === 0) {
+      const finalizedMerge = await finalizePendingMergeCommit(workspacePath, "incoming-sync");
+
+      if (!finalizedMerge) {
+        const state: SyncState = {
+          ...defaultSyncState,
+          status: "local-changes",
+          message: "Incoming updates were merged but Mohio could not finalize the merge commit.",
+        };
+        syncStateByWorkspace.set(workspacePath, state);
+        debugSyncLog("syncIncoming:merge-finalize-failed", {
+          reason,
+          workspacePath,
+        });
+        return state;
+      }
+
       const appliedAt = new Date().toISOString();
       const state: SyncState = {
         ...defaultSyncState,
@@ -677,11 +727,23 @@ export function createGitCollaborationService() {
       return state;
     }
 
+    const finalizedMerge = await finalizePendingMergeCommit(workspacePath, "conflict-resolution");
+
+    if (!finalizedMerge) {
+      const state: SyncState = {
+        ...defaultSyncState,
+        status: "local-changes",
+        message: "Conflicts were staged, but Mohio could not finalize the merge commit.",
+      };
+      syncStateByWorkspace.set(workspacePath, state);
+      return state;
+    }
+
     const resolvedState: SyncState = {
       ...defaultSyncState,
       status: "synced",
       lastSyncedAt: new Date().toISOString(),
-      message: "Incoming updates are resolved locally. Use Sync now to commit and push.",
+      message: "Incoming updates were resolved and merged. Use Sync now to push.",
     };
     syncStateByWorkspace.set(workspacePath, resolvedState);
     return resolvedState;
@@ -768,6 +830,40 @@ async function getAheadCommitCount(workspacePath: string, upstream: string): Pro
   return Number.isFinite(aheadCount) ? aheadCount : 0;
 }
 
+async function hasMergeInProgress(workspacePath: string): Promise<boolean> {
+  const mergeHead = await runGit(workspacePath, ["rev-parse", "-q", "--verify", "MERGE_HEAD"], {
+    allowFailure: true,
+  });
+
+  return mergeHead.code === 0;
+}
+
+async function finalizePendingMergeCommit(workspacePath: string, context: string): Promise<boolean> {
+  const mergeInProgress = await hasMergeInProgress(workspacePath);
+
+  if (!mergeInProgress) {
+    return true;
+  }
+
+  const commitResult = await runGit(
+    workspacePath,
+    ["commit", "-m", createMergeCommitMessage(), "--no-edit"],
+    { allowFailure: true },
+  );
+
+  if (commitResult.code === 0) {
+    debugSyncLog("merge:finalized", { context, workspacePath });
+    return true;
+  }
+
+  debugSyncLog("merge:finalize-failed", {
+    context,
+    stderr: commitResult.stderr.trim(),
+    workspacePath,
+  });
+  return false;
+}
+
 async function pushWorkspace(workspacePath: string): Promise<boolean> {
   const upstream = await getUpstreamBranch(workspacePath);
   debugSyncLog("pushWorkspace:start", { upstream, workspacePath });
@@ -815,6 +911,10 @@ function debugSyncLog(event: string, details: Record<string, unknown>): void {
 
 function createSnapshotCommitMessage(): string {
   return `Snapshot: ${new Date().toISOString()}`;
+}
+
+function createMergeCommitMessage(): string {
+  return `Merge incoming updates: ${new Date().toISOString()}`;
 }
 
 function isShortStatLine(line: string): boolean {

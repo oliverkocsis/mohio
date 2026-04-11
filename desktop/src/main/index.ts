@@ -76,6 +76,12 @@ function createMainWindow(): BrowserWindow {
   });
 
   if (devServerUrl) {
+    // Mirror renderer console output to the terminal while developing.
+    mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+      const levelName = ["log", "warning", "error", "info", "debug"][level] ?? `level-${level}`;
+      console.info(`[renderer:${levelName}] ${message} (${sourceId}:${line})`);
+    });
+
     void mainWindow.loadURL(devServerUrl);
   } else {
     void mainWindow.loadFile(rendererPath);
@@ -622,6 +628,14 @@ app.whenReady().then(() => {
       });
     }
   });
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[main:uncaughtException]", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[main:unhandledRejection]", reason);
 });
 
 app.on("window-all-closed", () => {
