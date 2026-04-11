@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { Compartment, EditorSelection, EditorState, RangeSetBuilder } from "@codemirror/state";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { markdown as markdownLanguage } from "@codemirror/lang-markdown";
+import { defaultKeymap, history, historyKeymap, insertTab } from "@codemirror/commands";
+import { insertNewlineContinueMarkup, markdown as markdownLanguage } from "@codemirror/lang-markdown";
 import {
   Decoration,
   EditorView,
@@ -47,11 +47,13 @@ const linkMark = Decoration.mark({ class: "cm-md-link" });
 const imageAltMark = Decoration.mark({ class: "cm-md-image-alt" });
 const searchHighlightMark = Decoration.mark({ class: "cm-search-highlight" });
 
+const MARKDOWN_EDITOR_DEBUG_STORAGE_KEY = "mohio.debug.markdownEditor";
+
 const markdownPresentation = ViewPlugin.fromClass(class {
   decorations: DecorationSet;
 
   constructor(view: EditorView) {
-    this.decorations = buildMarkdownDecorations(view);
+    this.decorations = safeBuildMarkdownDecorations(view);
   }
 
   update(update: ViewUpdate) {
@@ -59,7 +61,7 @@ const markdownPresentation = ViewPlugin.fromClass(class {
       return;
     }
 
-    this.decorations = buildMarkdownDecorations(update.view);
+    this.decorations = safeBuildMarkdownDecorations(update.view);
   }
 }, {
   decorations: (value) => value.decorations,
@@ -116,7 +118,14 @@ export function RichTextEditor({
         extensions: [
           history(),
           keymap.of([
-            indentWithTab,
+            {
+              key: "Enter",
+              run: handleMarkdownEnter,
+            },
+            {
+              key: "Tab",
+              run: handleMarkdownTab,
+            },
             ...defaultKeymap,
             ...historyKeymap,
           ]),
@@ -426,6 +435,7 @@ function clampSelection(value: number, textLength: number) {
 function buildMarkdownDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   const document = view.state.doc;
+  const mainSelection = view.state.selection.main;
   let inCodeBlock = false;
   let firstCodeLine = 0;
 
@@ -437,7 +447,7 @@ function buildMarkdownDecorations(view: EditorView): DecorationSet {
     if (fenceMatch) {
       builder.add(line.from, line.from, Decoration.line({ class: "cm-md-code-fence" }));
 
-      if (line.from !== line.to) {
+      if (line.from !== line.to && canHideRange(mainSelection.from, mainSelection.to, line.from, line.to)) {
         builder.add(line.from, line.to, hiddenSyntax);
       }
 
@@ -488,7 +498,7 @@ function buildMarkdownDecorations(view: EditorView): DecorationSet {
       if (getMarkdownLineKind(previousLine.text) === "paragraph") {
         builder.add(line.from, line.from, Decoration.line({ class: "cm-md-setext-underline" }));
 
-        if (line.from !== line.to) {
+        if (line.from !== line.to && canHideRange(mainSelection.from, mainSelection.to, line.from, line.to)) {
           builder.add(line.from, line.to, hiddenSyntax);
         }
 
@@ -498,14 +508,34 @@ function buildMarkdownDecorations(view: EditorView): DecorationSet {
 
     addLineDecorations(
       builder,
+      mainSelection.from,
+      mainSelection.to,
       line.from,
       line.text,
       lineNumber < document.lines ? document.line(lineNumber + 1).text : null,
     );
-    addInlineDecorations(builder, line.from, line.text);
+    addInlineDecorations(builder, mainSelection.from, mainSelection.to, line.from, line.text);
   }
 
+  logMarkdownEditorDebug("buildMarkdownDecorations", {
+    documentLines: document.lines,
+    selectionFrom: mainSelection.from,
+    selectionTo: mainSelection.to,
+  });
+
   return builder.finish();
+}
+
+function safeBuildMarkdownDecorations(view: EditorView): DecorationSet {
+  try {
+    return buildMarkdownDecorations(view);
+  } catch (error) {
+    logMarkdownEditorDebug("buildMarkdownDecorations.error", {
+      error: formatDebugError(error),
+      documentLength: view.state.doc.length,
+    });
+    return Decoration.none;
+  }
 }
 
 function createSearchHighlightExtension(query: string) {
@@ -594,16 +624,28 @@ function isFenceLine(line: string): boolean {
 }
 
 function isMarkdownListLine(lineText: string): boolean {
-  return /^\s{0,3}(?:[-*+](?:\s+|$)|\d+\.(?:\s+|$)|[-*+]\s+\[(?: |x|X)\](?:\s+|$))/u.test(lineText);
+  return /^\s*(?:[-*+](?:\s+|$)|\d+\.(?:\s+|$)|[-*+]\s+\[(?: |x|X)\](?:\s+|$))/u.test(lineText);
+}
+
+function getListDepth(lineText: string): number {
+  const leadingWhitespace = lineText.match(/^\s*/u)?.[0] ?? "";
+  const normalizedWidth = leadingWhitespace.replace(/\t/gu, "    ").length;
+
+  return Math.floor(normalizedWidth / 4);
 }
 
 function addLineDecorations(
   builder: RangeSetBuilder<Decoration>,
+  selectionFrom: number,
+  selectionTo: number,
   lineFrom: number,
   lineText: string,
   nextLineText: string | null,
 ) {
   const nextLineIsList = nextLineText !== null && getMarkdownLineKind(nextLineText) === "list";
+  const nextLineIsQuote = nextLineText !== null && getMarkdownLineKind(nextLineText) === "quote";
+  const listDepth = getListDepth(lineText);
+  const listStyle = `--md-list-depth: ${listDepth}`;
   const headingMatch = lineText.match(/^(\s{0,3})(#{1,6})(\s+|$)/u);
 
   if (headingMatch) {
@@ -611,7 +653,10 @@ function addLineDecorations(
     const prefixEnd = prefixStart + headingMatch[2].length + headingMatch[3].length;
 
     builder.add(lineFrom, lineFrom, Decoration.line({ class: `cm-md-heading cm-md-heading-${headingMatch[2].length}` }));
-    builder.add(prefixStart, prefixEnd, hiddenSyntax);
+
+    if (canHideRange(selectionFrom, selectionTo, prefixStart, prefixEnd)) {
+      builder.add(prefixStart, prefixEnd, hiddenSyntax);
+    }
   }
 
   const horizontalRuleMatch = lineText.match(/^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/u);
@@ -628,7 +673,7 @@ function addLineDecorations(
     return;
   }
 
-  const taskListMatch = lineText.match(/^([-*+])\s+\[( |x|X)\]\s+/u);
+  const taskListMatch = lineText.match(/^\s*([-*+])\s+\[( |x|X)\]\s+/u);
 
   if (taskListMatch) {
     builder.add(
@@ -638,14 +683,19 @@ function addLineDecorations(
         attributes: {
           class: nextLineIsList ? "cm-md-task-item cm-md-list-item--continued" : "cm-md-task-item",
           "data-task-state": taskListMatch[2].trim() ? "checked" : "unchecked",
+          style: listStyle,
         },
       }),
     );
-    builder.add(lineFrom, lineFrom + taskListMatch[0].length, hiddenSyntax);
+    const taskMarkerEnd = lineFrom + taskListMatch[0].length;
+
+    if (canHideRange(selectionFrom, selectionTo, lineFrom, taskMarkerEnd)) {
+      builder.add(lineFrom, taskMarkerEnd, hiddenSyntax);
+    }
     return;
   }
 
-  const orderedListMatch = lineText.match(/^(\d+)\.\s+/u);
+  const orderedListMatch = lineText.match(/^\s*(\d+)\.\s+/u);
 
   if (orderedListMatch) {
     builder.add(
@@ -655,48 +705,91 @@ function addLineDecorations(
         attributes: {
           class: nextLineIsList ? "cm-md-ordered-item cm-md-list-item--continued" : "cm-md-ordered-item",
           "data-list-marker": orderedListMatch[1],
+          style: listStyle,
         },
       }),
     );
-    builder.add(lineFrom, lineFrom + orderedListMatch[0].length, hiddenSyntax);
+    const orderedMarkerEnd = lineFrom + orderedListMatch[0].length;
+
+    if (canHideRange(selectionFrom, selectionTo, lineFrom, orderedMarkerEnd)) {
+      builder.add(lineFrom, orderedMarkerEnd, hiddenSyntax);
+    }
   }
 
-  const bulletListMatch = lineText.match(/^[-*+]\s+/u);
+  const bulletListMatch = lineText.match(/^\s*[-*+]\s+/u);
 
   if (bulletListMatch) {
     builder.add(
       lineFrom,
       lineFrom,
-      Decoration.line({ class: nextLineIsList ? "cm-md-bullet-item cm-md-list-item--continued" : "cm-md-bullet-item" }),
+      Decoration.line({
+        attributes: {
+          class: nextLineIsList ? "cm-md-bullet-item cm-md-list-item--continued" : "cm-md-bullet-item",
+          style: listStyle,
+        },
+      }),
     );
-    builder.add(lineFrom, lineFrom + bulletListMatch[0].length, hiddenSyntax);
+    const bulletMarkerEnd = lineFrom + bulletListMatch[0].length;
+
+    if (canHideRange(selectionFrom, selectionTo, lineFrom, bulletMarkerEnd)) {
+      builder.add(lineFrom, bulletMarkerEnd, hiddenSyntax);
+    }
   }
 
   const blockQuoteMatch = lineText.match(/^>+\s+/u);
 
   if (blockQuoteMatch) {
-    builder.add(lineFrom, lineFrom, Decoration.line({ class: "cm-md-blockquote" }));
-    builder.add(lineFrom, lineFrom + blockQuoteMatch[0].length, hiddenSyntax);
+    builder.add(
+      lineFrom,
+      lineFrom,
+      Decoration.line({
+        class: nextLineIsQuote ? "cm-md-blockquote cm-md-blockquote--continued" : "cm-md-blockquote",
+      }),
+    );
+    const blockQuoteEnd = lineFrom + blockQuoteMatch[0].length;
+
+    if (canHideRange(selectionFrom, selectionTo, lineFrom, blockQuoteEnd)) {
+      builder.add(lineFrom, blockQuoteEnd, hiddenSyntax);
+    }
   }
 }
 
 function addInlineDecorations(
   builder: RangeSetBuilder<Decoration>,
+  selectionFrom: number,
+  selectionTo: number,
   lineFrom: number,
   lineText: string,
 ) {
-  addWrappedRanges(builder, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark);
-  addWrappedRanges(builder, lineFrom, lineText, /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
-  addInlineCodeDecorations(builder, lineFrom, lineText);
-  addWrappedRanges(builder, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark);
-  addWrappedRanges(builder, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark);
-  addWrappedRanges(builder, lineFrom, lineText, /__([^_\n]+)__/gu, 2, strongMark);
-  addWrappedRanges(builder, lineFrom, lineText, /(?<!\*)\*([^*\n]+)\*(?!\*)/gu, 1, emphasisMark);
-  addWrappedRanges(builder, lineFrom, lineText, /(?<!_)_([^_\n]+)_(?!_)/gu, 1, emphasisMark);
+  const pendingDecorations: PendingInlineDecoration[] = [];
+  const collectDecoration = (from: number, to: number, decoration: Decoration) => {
+    pendingDecorations.push({
+      from,
+      to,
+      decoration,
+    });
+  };
+
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /!\[([^\]]*)\]\(([^)]+)\)/gu, 2, imageAltMark);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!!)\[([^\]]+)\]\(([^)]+)\)/gu, 1, linkMark);
+  addInlineCodeDecorations(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /~~([^~\n]+)~~/gu, 2, strikethroughMark);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /\*\*([^*\n]+)\*\*/gu, 2, strongMark);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /__([^_\n]+)__/gu, 2, strongMark);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!\*)\*([^*\n]+)\*(?!\*)/gu, 1, emphasisMark);
+  addWrappedRanges(collectDecoration, selectionFrom, selectionTo, lineFrom, lineText, /(?<!_)_([^_\n]+)_(?!_)/gu, 1, emphasisMark);
+
+  pendingDecorations
+    .sort((left, right) => left.from - right.from || left.to - right.to)
+    .forEach((entry) => {
+      builder.add(entry.from, entry.to, entry.decoration);
+    });
 }
 
 function addInlineCodeDecorations(
-  builder: RangeSetBuilder<Decoration>,
+  collectDecoration: (from: number, to: number, decoration: Decoration) => void,
+  selectionFrom: number,
+  selectionTo: number,
   lineFrom: number,
   lineText: string,
 ) {
@@ -715,14 +808,21 @@ function addInlineCodeDecorations(
       continue;
     }
 
-    builder.add(start, contentStart, hiddenSyntax);
-    builder.add(contentStart, contentEnd, inlineCodeMark);
-    builder.add(contentEnd, end, hiddenSyntax);
+    if (canHideRange(selectionFrom, selectionTo, start, contentStart)) {
+      collectDecoration(start, contentStart, hiddenSyntax);
+    }
+    collectDecoration(contentStart, contentEnd, inlineCodeMark);
+
+    if (canHideRange(selectionFrom, selectionTo, contentEnd, end)) {
+      collectDecoration(contentEnd, end, hiddenSyntax);
+    }
   }
 }
 
 function addWrappedRanges(
-  builder: RangeSetBuilder<Decoration>,
+  collectDecoration: (from: number, to: number, decoration: Decoration) => void,
+  selectionFrom: number,
+  selectionTo: number,
   lineFrom: number,
   lineText: string,
   pattern: RegExp,
@@ -737,10 +837,57 @@ function addWrappedRanges(
     const contentEnd = contentStart + content.length;
     const end = start + fullMatch.length;
 
-    builder.add(start, contentStart, hiddenSyntax);
-    builder.add(contentStart, contentEnd, mark);
-    builder.add(contentEnd, end, hiddenSyntax);
+    if (canHideRange(selectionFrom, selectionTo, start, contentStart)) {
+      collectDecoration(start, contentStart, hiddenSyntax);
+    }
+    collectDecoration(contentStart, contentEnd, mark);
+
+    if (canHideRange(selectionFrom, selectionTo, contentEnd, end)) {
+      collectDecoration(contentEnd, end, hiddenSyntax);
+    }
   }
+}
+
+interface PendingInlineDecoration {
+  decoration: Decoration;
+  from: number;
+  to: number;
+}
+
+function canHideRange(selectionFrom: number, selectionTo: number, rangeFrom: number, rangeTo: number): boolean {
+  if (rangeFrom >= rangeTo) {
+    return false;
+  }
+
+  if (selectionFrom === selectionTo) {
+    return selectionFrom <= rangeFrom || selectionFrom >= rangeTo;
+  }
+
+  return selectionTo <= rangeFrom || selectionFrom >= rangeTo;
+}
+
+function isMarkdownEditorDebugEnabled(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(MARKDOWN_EDITOR_DEBUG_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function logMarkdownEditorDebug(event: string, details: Record<string, unknown>) {
+  if (!isMarkdownEditorDebugEnabled()) {
+    return;
+  }
+
+  console.debug("[markdown-editor]", event, details);
+}
+
+function formatDebugError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
 }
 
 export function applyInlineWrap(text: string, from: number, to: number, marker: string): MarkdownEditResult {
@@ -934,6 +1081,137 @@ function getTrailingSpacing(text: string, to: number) {
   }
 
   return text[to] === "\n" ? "\n" : "\n\n";
+}
+
+export function handleMarkdownEnter(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+
+  if (!selection.empty) {
+    return insertNewlineContinueMarkup(view);
+  }
+
+  const line = view.state.doc.lineAt(selection.head);
+
+  if (handleEmptyMarkupLine(view, line.from, line.to, line.text)) {
+    return true;
+  }
+
+  if (insertNewlineContinueMarkup(view)) {
+    return true;
+  }
+
+  return continueStructuredLine(view, line.text, selection.head, line.to);
+}
+
+export function handleMarkdownTab(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+
+  if (!selection.empty) {
+    return insertTab(view);
+  }
+
+  const line = view.state.doc.lineAt(selection.head);
+
+  if (!isMarkdownListLine(line.text)) {
+    return insertTab(view);
+  }
+
+  view.dispatch({
+    changes: {
+      from: line.from,
+      to: line.from,
+      insert: "    ",
+    },
+    selection: EditorSelection.cursor(selection.head + 4),
+  });
+
+  return true;
+}
+
+function handleEmptyMarkupLine(view: EditorView, lineFrom: number, lineTo: number, lineText: string): boolean {
+  const bulletOrOrderedMatch = lineText.match(/^(\s*)((?:[-*+])|(?:\d+\.))\s*$/u);
+  const taskMatch = lineText.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s*$/u);
+
+  if (bulletOrOrderedMatch || taskMatch) {
+    const leadingWhitespace = (bulletOrOrderedMatch?.[1] ?? taskMatch?.[1] ?? "").replace(/\t/gu, "    ");
+    const marker = bulletOrOrderedMatch?.[2] ?? `${taskMatch?.[2] ?? "-"} [ ]`;
+    const currentDepth = Math.floor(leadingWhitespace.length / 4);
+
+    if (currentDepth > 0) {
+      const nextIndent = " ".repeat((currentDepth - 1) * 4);
+
+      return replaceCurrentLine(view, lineFrom, lineTo, `${nextIndent}${marker} `);
+    }
+
+    return replaceCurrentLine(view, lineFrom, lineTo, "");
+  }
+
+  const quoteMatch = lineText.match(/^(\s*)(>+)\s*$/u);
+
+  if (!quoteMatch) {
+    return false;
+  }
+
+  const prefix = quoteMatch[1].replace(/\t/gu, "    ");
+  const quoteMarkers = quoteMatch[2];
+
+  if (quoteMarkers.length > 1) {
+    return replaceCurrentLine(view, lineFrom, lineTo, `${prefix}${quoteMarkers.slice(0, -1)} `);
+  }
+
+  return replaceCurrentLine(view, lineFrom, lineTo, "");
+}
+
+function continueStructuredLine(view: EditorView, lineText: string, cursorHead: number, lineTo: number): boolean {
+  if (cursorHead !== lineTo) {
+    return false;
+  }
+
+  const taskMatch = lineText.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s+/u);
+
+  if (taskMatch) {
+    return insertStructuredPrefix(view, cursorHead, `${taskMatch[1]}${taskMatch[2]} [ ] `);
+  }
+
+  const listMatch = lineText.match(/^(\s*)((?:[-*+])|(?:\d+\.))\s+/u);
+
+  if (listMatch) {
+    return insertStructuredPrefix(view, cursorHead, `${listMatch[1]}${listMatch[2]} `);
+  }
+
+  const quoteMatch = lineText.match(/^(\s*)(>+)\s+/u);
+
+  if (quoteMatch) {
+    return insertStructuredPrefix(view, cursorHead, `${quoteMatch[1]}${quoteMatch[2]} `);
+  }
+
+  return false;
+}
+
+function insertStructuredPrefix(view: EditorView, cursorHead: number, prefix: string): boolean {
+  view.dispatch({
+    changes: {
+      from: cursorHead,
+      to: cursorHead,
+      insert: `\n${prefix}`,
+    },
+    selection: EditorSelection.cursor(cursorHead + prefix.length + 1),
+  });
+
+  return true;
+}
+
+function replaceCurrentLine(view: EditorView, lineFrom: number, lineTo: number, text: string): boolean {
+  view.dispatch({
+    changes: {
+      from: lineFrom,
+      to: lineTo,
+      insert: text,
+    },
+    selection: EditorSelection.cursor(lineFrom + text.length),
+  });
+
+  return true;
 }
 
 function ToolbarButton({

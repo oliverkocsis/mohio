@@ -839,6 +839,7 @@ button {
 }
 
 .markdown-editor {
+  --md-line-gap: 0.5em;
   min-height: 0;
 }
 
@@ -867,7 +868,7 @@ button {
 
 .markdown-editor .cm-line {
   padding: 0;
-  padding-bottom: 0.5em;
+  padding-bottom: var(--md-line-gap);
   color: inherit;
 }
 
@@ -965,18 +966,37 @@ button {
 }
 
 .markdown-editor .cm-md-blockquote {
-  border-left: 3px solid var(--muted-surface-strong);
-  margin: 0 0 1em;
-  padding-bottom: 0.08em;
+  position: relative;
+  border-left: none;
   padding-left: 16px;
   color: var(--text-secondary);
+}
+
+.markdown-editor .cm-md-blockquote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: var(--md-line-gap);
+  width: 3px;
+  background: var(--muted-surface-strong);
+  pointer-events: none;
+}
+
+.markdown-editor .cm-md-blockquote--continued {
+  padding-bottom: 0;
+}
+
+.markdown-editor .cm-md-blockquote--continued::before {
+  bottom: 0;
 }
 
 .markdown-editor .cm-md-bullet-item,
 .markdown-editor .cm-md-ordered-item,
 .markdown-editor .cm-md-task-item {
+  --md-list-depth: 0;
   position: relative;
-  padding-left: 24px;
+  padding-left: calc(24px + (var(--md-list-depth) * 4ch));
 }
 
 .markdown-editor .cm-md-list-item--continued {
@@ -987,9 +1007,7 @@ button {
 .markdown-editor .cm-md-ordered-item::before,
 .markdown-editor .cm-md-task-item::before {
   position: absolute;
-  left: 0;
-  top: 0.08em;
-  line-height: 1;
+  left: calc(var(--md-list-depth) * 4ch);
   color: var(--text-secondary);
 }
 
@@ -1036,31 +1054,30 @@ button {
 }
 
 .markdown-editor .cm-md-code-line-start {
-  margin-top: 0.25em;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   box-shadow:
     inset 1px 0 0 var(--muted-surface-strong),
     inset -1px 0 0 var(--muted-surface-strong),
     inset 0 1px 0 var(--muted-surface-strong);
-  padding-top: 12px;
+  padding-top: calc(12px + 0.25em);
 }
 
 .markdown-editor .cm-md-code-line-end {
-  margin-bottom: 1em;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   box-shadow:
     inset 1px 0 0 var(--muted-surface-strong),
     inset -1px 0 0 var(--muted-surface-strong),
     inset 0 -1px 0 var(--muted-surface-strong);
-  padding-bottom: 12px;
+  padding-bottom: calc(12px + 1em);
 }
 
 .markdown-editor .cm-md-horizontal-rule {
-  height: 1px;
-  margin: 0.75em 0;
-  background: var(--border);
+  height: 0;
+  border-top: 1px solid var(--border);
+  padding: 0.75em 0;
+  background: transparent;
 }
 
 .editor-panel__error {

@@ -1,7 +1,6 @@
 import { createElement } from "react";
 import { render } from "@testing-library/react";
 import { EditorSelection } from "@codemirror/state";
-import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 import {
   applyBlockQuote,
@@ -12,6 +11,8 @@ import {
   applyInlineWrap,
   applyLink,
   getInternalLinkAtPosition,
+  handleMarkdownEnter,
+  handleMarkdownTab,
   RichTextEditor,
 } from "@renderer/markdown-editor";
 
@@ -74,7 +75,7 @@ describe("markdown editor toolbar transforms", () => {
       selection: EditorSelection.cursor(view!.state.doc.length),
     });
 
-    expect(insertNewlineContinueMarkup(view!)).toBe(true);
+    expect(handleMarkdownEnter(view!)).toBe(true);
     expect(view!.state.doc.toString()).toBe("- First item\n- ");
     expect(handleChange).toHaveBeenLastCalledWith("- First item\n- ");
     const bulletItems = Array.from(container.querySelectorAll(".cm-md-bullet-item"));
@@ -112,6 +113,26 @@ describe("markdown editor toolbar transforms", () => {
     expect(content?.textContent).not.toContain("`inline`");
   });
 
+  it("keeps mixed inline markdown decorated without falling back to raw text", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "# Lorem Ipsum\n\n~~What~~ if I `do` *this*\n# Or this\nThen \n- \n- T****hen **nothing** a\n\n1. HEll\n2. **advdv**\n3. This is a change\n4. ",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const content = container.querySelector(".cm-content");
+
+    expect(content).not.toBeNull();
+    expect(content?.textContent).not.toContain("# Lorem Ipsum");
+    expect(content?.textContent).not.toContain("~~What~~");
+    expect(content?.textContent).not.toContain("`do`");
+    expect(container.querySelectorAll(".cm-md-heading-1")).toHaveLength(2);
+    expect(container.querySelectorAll(".cm-md-strikethrough")).toHaveLength(1);
+    expect(container.querySelectorAll(".cm-md-inline-code")).toHaveLength(1);
+    expect(container.querySelectorAll(".cm-md-strong").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("highlights search matches in the visible document text", () => {
     const { container, rerender } = render(createElement(RichTextEditor, {
       highlightQuery: "alpha",
@@ -132,6 +153,125 @@ describe("markdown editor toolbar transforms", () => {
     }));
 
     expect(container.querySelectorAll(".cm-search-highlight")).toHaveLength(0);
+  });
+
+  it("decorates nested mixed lists with four-space indentation depth", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "1. Hello World\n2. Lorem Ipsum\n    1. dolor sit amet\n    2. consectetur adipiscing elit\n        - Sed tristique libero",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const orderedItems = Array.from(container.querySelectorAll(".cm-md-ordered-item"));
+    const bulletItems = Array.from(container.querySelectorAll(".cm-md-bullet-item"));
+
+    expect(orderedItems).toHaveLength(4);
+    expect(bulletItems).toHaveLength(1);
+    expect(orderedItems[0]?.getAttribute("style")).toContain("--md-list-depth: 0");
+    expect(orderedItems[2]?.getAttribute("style")).toContain("--md-list-depth: 1");
+    expect(bulletItems[0]?.getAttribute("style")).toContain("--md-list-depth: 2");
+  });
+
+  it("joins consecutive blockquotes into one visual quote block", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "> First quote line\n> Second quote line\nNormal paragraph",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const quoteLines = Array.from(container.querySelectorAll(".cm-md-blockquote"));
+
+    expect(quoteLines).toHaveLength(2);
+    expect(quoteLines[0]?.classList.contains("cm-md-blockquote--continued")).toBe(true);
+    expect(quoteLines[1]?.classList.contains("cm-md-blockquote--continued")).toBe(false);
+  });
+
+  it("removes top-level list marker on second Enter from an empty continuation line", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "- First item",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement);
+
+    expect(view).not.toBeNull();
+
+    view!.dispatch({
+      selection: EditorSelection.cursor(view!.state.doc.length),
+    });
+
+    expect(handleMarkdownEnter(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("- First item\n- ");
+    expect(handleMarkdownEnter(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("- First item\n");
+  });
+
+  it("removes top-level blockquote marker on second Enter from an empty continuation line", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "> This",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement);
+
+    expect(view).not.toBeNull();
+
+    view!.dispatch({
+      selection: EditorSelection.cursor(view!.state.doc.length),
+    });
+
+    expect(handleMarkdownEnter(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("> This\n> ");
+    expect(handleMarkdownEnter(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("> This\n");
+  });
+
+  it("decreases nested list depth on Enter from an empty continuation line", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "    - First nested item",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement);
+
+    expect(view).not.toBeNull();
+
+    view!.dispatch({
+      selection: EditorSelection.cursor(view!.state.doc.length),
+    });
+
+    expect(handleMarkdownEnter(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("    - First nested item\n    - ");
+    expect(handleMarkdownEnter(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("    - First nested item\n- ");
+  });
+
+  it("increases list depth by four spaces on Tab", () => {
+    const { container } = render(createElement(RichTextEditor, {
+      markdown: "- First item",
+      onChange: () => undefined,
+      onTitleChange: () => undefined,
+      title: "Title",
+    }));
+
+    const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement);
+
+    expect(view).not.toBeNull();
+
+    view!.dispatch({
+      selection: EditorSelection.cursor(0),
+    });
+
+    expect(handleMarkdownTab(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe("    - First item");
   });
 
 });
