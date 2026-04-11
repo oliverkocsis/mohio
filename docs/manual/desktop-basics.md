@@ -83,22 +83,22 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 - Mohio saves your changes automatically after a short pause.
 - You do not need to click a save button.
 - Changing the title can also rename the file on disk.
-- Mohio records local Git safety snapshots in the background with one commit format:
-  - `Snapshot: <ISO date>`
-- Snapshot commits are triggered before high-risk actions (such as rename, delete, assistant send, app blur/exit) and after an idle pulse.
-- Mohio automatically syncs snapshot commits in the background when remote push succeeds.
+- Mohio records local Git snapshots only when you run manual sync, with one commit format:
+  - `Snapshot: <ISO date-time>`
+- Mohio no longer creates commits automatically for rename, delete, assistant send, focus loss, app exit, or idle events.
 
 ## Sync Now
 
-- Sync runs automatically in the background after Mohio creates snapshot commits.
-- Use the top-bar sync status control (left of the right-panel toggle) when you want to force an immediate push.
+- Use the top-bar sync status control (left of the right-panel toggle) when you want to commit and push local changes.
+- Automatic background sync is incoming-only (fetch/pull/merge) and does not commit or push.
 - If no remote is connected, Sync prompts you to connect a remote URL.
 - If workspace Git identity is missing, Mohio asks for name and email before sync can continue.
 - If Git is not installed, Mohio prompts you to install Git before connect/sync actions.
 - Status labels:
   - `Synced <relative time>`
+  - `N local changes`
+  - `Pulling updates...`
   - `Syncing...`
-  - `Sync paused`
   - `Offline (last synced <relative time>)`
   - `Install Git`
   - `Set Git identity`
@@ -123,11 +123,13 @@ If no document is selected yet, `New Document` creates the file at workspace roo
 - Mohio checks for incoming shared updates:
   - when you open a workspace
   - when you open a document
+  - periodically every minute in the background
 - If incoming updates are safe, Mohio applies them automatically.
 - If local and incoming edits overlap, Mohio shows guided choices in `History`:
   - keep local
   - keep incoming
   - combine manually
+- After conflict choices are applied, use `Sync now` to create and push the snapshot commit.
 
 ## Use the Assistant Panel
 

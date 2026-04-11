@@ -147,6 +147,7 @@ export type PublishResult = SyncWorkspaceResult;
 export interface AutoSyncStatus {
   enabled: boolean;
   hasUncommittedChanges: boolean;
+  changedFileCount: number;
   lastSyncedAt: string | null;
   remoteConnected: boolean;
   requiresIdentitySetup: boolean;
@@ -198,14 +199,13 @@ export interface SyncConflict {
   baseContent: string | null;
 }
 
-export type SyncStatus = "idle" | "checking" | "syncing" | "conflict" | "error";
+export type SyncStatus = "synced" | "local-changes" | "syncing";
 
 export interface SyncState {
   status: SyncStatus;
-  lastCheckedAt: string | null;
-  lastAppliedAt: string | null;
+  lastSyncedAt: string | null;
+  changedFileCount?: number;
   message: string | null;
-  conflicts: SyncConflict[];
 }
 
 export interface ResolveConflictInput {

@@ -28,11 +28,9 @@ const SYNC_DEBUG_ENABLED = process.env.MOHIO_SYNC_DEBUG === "1";
 const legacyCheckpointCleanupDone = new Set<string>();
 
 const defaultSyncState: SyncState = {
-  status: "idle",
-  lastCheckedAt: null,
-  lastAppliedAt: null,
+  status: "synced",
+  lastSyncedAt: null,
   message: null,
-  conflicts: [],
 };
 
 export function createGitCollaborationService() {
@@ -87,27 +85,14 @@ export function createGitCollaborationService() {
     workspacePath: string,
     input: RecordRiskyCommitInput,
   ): Promise<boolean> => {
-    const status = await bootstrapWorkspace(workspacePath);
-    if (!status.gitAvailable || !status.isRepository || status.requiresIdentitySetup) {
-      return false;
-    }
-
-    return writeCommit(workspacePath, {
-      force: input.force,
-      minLineDelta: 0,
-    });
+    void workspacePath;
+    void input;
+    return false;
   };
 
   const recordAutoSaveCommit = async (workspacePath: string): Promise<boolean> => {
-    const status = await bootstrapWorkspace(workspacePath);
-    if (!status.gitAvailable || !status.isRepository || status.requiresIdentitySetup) {
-      return false;
-    }
-
-    return writeCommit(workspacePath, {
-      force: false,
-      minLineDelta: 0,
-    });
+    void workspacePath;
+    return false;
   };
 
   const listCommitHistory = async (
@@ -255,7 +240,7 @@ export function createGitCollaborationService() {
 
     if (options.syncBeforeCommit !== false) {
       const syncState = await syncIncomingChanges(workspacePath, "before-commit");
-      if (syncState.status === "conflict" || syncState.status === "error") {
+      if (syncState.status === "local-changes") {
         debugSyncLog("writeCommit:blocked-by-sync-state", {
           context,
           status: syncState.status,
@@ -481,6 +466,7 @@ export function createGitCollaborationService() {
       return {
         enabled: false,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: null,
         remoteConnected: false,
         requiresIdentitySetup: false,
@@ -492,6 +478,7 @@ export function createGitCollaborationService() {
       return {
         enabled: false,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: null,
         remoteConnected: workspaceStatus.remoteConnected,
         requiresIdentitySetup: true,
@@ -502,7 +489,9 @@ export function createGitCollaborationService() {
     const status = await runGit(workspacePath, ["status", "--porcelain", "--", ...MARKDOWN_PATHS], {
       allowFailure: true,
     });
-    const hasUncommittedChanges = status.code === 0 && status.stdout.trim().length > 0;
+    const statusOutput = status.stdout.trim();
+    const hasUncommittedChanges = status.code === 0 && statusOutput.length > 0;
+    const changedFileCount = hasUncommittedChanges ? statusOutput.split('\n').filter(line => line.trim().length > 0).length : 0;
     const upstream = await getUpstreamBranch(workspacePath);
     let lastSyncedAt: string | null = null;
 
@@ -518,6 +507,7 @@ export function createGitCollaborationService() {
     return {
       enabled: true,
       hasUncommittedChanges,
+      changedFileCount,
       lastSyncedAt,
       remoteConnected: workspaceStatus.remoteConnected,
       requiresIdentitySetup: false,
@@ -531,7 +521,6 @@ export function createGitCollaborationService() {
     if (!workspaceStatus.gitAvailable) {
       return {
         ...defaultSyncState,
-        status: "idle",
         message: "Install Git to check incoming updates.",
       };
     }
@@ -539,7 +528,6 @@ export function createGitCollaborationService() {
     if (!workspaceStatus.isRepository) {
       return {
         ...defaultSyncState,
-        status: "idle",
         message: "Mohio could not initialize Git for this workspace.",
       };
     }
@@ -547,17 +535,14 @@ export function createGitCollaborationService() {
     if (workspaceStatus.requiresIdentitySetup) {
       return {
         ...defaultSyncState,
-        status: "idle",
         message: "Set a workspace Git identity before applying incoming updates.",
       };
     }
 
     debugSyncLog("syncIncoming:start", { reason, workspacePath });
-    const checkedAt = new Date().toISOString();
     syncStateByWorkspace.set(workspacePath, {
       ...defaultSyncState,
-      status: "checking",
-      lastCheckedAt: checkedAt,
+      status: "syncing",
       message: `Checking for incoming updates (${reason})...`,
     });
 
@@ -566,8 +551,8 @@ export function createGitCollaborationService() {
     if (!upstream) {
       const state: SyncState = {
         ...defaultSyncState,
-        status: "idle",
-        lastCheckedAt: checkedAt,
+        status: "synced",
+        lastSyncedAt: new Date().toISOString(),
         message: "No shared upstream is configured for this workspace branch yet.",
       };
       syncStateByWorkspace.set(workspacePath, state);
@@ -583,8 +568,8 @@ export function createGitCollaborationService() {
     if (!Number.isFinite(behindCount) || behindCount === 0) {
       const state: SyncState = {
         ...defaultSyncState,
-        status: "idle",
-        lastCheckedAt: checkedAt,
+        status: "synced",
+        lastSyncedAt: new Date().toISOString(),
         message: "Workspace is already up to date.",
       };
       syncStateByWorkspace.set(workspacePath, state);
@@ -599,14 +584,7 @@ export function createGitCollaborationService() {
     syncStateByWorkspace.set(workspacePath, {
       ...defaultSyncState,
       status: "syncing",
-      lastCheckedAt: checkedAt,
       message: `Applying ${behindCount} incoming update${behindCount === 1 ? "" : "s"}.`,
-    });
-
-    await writeCommit(workspacePath, {
-      force: true,
-      minLineDelta: 0,
-      syncBeforeCommit: false,
     });
 
     const mergeResult = await runGit(workspacePath, ["merge", "--no-ff", "--no-commit", upstream], {
@@ -614,18 +592,11 @@ export function createGitCollaborationService() {
     });
 
     if (mergeResult.code === 0) {
-      await runGit(workspacePath, ["commit", "-m", createSnapshotCommitMessage()]);
-      try {
-        await pushWorkspace(workspacePath);
-      } catch {
-        // Keep merge application successful even if sharing fails right now.
-      }
       const appliedAt = new Date().toISOString();
       const state: SyncState = {
         ...defaultSyncState,
-        status: "idle",
-        lastCheckedAt: checkedAt,
-        lastAppliedAt: appliedAt,
+        status: "synced",
+        lastSyncedAt: appliedAt,
         message: "Incoming updates were applied successfully.",
       };
       syncStateByWorkspace.set(workspacePath, state);
@@ -641,10 +612,8 @@ export function createGitCollaborationService() {
     if (conflicts.length > 0) {
       const state: SyncState = {
         ...defaultSyncState,
-        status: "conflict",
-        lastCheckedAt: checkedAt,
-        message: "Mohio found overlapping incoming and local edits. Choose how to resolve each file.",
-        conflicts,
+        status: "local-changes",
+        message: `Merge conflict detected. ${conflicts.length} file(s) to resolve.`,
       };
       syncStateByWorkspace.set(workspacePath, state);
       debugSyncLog("syncIncoming:conflict", {
@@ -657,8 +626,7 @@ export function createGitCollaborationService() {
 
     const state: SyncState = {
       ...defaultSyncState,
-      status: "error",
-      lastCheckedAt: checkedAt,
+      status: "local-changes",
       message: mergeResult.stderr.trim() || "Mohio could not apply incoming updates.",
     };
     syncStateByWorkspace.set(workspacePath, state);
@@ -678,7 +646,6 @@ export function createGitCollaborationService() {
     if (!workspaceStatus.gitAvailable || !workspaceStatus.isRepository || workspaceStatus.requiresIdentitySetup) {
       return {
         ...defaultSyncState,
-        status: "idle",
         message: "Set up Git and workspace identity before resolving conflicts.",
       };
     }
@@ -703,28 +670,18 @@ export function createGitCollaborationService() {
     if (remainingConflicts.length > 0) {
       const state: SyncState = {
         ...defaultSyncState,
-        status: "conflict",
-        lastCheckedAt: new Date().toISOString(),
+        status: "local-changes",
         message: "Some conflicts still need your input.",
-        conflicts: remainingConflicts,
       };
       syncStateByWorkspace.set(workspacePath, state);
       return state;
     }
 
-    await runGit(workspacePath, ["commit", "-m", createSnapshotCommitMessage()]);
-    try {
-      await pushWorkspace(workspacePath);
-    } catch {
-      // Conflict resolution should complete even if sharing fails right now.
-    }
-
     const resolvedState: SyncState = {
       ...defaultSyncState,
-      status: "idle",
-      lastCheckedAt: new Date().toISOString(),
-      lastAppliedAt: new Date().toISOString(),
-      message: "Incoming updates are now resolved and applied.",
+      status: "synced",
+      lastSyncedAt: new Date().toISOString(),
+      message: "Incoming updates are resolved locally. Use Sync now to commit and push.",
     };
     syncStateByWorkspace.set(workspacePath, resolvedState);
     return resolvedState;
@@ -857,8 +814,7 @@ function debugSyncLog(event: string, details: Record<string, unknown>): void {
 }
 
 function createSnapshotCommitMessage(): string {
-  const isoDate = new Date().toISOString().slice(0, 10);
-  return `Snapshot: ${isoDate}`;
+  return `Snapshot: ${new Date().toISOString()}`;
 }
 
 function isShortStatLine(line: string): boolean {

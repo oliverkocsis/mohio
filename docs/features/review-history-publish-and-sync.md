@@ -1,12 +1,11 @@
 # Review, History, Publish, and Sync
 
-This document describes Mohio's current Git-backed snapshot history, automatic syncing, and incoming-change sync behavior.
+This document describes Mohio's current Git-backed snapshot history, manual publish sync, and incoming-change sync behavior.
 
 ## Scope
 
 - snapshot-based Git history for Markdown documents
-- automatic background syncing after Mohio-created commits
-- manual top-bar sync action for immediate push
+- manual top-bar sync action for commit and push
 - right-panel `Versions` commit list
 - incoming-change fetch/merge with conflict guidance
 
@@ -18,8 +17,8 @@ The service wraps Git operations for:
 
 - checking Git capability and workspace Git readiness
 - bootstrapping plain folders into Git repositories
-- writing automatic local snapshot commits
-- pushing commits to the configured remote
+- writing manual local snapshot commits
+- pushing commits to the configured remote only for manual sync
 - computing per-document publish state metadata
 - fetching and merging incoming updates with conflict detection
 - applying per-file conflict decisions
@@ -28,9 +27,9 @@ The service wraps Git operations for:
 
 Mohio writes regular Git commits (no custom checkpoint refs or `.git/mohio` metadata).
 
-Every Mohio-created commit uses one message format:
+Every Mohio-created manual snapshot commit uses one message format:
 
-- `Snapshot: <ISO date>`
+- `Snapshot: <ISO date-time>`
 
 Legacy custom checkpoint artifacts are cleaned up automatically when the collaboration service initializes.
 
@@ -44,25 +43,19 @@ Mohio only writes commits when there is real Markdown diff material:
 
 ### Snapshot Triggers
 
-Snapshot commits are attempted at these moments:
+Snapshot commits are attempted only when the user explicitly clicks `Sync now`.
 
-- `Idle Pulse`: after ~3 minutes of editor inactivity following draft changes
-- `Context Switch`: before switching to another document
-- `Assistant Dispatch`: before sending a message to Codex
-- `Safety Guard`: before delete, before rename/move save, and before incoming merge apply
-- `Focus Loss`: when the app window loses focus
-- `Application Exit`: before quit
+Automatic background paths no longer create commits.
 
 ## Sync Behavior
 
 ### Automatic Sync
 
-When Mohio writes a snapshot commit, it immediately attempts a background push:
+Mohio performs periodic incoming-only sync checks in the background.
 
-- `git push` when an upstream is configured and local branch is ahead
-- `git push -u origin <branch>` when upstream is not configured yet
+Automatic background sync only runs fetch/pull/merge behavior for incoming updates.
 
-If syncing fails, the local commit is still kept.
+Automatic background sync never creates commits and never pushes.
 
 ### Manual Sync
 
@@ -70,18 +63,21 @@ The top bar includes an explicit `Sync` status action (to the left of the right-
 
 When the sync status action is clicked:
 
-1. Mohio attempts a forced snapshot commit
-2. If no remote is connected, Mohio returns `requiresRemoteConnect` and opens the remote-URL connect flow
-3. If identity is missing, Mohio returns `requiresIdentitySetup` and blocks commit/sync
-4. Mohio pushes local commits if there is anything ahead
-5. Mohio returns a synced timestamp when a push succeeds
+1. Mohio saves the active editor draft
+2. Mohio performs incoming fetch/merge preflight
+3. Mohio attempts a snapshot commit with `Snapshot: <ISO date-time>`
+4. If no remote is connected, Mohio returns `requiresRemoteConnect` and opens the remote-URL connect flow
+5. If identity is missing, Mohio returns `requiresIdentitySetup` and blocks commit/sync
+6. Mohio pushes local commits when an upstream is configured
+7. Mohio returns a synced timestamp when push succeeds
 
 Top-bar status states:
 
-- `Synced <relative time>` with refresh icon
-- `Syncing...` with spinning refresh icon
-- `Sync paused` with alert icon
-- `Offline (last synced <relative time>)` with muted globe-off icon
+- `Synced <relative time>` with green dot + cloud-check icon
+- `N local changes` with amber dot + cloud-upload icon
+- `Pulling updates...` with blue dot + cloud-download icon
+- `Syncing...` with blue dot + spinning refresh icon
+- `Offline (last synced <relative time>)` with gray dot + refresh icon
 - `Install Git` when Git is unavailable
 - `Set Git identity` when local identity is missing
 
@@ -100,29 +96,25 @@ Incoming sync checks run:
 
 - when a workspace opens
 - when a document opens
-- before automatic local commit attempts (unless explicitly skipped for merge preflight)
+- every minute in background
+- before manual `Sync now` commit attempts
 
 ### Safe Apply Path
 
-When incoming commits exist and merge cleanly:
-
-- pre-merge snapshot commit attempt
-- merge incoming updates (`--no-ff --no-commit`)
-- finalize with a snapshot merge commit
-- return sync state to `idle`
+When incoming commits exist and merge cleanly, Mohio merges incoming updates and updates sync state without creating any automatic commit.
 
 ### Overlap Path
 
 When incoming and local edits overlap:
 
-- sync state moves to `conflict`
+- sync state reports local changes and conflict guidance
 - history panel shows per-file resolution cards
 - options per file:
   - `Keep local`
   - `Keep incoming`
   - `Combine manually`
 
-After all files are resolved, Mohio finalizes with a snapshot commit and returns sync state to `idle`.
+After all files are resolved, Mohio stages the chosen resolutions. The user then uses `Sync now` to create/push the snapshot commit.
 
 ## Versions Panel
 
