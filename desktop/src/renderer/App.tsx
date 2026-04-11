@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CircleSmall,
   CircleAlert,
   ChevronDown,
   ChevronRight,
+  CloudCheck,
+  CloudDownload,
+  CloudUpload,
+  RefreshCw,
   FileText,
-  GlobeOff,
   History as HistoryIcon,
   MessageSquare,
   PanelLeft,
   PanelLeftClose,
   PanelRight,
   PanelRightClose,
-  RefreshCw,
   Search,
   SendHorizontal,
   SquarePen,
@@ -36,6 +39,7 @@ import { RichTextEditor } from "./markdown-editor";
 type SaveState = "error" | "idle" | "loading" | "saved" | "saving";
 type LeftSidebarTab = "documents" | "search";
 type RightSidebarTab = "assistant" | "versions";
+type SyncActivity = "full-sync" | "idle" | "pulling";
 
 interface DocumentContextMenuState {
   documentId: string;
@@ -251,6 +255,7 @@ export function App() {
 
   const [syncNowError, setSyncNowError] = useState<string | null>(null);
   const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [syncActivity, setSyncActivity] = useState<SyncActivity>("idle");
   const [autoSyncStatus, setAutoSyncStatus] = useState<AutoSyncStatus | null>(null);
   const [, setSyncState] = useState<SyncState | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -422,6 +427,7 @@ export function App() {
       // Periodic fetch-pull-merge (non-blocking background sync)
       void (async () => {
         try {
+          setSyncActivity("pulling");
           setIsSyncingNow(true);
           await window.mohio.syncIncomingChanges();
         } catch {
@@ -429,6 +435,7 @@ export function App() {
         } finally {
           await refreshAutoSyncStatus();
           setIsSyncingNow(false);
+          setSyncActivity("idle");
         }
       })();
     }, 60_000);
@@ -632,6 +639,7 @@ export function App() {
     }
 
     try {
+      setSyncActivity("full-sync");
       setIsSyncingNow(true);
       await editor.saveNow().catch(() => undefined);
       const result = await window.mohio.syncWorkspaceChanges();
@@ -651,6 +659,7 @@ export function App() {
       setSyncNowError("Mohio could not sync your workspace changes.");
     } finally {
       setIsSyncingNow(false);
+      setSyncActivity("idle");
     }
   };
 
@@ -885,6 +894,7 @@ export function App() {
     hasWorkspace: Boolean(workspace),
     isOnline,
     isSyncingNow,
+    syncActivity,
     hasPendingChanges: editor.isDirty || (autoSyncStatus?.hasUncommittedChanges ?? false),
     changedFileCount: Math.max(autoSyncStatus?.changedFileCount ?? 0, editor.isDirty ? 1 : 0),
     remoteConnected: (workspaceGitStatus?.remoteConnected ?? false) || (autoSyncStatus?.remoteConnected ?? false),
@@ -975,16 +985,30 @@ export function App() {
               }}
               type="button"
             >
-              <span className="top-bar__sync-status-label">{syncControlState.label}</span>
+              <CircleSmall
+                aria-hidden="true"
+                className={`top-bar__sync-dot top-bar__sync-dot--${syncControlState.dotTone}`}
+              />
+              <span
+                className={`top-bar__sync-status-label${syncControlState.icon === "cloud-upload" ? " top-bar__sync-status-label--active" : ""}`}
+              >
+                {syncControlState.label}
+              </span>
               {syncControlState.icon === "alert" ? (
                 <CircleAlert aria-hidden="true" className="top-bar__sync-icon" />
-              ) : syncControlState.icon === "offline" ? (
-                <GlobeOff aria-hidden="true" className="top-bar__sync-icon" />
-              ) : (
+              ) : syncControlState.icon === "cloud-check" ? (
+                <CloudCheck aria-hidden="true" className="top-bar__sync-icon" />
+              ) : syncControlState.icon === "cloud-upload" ? (
+                <CloudUpload aria-hidden="true" className="top-bar__sync-icon" />
+              ) : syncControlState.icon === "cloud-download" ? (
+                <CloudDownload aria-hidden="true" className="top-bar__sync-icon" />
+              ) : syncControlState.icon === "refresh-cw" ? (
                 <RefreshCw
                   aria-hidden="true"
                   className={`top-bar__sync-icon${syncControlState.isSpinning ? " top-bar__sync-icon--spinning" : ""}`}
                 />
+              ) : (
+                <CircleAlert aria-hidden="true" className="top-bar__sync-icon" />
               )}
             </button>
 
@@ -1711,12 +1735,14 @@ function WorkspaceEntryCard({
   );
 }
 
-type SyncControlIcon = "alert" | "offline" | "refresh";
+type SyncControlIcon = "alert" | "cloud-check" | "cloud-download" | "cloud-upload" | "refresh-cw";
+type SyncControlDotTone = "amber" | "blue" | "green" | "grey";
 type SyncControlVariant = "error" | "normal" | "offline" | "pending" | "syncing";
 
 interface SyncControlState {
   action: "connect-remote" | "identity" | "sync";
   icon: SyncControlIcon;
+  dotTone: SyncControlDotTone;
   isDisabled: boolean;
   isSpinning: boolean;
   label: string;
@@ -1727,6 +1753,7 @@ function getSyncControlState({
   hasWorkspace,
   isOnline,
   isSyncingNow,
+  syncActivity,
   hasPendingChanges,
   changedFileCount,
   remoteConnected,
@@ -1738,6 +1765,7 @@ function getSyncControlState({
   hasWorkspace: boolean;
   isOnline: boolean;
   isSyncingNow: boolean;
+  syncActivity: SyncActivity;
   hasPendingChanges: boolean;
   changedFileCount?: number;
   remoteConnected: boolean;
@@ -1751,7 +1779,8 @@ function getSyncControlState({
   if (!hasWorkspace) {
     return {
       action: "sync",
-      icon: "refresh",
+      icon: "refresh-cw",
+      dotTone: "grey",
       isDisabled: true,
       isSpinning: false,
       label: "Open workspace",
@@ -1760,12 +1789,14 @@ function getSyncControlState({
   }
 
   if (isSyncingNow) {
+    const isPullOnly = syncActivity === "pulling";
     return {
       action: "sync",
-      icon: "refresh",
+      icon: isPullOnly ? "cloud-download" : "refresh-cw",
+      dotTone: "blue",
       isDisabled: true,
-      isSpinning: true,
-      label: "Syncing...",
+      isSpinning: !isPullOnly,
+      label: isPullOnly ? "Downloading updates..." : "Syncing...",
       variant: "syncing",
     };
   }
@@ -1776,6 +1807,7 @@ function getSyncControlState({
     return {
       action: "sync",
       icon: "alert",
+      dotTone: "amber",
       isDisabled: true,
       isSpinning: false,
       label: "Install Git",
@@ -1787,6 +1819,7 @@ function getSyncControlState({
     return {
       action: "identity",
       icon: "alert",
+      dotTone: "amber",
       isDisabled: false,
       isSpinning: false,
       label: "Set Git identity",
@@ -1798,6 +1831,7 @@ function getSyncControlState({
     return {
       action: "connect-remote",
       icon: "alert",
+      dotTone: "amber",
       isDisabled: false,
       isSpinning: false,
       label: "Connect remote repo to share",
@@ -1808,7 +1842,8 @@ function getSyncControlState({
   if (!isOnline) {
     return {
       action: "sync",
-      icon: "offline",
+      icon: "refresh-cw",
+      dotTone: "grey",
       isDisabled: true,
       isSpinning: false,
       label: relative ? `Offline (last synced ${relative})` : "Offline",
@@ -1820,6 +1855,7 @@ function getSyncControlState({
     return {
       action: "sync",
       icon: "alert",
+      dotTone: "amber",
       isDisabled: true,
       isSpinning: false,
       label: "Sync paused",
@@ -1833,7 +1869,8 @@ function getSyncControlState({
     const label = changeCount === 1 ? "1 local change" : `${changeCount} local changes`;
     return {
       action: "sync",
-      icon: "refresh",
+      icon: "cloud-upload",
+      dotTone: "amber",
       isDisabled: false,
       isSpinning: false,
       label,
@@ -1843,7 +1880,8 @@ function getSyncControlState({
 
   return {
     action: "sync",
-    icon: "refresh",
+    icon: "cloud-check",
+    dotTone: "green",
     isDisabled,
     isSpinning: false,
     label: relative ? `Synced ${relative}` : "Synced",

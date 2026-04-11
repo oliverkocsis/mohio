@@ -88,6 +88,11 @@ button {
   white-space: nowrap;
 }
 
+.top-bar__sync-status-label--active {
+  color: #b45309;
+  font-weight: 700;
+}
+
 .top-bar__sync-status-action {
   display: inline-flex;
   align-items: center;
@@ -119,6 +124,27 @@ button {
 .top-bar__sync-icon {
   width: 14px;
   height: 14px;
+}
+
+.top-bar__sync-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.top-bar__sync-dot--green {
+  color: #16a34a;
+}
+
+.top-bar__sync-dot--amber {
+  color: #d97706;
+}
+
+.top-bar__sync-dot--blue {
+  color: #2563eb;
+}
+
+.top-bar__sync-dot--grey {
+  color: #9ca3af;
 }
 
 .top-bar__sync-icon--spinning {
