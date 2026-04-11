@@ -419,7 +419,18 @@ export function App() {
     }
 
     const intervalId = window.setInterval(() => {
-      void refreshAutoSyncStatus();
+      // Periodic fetch-pull-merge (non-blocking background sync)
+      void (async () => {
+        try {
+          setIsSyncingNow(true);
+          await window.mohio.syncIncomingChanges();
+        } catch {
+          // Silently handle sync errors - user will see status in UI
+        } finally {
+          await refreshAutoSyncStatus();
+          setIsSyncingNow(false);
+        }
+      })();
     }, 60_000);
 
     return () => {
@@ -565,11 +576,6 @@ export function App() {
     }
 
     await editor.saveNow().catch(() => undefined);
-    await window.mohio.recordRiskyCommit({
-      trigger: "document-switch",
-      force: true,
-    }).catch(() => undefined);
-    await refreshAutoSyncStatus();
     setActiveDocumentPath(documentId);
   };
 
@@ -795,10 +801,7 @@ export function App() {
 
     try {
       await editor.saveNow().catch(() => undefined);
-      await window.mohio.recordRiskyCommit({
-        trigger: "assistant-dispatch",
-        force: true,
-      }).catch(() => undefined);
+
 
       let threadId = assistantThread?.id;
 
@@ -829,30 +832,7 @@ export function App() {
     }
   };
 
-  useEffect(() => {
-    if (!workspace || !activeDocumentPath) {
-      return;
-    }
 
-    const timeoutId = window.setTimeout(() => {
-      void editor.saveNow()
-        .catch(() => undefined)
-        .finally(() => {
-          void window.mohio.recordRiskyCommit({
-            trigger: "idle-pulse",
-            force: true,
-          })
-            .catch(() => undefined)
-            .finally(() => {
-              void refreshAutoSyncStatus();
-            });
-        });
-    }, 180_000);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [activeDocumentPath, activeDraftMarkdown, activeDraftTitle, workspace?.path]);
 
   useEffect(() => {
     if (!workspace || !activeDocumentPath || editor.saveState !== "saved") {
@@ -906,6 +886,7 @@ export function App() {
     isOnline,
     isSyncingNow,
     hasPendingChanges: editor.isDirty || (autoSyncStatus?.hasUncommittedChanges ?? false),
+    changedFileCount: Math.max(autoSyncStatus?.changedFileCount ?? 0, editor.isDirty ? 1 : 0),
     remoteConnected: (workspaceGitStatus?.remoteConnected ?? false) || (autoSyncStatus?.remoteConnected ?? false),
     lastSyncedAt: autoSyncStatus?.lastSyncedAt ?? null,
     hasSyncError: Boolean(syncNowError || syncError),
@@ -1747,6 +1728,7 @@ function getSyncControlState({
   isOnline,
   isSyncingNow,
   hasPendingChanges,
+  changedFileCount,
   remoteConnected,
   lastSyncedAt,
   hasSyncError,
@@ -1757,6 +1739,7 @@ function getSyncControlState({
   isOnline: boolean;
   isSyncingNow: boolean;
   hasPendingChanges: boolean;
+  changedFileCount?: number;
   remoteConnected: boolean;
   lastSyncedAt: string | null;
   hasSyncError: boolean;
@@ -1826,7 +1809,7 @@ function getSyncControlState({
     return {
       action: "sync",
       icon: "offline",
-      isDisabled,
+      isDisabled: true,
       isSpinning: false,
       label: relative ? `Offline (last synced ${relative})` : "Offline",
       variant: "offline",
@@ -1837,20 +1820,23 @@ function getSyncControlState({
     return {
       action: "sync",
       icon: "alert",
-      isDisabled,
+      isDisabled: true,
       isSpinning: false,
       label: "Sync paused",
       variant: "error",
     };
   }
 
+  // 3-state model: Syncing (handled above), Local Changes, or Synced
   if (hasPendingChanges) {
+    const changeCount = changedFileCount ?? 1;
+    const label = changeCount === 1 ? "1 local change" : `${changeCount} local changes`;
     return {
       action: "sync",
       icon: "refresh",
       isDisabled: false,
       isSpinning: false,
-      label: "Changes pending",
+      label,
       variant: "pending",
     };
   }

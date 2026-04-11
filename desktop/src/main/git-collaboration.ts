@@ -481,6 +481,7 @@ export function createGitCollaborationService() {
       return {
         enabled: false,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: null,
         remoteConnected: false,
         requiresIdentitySetup: false,
@@ -492,6 +493,7 @@ export function createGitCollaborationService() {
       return {
         enabled: false,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: null,
         remoteConnected: workspaceStatus.remoteConnected,
         requiresIdentitySetup: true,
@@ -502,7 +504,9 @@ export function createGitCollaborationService() {
     const status = await runGit(workspacePath, ["status", "--porcelain", "--", ...MARKDOWN_PATHS], {
       allowFailure: true,
     });
-    const hasUncommittedChanges = status.code === 0 && status.stdout.trim().length > 0;
+    const statusOutput = status.stdout.trim();
+    const hasUncommittedChanges = status.code === 0 && statusOutput.length > 0;
+    const changedFileCount = hasUncommittedChanges ? statusOutput.split('\n').filter(line => line.trim().length > 0).length : 0;
     const upstream = await getUpstreamBranch(workspacePath);
     let lastSyncedAt: string | null = null;
 
@@ -518,6 +522,7 @@ export function createGitCollaborationService() {
     return {
       enabled: true,
       hasUncommittedChanges,
+      changedFileCount,
       lastSyncedAt,
       remoteConnected: workspaceStatus.remoteConnected,
       requiresIdentitySetup: false,
@@ -603,23 +608,11 @@ export function createGitCollaborationService() {
       message: `Applying ${behindCount} incoming update${behindCount === 1 ? "" : "s"}.`,
     });
 
-    await writeCommit(workspacePath, {
-      force: true,
-      minLineDelta: 0,
-      syncBeforeCommit: false,
-    });
-
     const mergeResult = await runGit(workspacePath, ["merge", "--no-ff", "--no-commit", upstream], {
       allowFailure: true,
     });
 
     if (mergeResult.code === 0) {
-      await runGit(workspacePath, ["commit", "-m", createSnapshotCommitMessage()]);
-      try {
-        await pushWorkspace(workspacePath);
-      } catch {
-        // Keep merge application successful even if sharing fails right now.
-      }
       const appliedAt = new Date().toISOString();
       const state: SyncState = {
         ...defaultSyncState,
@@ -713,11 +706,6 @@ export function createGitCollaborationService() {
     }
 
     await runGit(workspacePath, ["commit", "-m", createSnapshotCommitMessage()]);
-    try {
-      await pushWorkspace(workspacePath);
-    } catch {
-      // Conflict resolution should complete even if sharing fails right now.
-    }
 
     const resolvedState: SyncState = {
       ...defaultSyncState,

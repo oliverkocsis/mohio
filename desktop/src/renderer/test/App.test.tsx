@@ -139,6 +139,7 @@ function createMohioMock(overrides: Partial<MohioApi> = {}): MohioApi {
     getAutoSyncStatus: async () => ({
       enabled: true,
       hasUncommittedChanges: false,
+      changedFileCount: 0,
       lastSyncedAt: null,
       remoteConnected: false,
       requiresIdentitySetup: false,
@@ -452,6 +453,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: true,
         hasUncommittedChanges: true,
+        changedFileCount: 1,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -499,6 +501,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: true,
         hasUncommittedChanges: true,
+        changedFileCount: 1,
         lastSyncedAt: null,
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -536,6 +539,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: true,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: "2026-04-04T11:56:01.000Z",
         remoteConnected: false,
         requiresIdentitySetup: false,
@@ -655,6 +659,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: false,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: null,
         remoteConnected: false,
         requiresIdentitySetup: true,
@@ -681,6 +686,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: true,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -702,6 +708,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: true,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -720,7 +727,7 @@ describe("App", () => {
       });
     });
 
-    expect(screen.getByText("Changes pending")).toBeInTheDocument();
+    expect(screen.getByText("1 local change")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sync now" })).toBeEnabled();
   });
 
@@ -752,6 +759,7 @@ describe("App", () => {
       getAutoSyncStatus: async () => ({
         enabled: true,
         hasUncommittedChanges: false,
+        changedFileCount: 0,
         lastSyncedAt: new Date().toISOString(),
         remoteConnected: true,
         requiresIdentitySetup: false,
@@ -795,6 +803,7 @@ describe("App", () => {
         getAutoSyncStatus: async () => ({
           enabled: true,
           hasUncommittedChanges: false,
+          changedFileCount: 0,
           lastSyncedAt: "2026-04-04T11:56:01.000Z",
           remoteConnected: true,
           requiresIdentitySetup: false,
@@ -823,6 +832,7 @@ describe("App", () => {
         getAutoSyncStatus: async () => ({
           enabled: true,
           hasUncommittedChanges: false,
+          changedFileCount: 0,
           lastSyncedAt: "2026-04-04T11:56:01.000Z",
           remoteConnected: true,
           requiresIdentitySetup: false,
