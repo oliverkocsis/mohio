@@ -429,7 +429,7 @@ export function App() {
         try {
           setSyncActivity("pulling");
           setIsSyncingNow(true);
-          await window.mohio.syncIncomingChanges();
+          await window.mohio.syncIncomingChanges("periodic-sync");
         } catch {
           // Silently handle sync errors - user will see status in UI
         } finally {
@@ -1926,7 +1926,7 @@ function formatRelativeTime(isoDateTime: string): string | null {
 }
 
 function formatCommitSubject(subject: string): string {
-  if (/^Snapshot:\s+\d{4}-\d{2}-\d{2}$/.test(subject)) {
+  if (/^Snapshot:\s+\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}\.\d{3}Z)?$/.test(subject)) {
     return "Snapshot";
   }
 

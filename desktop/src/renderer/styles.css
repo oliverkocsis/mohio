@@ -89,8 +89,7 @@ button {
 }
 
 .top-bar__sync-status-label--active {
-  color: #b45309;
-  font-weight: 700;
+  color: var(--text-secondary);
 }
 
 .top-bar__sync-status-action {

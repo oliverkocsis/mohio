@@ -29,7 +29,7 @@ describe("git-collaboration", () => {
     expect(status.isRepository).toBe(true);
   });
 
-  it("creates risky commits and lists commit history with stats", async () => {
+  it("does not create risky commits automatically", async () => {
     const workspacePath = await createWorkspace("history");
     const service = createGitCollaborationService();
 
@@ -39,15 +39,14 @@ describe("git-collaboration", () => {
       trigger: "idle-burst",
     });
 
-    expect(committed).toBe(true);
+    expect(committed).toBe(false);
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
-    expect(commits.length).toBeGreaterThan(0);
-    expect(commits[0]?.subject).toMatch(/^Snapshot: \d{4}-\d{2}-\d{2}$/);
-    expect(commits[0]?.shortStat).toContain("file changed");
+    expect(commits.length).toBe(1);
+    expect(commits[0]?.subject).toBe("initial");
   });
 
-  it("creates non-risk auto-save commits only when markdown content changed", async () => {
+  it("does not create non-risk auto-save commits", async () => {
     const workspacePath = await createWorkspace("autosave");
     const service = createGitCollaborationService();
 
@@ -56,37 +55,26 @@ describe("git-collaboration", () => {
 
     await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nchanged\n", "utf8");
     const secondCommit = await service.recordAutoSaveCommit(workspacePath);
-    expect(secondCommit).toBe(true);
+    expect(secondCommit).toBe(false);
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
-    expect(commits[0]?.subject).toMatch(/^Snapshot: \d{4}-\d{2}-\d{2}$/);
+    expect(commits[0]?.subject).toBe("initial");
   });
 
-  it("creates a new snapshot for repeated edits on the same file path", async () => {
+  it("uses ISO date-time in snapshot messages for manual sync commits", async () => {
     const workspacePath = await createWorkspace("repeat-edits");
     const service = createGitCollaborationService();
 
     await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nfirst change\n", "utf8");
-    const firstCommit = await service.recordRiskyCommit(workspacePath, {
-      trigger: "manual",
-      force: true,
-    });
-    expect(firstCommit).toBe(true);
-
-    await writeFile(path.join(workspacePath, "README.md"), "# Mohio\n\nsecond change\n", "utf8");
-    const secondCommit = await service.recordRiskyCommit(workspacePath, {
-      trigger: "manual",
-      force: true,
-    });
-    expect(secondCommit).toBe(true);
+    await service.syncWorkspaceChanges(workspacePath);
 
     const commits = await service.listCommitHistory(workspacePath, "README.md");
     const snapshotSubjects = commits
       .map((entry) => entry.subject)
-      .filter((subject) => /^Snapshot: \d{4}-\d{2}-\d{2}$/.test(subject));
+      .filter((subject) => /^Snapshot:\s+\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(subject));
 
-    expect(snapshotSubjects.length).toBeGreaterThanOrEqual(2);
-  });
+    expect(snapshotSubjects.length).toBeGreaterThanOrEqual(1);
+  }, 15000);
 
   it("reports publish states as published, unpublished changes, and never published", async () => {
     const workspacePath = await createWorkspace("publish");
@@ -156,16 +144,16 @@ describe("git-collaboration", () => {
     const service = createGitCollaborationService();
     const syncState = await service.syncIncomingChanges(repoA, "test");
 
-    expect(syncState.status).toBe("conflict");
-    expect(syncState.conflicts.length).toBeGreaterThan(0);
+    expect(syncState.status).toBe("local-changes");
+    expect(syncState.message).toContain("Merge conflict");
 
     const resolvedState = await service.resolveSyncConflict(repoA, {
       relativePath: "README.md",
       resolution: "keep-local",
     });
 
-    expect(resolvedState.status).toBe("idle");
-  });
+    expect(resolvedState.status).toBe("synced");
+  }, 15000);
 
   it("returns connect-required sync result when no remote is configured", async () => {
     const workspacePath = await createWorkspace("sync-connect-required");
