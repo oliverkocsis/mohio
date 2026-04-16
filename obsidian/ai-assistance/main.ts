@@ -151,6 +151,7 @@ interface AssistantRuntime {
 }
 
 function createAssistantRuntime(): AssistantRuntime {
+  console.log("[Mohio] AssistantRuntime: Creating...");
   const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const now = () => new Date().toISOString();
   const listeners = new Set<(event: AssistantEvent) => void>();
@@ -159,6 +160,7 @@ function createAssistantRuntime(): AssistantRuntime {
   let childProcess: ChildProcessWithoutNullStreams | null = null;
 
   const emit = (event: AssistantEvent) => {
+    console.log("[Mohio] Emitting event:", event.type);
     for (const listener of listeners) {
       listener(event);
     }
@@ -185,9 +187,11 @@ function createAssistantRuntime(): AssistantRuntime {
 
   const getConnection = () => {
     if (!connectionPromise) {
+      console.log("[Mohio] GetConnection: Creating new connection...");
       connectionPromise = createServerConnection({
         onChildProcess: (child) => { childProcess = child; },
         onExit: (errorMessage) => {
+          console.error("[Mohio] Server connection closed:", errorMessage);
           for (const [threadId, threadState] of threadStates.entries()) {
             if (threadState.thread.status !== "running") continue;
             threadState.turnId = null;
@@ -200,6 +204,7 @@ function createAssistantRuntime(): AssistantRuntime {
           childProcess = null;
         },
         onNotification: (notification) => {
+          console.log("[Mohio] Received notification:", notification.method);
           handleServerNotification({
             createId,
             emitThread,
@@ -262,25 +267,34 @@ function createAssistantRuntime(): AssistantRuntime {
   }: {
     workspacePath: string;
   }): Promise<AssistantThreadSummary[]> => {
-    const connection = await getConnection();
-    let nextCursor: string | null = null;
-    const threads: AssistantThreadSummary[] = [];
+    console.log("[Mohio] ListThreads: Fetching from", workspacePath);
+    try {
+      const connection = await getConnection();
+      let nextCursor: string | null = null;
+      const threads: AssistantThreadSummary[] = [];
 
-    do {
-      const response: { data: CodexThread[]; nextCursor: string | null } =
-        await connection.request("thread/list", {
-          archived: false,
-          cursor: nextCursor,
-          cwd: workspacePath,
-          sortKey: "updated_at",
-        });
-      for (const thread of response.data) {
-        threads.push(mapCodexThreadToSummary(thread));
-      }
-      nextCursor = response.nextCursor;
-    } while (nextCursor);
+      do {
+        console.log("[Mohio] ListThreads: Requesting page, cursor:", nextCursor);
+        const response: { data: CodexThread[]; nextCursor: string | null } =
+          await connection.request("thread/list", {
+            archived: false,
+            cursor: nextCursor,
+            cwd: workspacePath,
+            sortKey: "updated_at",
+          });
+        console.log("[Mohio] ListThreads: Got", response.data.length, "threads");
+        for (const thread of response.data) {
+          threads.push(mapCodexThreadToSummary(thread));
+        }
+        nextCursor = response.nextCursor;
+      } while (nextCursor);
 
-    return threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      console.log("[Mohio] ListThreads: Total threads:", threads.length);
+      return threads.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    } catch (error) {
+      console.error("[Mohio] ListThreads error:", error);
+      throw error;
+    }
   };
 
   const createThread = async ({
@@ -533,9 +547,11 @@ function createServerConnection({
   onExit: (errorMessage: string) => void;
   onNotification: (notification: JsonRpcResponse) => void;
 }): Promise<AssistantServerConnection> {
+  console.log("[Mohio] CreateServerConnection: Spawning codex app-server...");
   const child = spawn("codex", ["app-server"], {
     stdio: "pipe",
   });
+  console.log("[Mohio] CreateServerConnection: Child process spawned, pid:", child.pid);
   onChildProcess(child);
 
   const stdoutReader = createInterface({ input: child.stdout });
@@ -550,6 +566,7 @@ function createServerConnection({
     request: <T>(method: string, params?: unknown) =>
       new Promise<T>((resolve, reject) => {
         const requestId = nextRequestId++;
+        console.log("[Mohio] Sending RPC:", method, "id:", requestId);
         pendingRequests.set(requestId, {
           resolve: (value) => resolve(value as T),
           reject,
@@ -559,7 +576,8 @@ function createServerConnection({
       }),
   };
 
-  child.on("close", () => {
+  child.on("close", (code) => {
+    console.error("[Mohio] Child process closed with code:", code);
     stdoutReader.close();
     stderrReader.close();
     for (const pending of pendingRequests.values()) {
@@ -569,15 +587,28 @@ function createServerConnection({
     onExit("Mohio lost its connection to the installed Codex app server.");
   });
 
+  child.on("error", (err) => {
+    console.error("[Mohio] Child process error:", err.message);
+    onExit(`Failed to start Codex: ${err.message}`);
+  });
+
   stdoutReader.on("line", (line) => {
     const parsed = parseJsonLine(line);
-    if (!parsed) return;
+    if (!parsed) {
+      console.log("[Mohio] Unparseable line:", line.substring(0, 80));
+      return;
+    }
 
     if (typeof parsed.id === "number") {
+      console.log("[Mohio] RPC response received, id:", parsed.id);
       const pending = pendingRequests.get(parsed.id);
-      if (!pending) return;
+      if (!pending) {
+        console.warn("[Mohio] No pending request for id:", parsed.id);
+        return;
+      }
       pendingRequests.delete(parsed.id);
       if (parsed.error) {
+        console.error("[Mohio] RPC error:", parsed.error.message);
         pending.reject(new Error(parsed.error.message ?? "Codex returned an unknown error."));
         return;
       }
@@ -586,12 +617,13 @@ function createServerConnection({
     }
 
     if (typeof parsed.method === "string") {
+      console.log("[Mohio] RPC notification:", parsed.method);
       onNotification(parsed);
     }
   });
 
-  stderrReader.on("line", () => {
-    // app-server may emit diagnostics on stderr — structured stream is authoritative.
+  stderrReader.on("line", (line) => {
+    console.log("[Mohio] Codex stderr:", line);
   });
 
   return connection
@@ -602,7 +634,15 @@ function createServerConnection({
       },
       clientInfo: { name: "mohio", title: "Mohio", version: "0.1.0" },
     })
-    .then(() => connection);
+    .then(() => {
+      console.log("[Mohio] CreateServerConnection: Initialized successfully");
+      return connection;
+    })
+    .catch((err) => {
+      console.error("[Mohio] CreateServerConnection: Initialize failed:", err);
+      child.kill();
+      throw err;
+    });
 }
 
 function handleServerNotification({
@@ -1112,6 +1152,7 @@ class AssistantView extends ItemView {
   }
 
   async onOpen() {
+    console.log("[Mohio] AssistantView.onOpen: Starting...");
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("mohio-assistant-container");
@@ -1123,6 +1164,7 @@ class AssistantView extends ItemView {
     this.buildFooter();
 
     this.unsubscribeRuntime = this.runtime.onEvent((event) => {
+      console.log("[Mohio] Runtime event received:", event.type);
       if (event.workspacePath !== this.vaultPath) return;
 
       if (event.type === "thread-list") {
@@ -1161,7 +1203,9 @@ class AssistantView extends ItemView {
       this.updateComposerState();
     }) as unknown as () => void;
 
+    console.log("[Mohio] AssistantView.onOpen: Showing list view...");
     await this.showListView();
+    console.log("[Mohio] AssistantView.onOpen: Complete");
   }
 
   async onClose() {
@@ -1174,14 +1218,18 @@ class AssistantView extends ItemView {
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   private async showListView() {
+    console.log("[Mohio] ShowListView: Starting...");
     this.viewMode = "list";
     this.activeThread = null;
     this.isLoadingThreads = true;
     this.renderList();
 
     try {
+      console.log("[Mohio] ShowListView: Calling listThreads...");
       this.threads = await this.runtime.listThreads({ workspacePath: this.vaultPath });
-    } catch {
+      console.log("[Mohio] ShowListView: Got", this.threads.length, "threads");
+    } catch (error) {
+      console.error("[Mohio] ShowListView: Error listing threads:", error);
       this.threads = [];
     } finally {
       this.isLoadingThreads = false;
@@ -1189,6 +1237,7 @@ class AssistantView extends ItemView {
 
     this.renderList();
     this.updateComposerState();
+    console.log("[Mohio] ShowListView: Complete");
   }
 
   private async showThreadView(threadId: string) {
@@ -1537,43 +1586,58 @@ export default class MohioAIAssistancePlugin extends Plugin {
   private runtime: AssistantRuntime | null = null;
 
   async onload() {
+    console.log("[Mohio] Plugin.onload: Starting...");
     const vaultPath = this.getVaultPath();
     const vaultName = this.app.vault.getName();
+    console.log("[Mohio] Vault path:", vaultPath);
+    console.log("[Mohio] Vault name:", vaultName);
 
     this.runtime = createAssistantRuntime();
     const runtime = this.runtime;
 
     this.registerView(VIEW_TYPE_ASSISTANT, (leaf) => {
+      console.log("[Mohio] Creating AssistantView...");
       return new AssistantView(leaf, runtime, vaultPath, vaultName);
     });
 
     this.addRibbonIcon("bot", "Open AI Assistance", () => {
+      console.log("[Mohio] Ribbon icon clicked");
       void this.activateView();
     });
 
     this.addCommand({
       id: "open-ai-assistance",
       name: "Open AI assistance panel",
-      callback: () => { void this.activateView(); },
+      callback: () => {
+        console.log("[Mohio] Command executed");
+        void this.activateView();
+      },
     });
+
+    console.log("[Mohio] Plugin.onload: Complete");
   }
 
   async onunload() {
+    console.log("[Mohio] Plugin.onunload: Cleaning up...");
     this.runtime?.dispose();
     this.runtime = null;
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_ASSISTANT);
+    console.log("[Mohio] Plugin.onunload: Complete");
   }
 
   private async activateView() {
+    console.log("[Mohio] ActivateView: Starting...");
     const { workspace } = this.app;
     let leaf = workspace.getLeavesOfType(VIEW_TYPE_ASSISTANT)[0];
 
     if (!leaf) {
+      console.log("[Mohio] Creating new leaf...");
       leaf = workspace.getRightLeaf(false) ?? workspace.getLeaf(true);
       await leaf.setViewState({ type: VIEW_TYPE_ASSISTANT, active: true });
     }
 
     workspace.revealLeaf(leaf);
+    console.log("[Mohio] ActivateView: Complete");
   }
 
   private getVaultPath(): string {
