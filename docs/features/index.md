@@ -6,9 +6,11 @@ This section is developer-facing. It documents Mohio's current implementation an
 
 - [AI Assistance Panel](ai-assistance-panel.md)
   - Codex-backed workspace chat, Codex-native history, parallel chats, and assistant IPC
+  - Implemented in: `desktop/` (Electron app), `obsidian/ai-assistance/` (Obsidian plugin — scaffold only)
 - [Desktop Shell and Workspace](desktop-shell-and-workspace.md)
   - Electron shell, preload bridge, workspace selection, and workspace tree behavior
 - [Document Editing and Persistence](document-editing-and-persistence.md)
   - Markdown parsing, rich-text editing, autosave, and file-change handling
 - [Review, History, Publish, and Sync](review-history-publish-and-sync.md)
   - Git-backed checkpoints, publish visibility, and incoming-change conflict guidance
+  - Implemented in: `desktop/` (Electron app), `obsidian/git-sync/` (Obsidian plugin — scaffold only)

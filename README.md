@@ -48,6 +48,25 @@ Other useful commands:
 - `npm test`
 - `npm run build`
 
+## Obsidian Plugins
+
+Mohio also ships as two Obsidian plugins under `obsidian/`. Both are scaffold-only and not yet implemented.
+
+| Plugin | Directory | Feature |
+|---|---|---|
+| Mohio AI Assistance | `obsidian/ai-assistance/` | [AI Assistance Panel](docs/features/ai-assistance-panel.md) |
+| Mohio Git Sync | `obsidian/git-sync/` | [Review, History, Publish, and Sync](docs/features/review-history-publish-and-sync.md) |
+
+Quickstart development (per plugin):
+
+```
+cd obsidian/ai-assistance   # or obsidian/git-sync
+npm install
+npm run dev
+```
+
+See each plugin's `README.md` for development and installation instructions.
+
 ## Documentation Maintenance
 
 Every developer should maintain the documentation as the product evolves.

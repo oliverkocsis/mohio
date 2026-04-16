@@ -1,0 +1,10 @@
+{
+  "id": "mohio-ai-assistance",
+  "name": "Mohio AI Assistance",
+  "version": "0.0.1",
+  "minAppVersion": "1.0.0",
+  "description": "Bring-your-own-AI assistance panel for Mohio workspaces inside Obsidian. Integrates Codex-backed chat with the active document.",
+  "author": "Mohio",
+  "authorUrl": "https://github.com/mohio",
+  "isDesktopOnly": false
+}

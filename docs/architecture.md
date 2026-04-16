@@ -5,6 +5,9 @@ This document defines Mohio's current system boundary and data flow.
 ## Current Boundary
 
 - Single desktop application in `desktop/`
+- Two Obsidian plugins in `obsidian/` (scaffold only, not yet implemented):
+  - `obsidian/ai-assistance/` — AI assistance panel backed by the locally installed `codex` CLI
+  - `obsidian/git-sync/` — Git-backed snapshot history, manual publish sync, and incoming-change conflict guidance
 - Local-first workspace model
 - No backend service
 - No user account system

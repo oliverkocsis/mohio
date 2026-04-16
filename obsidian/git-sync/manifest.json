@@ -1,0 +1,10 @@
+{
+  "id": "mohio-git-sync",
+  "name": "Mohio Git Sync",
+  "version": "0.0.1",
+  "minAppVersion": "1.0.0",
+  "description": "Git-backed snapshot history, manual publish sync, and incoming-change conflict guidance for Mohio workspaces inside Obsidian.",
+  "author": "Mohio",
+  "authorUrl": "https://github.com/mohio",
+  "isDesktopOnly": true
+}
