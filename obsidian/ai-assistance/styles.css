@@ -1,2 +1,318 @@
 /* Mohio AI Assistance plugin styles */
-/* Implementation not started yet. See docs/features/ai-assistance-panel.md */
+
+/* ── Container ──────────────────────────────────────────────────────────────── */
+
+.mohio-assistant-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mohio-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Main scrollable content ────────────────────────────────────────────────── */
+
+.mohio-main-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Loading / empty state ──────────────────────────────────────────────────── */
+
+.mohio-loading,
+.mohio-empty-state {
+  padding: 24px 16px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  text-align: center;
+}
+
+/* ── Thread list ─────────────────────────────────────────────────────────────── */
+
+.mohio-thread-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.mohio-thread-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 80ms ease;
+}
+
+.mohio-thread-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.mohio-thread-item-title {
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-normal);
+}
+
+/* ── Thread header ───────────────────────────────────────────────────────────── */
+
+.mohio-thread-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.mohio-thread-title {
+  flex: 1;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-normal);
+}
+
+.mohio-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background-color 80ms ease, color 80ms ease;
+}
+
+.mohio-icon-btn:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.mohio-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Thread menu (dropdown) ──────────────────────────────────────────────────── */
+
+.mohio-thread-menu {
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-s);
+  padding: 4px;
+  min-width: 140px;
+}
+
+.mohio-thread-menu-item {
+  padding: 6px 10px;
+  font-size: var(--font-ui-small);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-normal);
+  transition: background-color 80ms ease;
+}
+
+.mohio-thread-menu-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* ── Transcript ──────────────────────────────────────────────────────────────── */
+
+.mohio-transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mohio-message {
+  display: flex;
+  flex-direction: column;
+}
+
+.mohio-message--user .mohio-message-content {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  align-self: flex-start;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mohio-message--assistant .mohio-message-content {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.mohio-error-message {
+  font-size: var(--font-ui-small);
+  color: var(--text-error);
+  padding: 8px 0;
+}
+
+/* ── Thinking indicator ──────────────────────────────────────────────────────── */
+
+.mohio-thinking {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  animation: mohio-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes mohio-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ── Footer (pinned) ─────────────────────────────────────────────────────────── */
+
+.mohio-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: var(--background-primary);
+}
+
+/* ── Quick action pills ──────────────────────────────────────────────────────── */
+
+.mohio-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mohio-quick-action-pill {
+  font-size: var(--font-ui-smaller);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 80ms ease, color 80ms ease;
+}
+
+.mohio-quick-action-pill:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* ── Composer ────────────────────────────────────────────────────────────────── */
+
+.mohio-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 6px 6px 6px 10px;
+}
+
+.mohio-composer-textarea {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  line-height: 1.5;
+  min-height: 24px;
+  max-height: 120px; /* ~5 lines */
+  overflow-y: auto;
+}
+
+.mohio-composer-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.mohio-composer-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mohio-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-accent);
+  flex-shrink: 0;
+  transition: opacity 80ms ease;
+  align-self: flex-end;
+}
+
+.mohio-send-btn:hover:not(:disabled) {
+  opacity: 0.75;
+}
+
+.mohio-send-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.mohio-send-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Prompt modal ────────────────────────────────────────────────────────────── */
+
+.mohio-prompt-label {
+  margin-bottom: 8px;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.mohio-prompt-input {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.mohio-prompt-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+

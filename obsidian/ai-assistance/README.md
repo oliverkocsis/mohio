@@ -8,7 +8,7 @@ See [docs/features/ai-assistance-panel.md](../../docs/features/ai-assistance-pan
 
 ## Status
 
-Scaffold only. Implementation not started yet.
+Implemented. See `main.ts` for the full plugin implementation.
 
 ## Planned Capabilities
 
